@@ -2,11 +2,21 @@ from flask import Flask, render_template, request, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User
+from functools import wraps
+from flask import abort
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
 app.config['SECRET_KEY'] = 'dev-secret-change-this-later'
 db.init_app(app)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -28,6 +38,7 @@ def products():
 
 @app.route('/products/add', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def add_product():
     if request.method == 'POST':
         new_product = Product(
@@ -44,6 +55,7 @@ def add_product():
 
 @app.route('/products/edit/<int:product_id>', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
     if request.method == 'POST':
@@ -58,6 +70,7 @@ def edit_product(product_id):
 
 @app.route('/products/delete/<int:product_id>', methods=['POST'])
 @login_required
+@admin_required
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
     db.session.delete(product)
@@ -75,6 +88,10 @@ def login():
             return redirect(url_for('products'))
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('403.html'), 403
 
 @app.route('/logout')
 @login_required

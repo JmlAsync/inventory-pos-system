@@ -1,0 +1,56 @@
+@startuml
+' Use case diagram - Inventory & POS System (v0.7.0 + planned features)
+' Paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+' Lines starting with an apostrophe are comments and are not drawn.
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+
+actor Visitor
+actor User
+actor Admin
+actor Cashier
+
+' Generalization: Admin and Cashier are kinds of User
+User <|-- Admin
+User <|-- Cashier
+
+rectangle "Inventory & POS System" {
+  usecase "View home page" as UC01
+  usecase "Log in" as UC02
+  usecase "Log out" as UC03
+  usecase "View product list" as UC04
+  usecase "Add product" as UC05
+  usecase "Edit product" as UC06
+  usecase "Delete product" as UC07
+  usecase "Check permission\n(role)" as CHK
+  usecase "Process sale\n(planned)" as UC08 #line.dashed
+  usecase "View low-stock warning\n(planned)" as UC09 #line.dashed
+  usecase "View sales report\n(planned)" as UC10 #line.dashed
+}
+
+Visitor -- UC01
+Visitor -- UC02
+
+User -- UC03
+User -- UC04
+
+Admin -- UC05
+Admin -- UC06
+Admin -- UC07
+Admin -- UC09
+Admin -- UC10
+
+Cashier -- UC08
+
+UC05 ..> CHK : <<include>>
+UC06 ..> CHK : <<include>>
+UC07 ..> CHK : <<include>>
+UC08 ..> CHK : <<include>>
+
+UC09 ..> UC04 : <<extend>>
+@enduml

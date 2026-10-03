@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.7.0** (tagged 2026-08-13).
+> This draft covers the system up to **v0.7.1** (tagged 2026-10-04).
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
 > This is a *draft*, not the final report. The final report will be written in LibreOffice Writer and must
@@ -72,6 +72,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.5.0 | Edit and delete products | Yes: full CRUD |
 | v0.6.0 | Log in / log out | Yes |
 | v0.7.0 | Admin vs. Cashier permissions | Yes |
+| v0.7.1 | Bug fixes found by testing (patch) | Yes: invalid input now rejected with a message |
 | v0.8.0 → | Sale processing, low-stock warning, sales report (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -109,6 +110,8 @@ The tag message summarizes what the increment added.
 | v0.5.0 | 2026-08-12 | `51f0ecc` | Full product CRUD: create, read, update, delete |
 | v0.6.0 | 2026-08-12 | `2d1a6ae` | User authentication (login/logout, no role restrictions yet) |
 | v0.7.0 | 2026-08-13 | `6f552f9` | Role-based access: Admin can manage products, Cashier is view-only |
+| — | 2026-10-03 | `e76f4a1` | *(no tag)* Add documentation draft, test results and use case diagram |
+| v0.7.1 | 2026-10-04 | `6043cdb` | Product validation fixes: duplicate SKU, negative values, peso sign *(first feature branch + pull request #1)* |
 
 **How the version numbers work (semantic versioning):** `MAJOR.MINOR.PATCH`.
 - **MINOR** goes up when a new feature is added (v0.6.0 → v0.7.0).
@@ -237,10 +240,10 @@ cash in the drawer.
 |---|---|---|---|---|---|
 | TC-2.1 | Logged in as admin | Coke 1.5L, BEV-001, 75.50, 24, Beverages | Saved; redirect to list; shown as 75.50 | Saved, redirect, shown | ✅ |
 | TC-2.2 | Admin | Noodles, FD-001, 15, 10, *(no category)* | Saved with empty category | Saved | ✅ |
-| TC-2.3 | Admin, BEV-001 already exists | Dup, **BEV-001**, 1, 1 | Error message "SKU already exists"; nothing saved | **500 server crash** (database unique-constraint error not handled) *(also confirmed by hand: `IntegrityError`)* | ❌ DEF-01 |
-| TC-2.4 | Admin | price = `abc` (sent without the browser's check) | Error message; nothing saved | **500 server crash** | ❌ DEF-02 |
-| TC-2.5 | Admin | price = **-5**, quantity = **-3** | Rejected: price and quantity cannot be negative | **Accepted and saved** with negative values *(negative price also confirmed by hand)* | ❌ DEF-03 |
-| TC-2.6 | Admin | name = *(empty)*, sent without the browser's check | Rejected: name required | **Accepted**; product saved with no name | ❌ DEF-04 |
+| TC-2.3 | Admin, BEV-001 already exists | Dup, **BEV-001**, 1, 1 | Error message "SKU already exists"; nothing saved | **500 server crash** (database unique-constraint error not handled) *(also confirmed by hand: `IntegrityError`)* · **v0.7.1:** red message, nothing saved *(confirmed by hand)* | ❌→✅ DEF-01 |
+| TC-2.4 | Admin | price = `abc` (sent without the browser's check) | Error message; nothing saved | **500 server crash** · **v0.7.1:** error message, nothing saved | ❌→✅ DEF-02 |
+| TC-2.5 | Admin | price = **-5**, quantity = **-3** | Rejected: price and quantity cannot be negative | **Accepted and saved** with negative values *(negative price also confirmed by hand)* · **v0.7.1:** rejected by browser (`min="0"`) and by server | ❌→✅ DEF-03 |
+| TC-2.6 | Admin | name = *(empty)*, sent without the browser's check | Rejected: name required | **Accepted**; product saved with no name · **v0.7.1:** rejected with message | ❌→✅ DEF-04 |
 
 > **Why "sent without the browser's check"?** The form's HTML has `required` and `type="number"`, so a
 > normal browser stops you before sending. But anyone can bypass the browser (with developer tools or a
@@ -258,7 +261,7 @@ cash in the drawer.
 | TC-3.1 | Admin, product 1 exists | Open `/products/edit/1` | Form pre-filled with current values | Pre-filled | ✅ |
 | TC-3.2 | Admin | Change price 75.50 → 80, quantity 24 → 20, save | Saved; list shows new values | Saved (80.0, 20) | ✅ |
 | TC-3.3 | Admin | Open `/products/edit/999` | 404 Not Found | 404 | ✅ |
-| TC-3.4 | Admin, FD-001 belongs to another product | Change product 1's SKU to FD-001 | Error "SKU already exists" | **500 server crash** | ❌ DEF-01 |
+| TC-3.4 | Admin, FD-001 belongs to another product | Change product 1's SKU to FD-001 | Error "SKU already exists" | **500 server crash** · **v0.7.1:** error message, nothing changed | ❌→✅ DEF-01 |
 
 ### F4 — Delete product
 
@@ -313,12 +316,14 @@ cash in the drawer.
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
 | F1 View list | 3 | 3 | 0 | 0 |
-| F2 Add | 6 | 2 | 4 | 0 |
-| F3 Edit | 4 | 3 | 1 | 0 |
+| F2 Add | 6 | 2 → **6** | 4 → **0** | 0 |
+| F3 Edit | 4 | 3 → **4** | 1 → **0** | 0 |
 | F4 Delete | 4 | 3 | 0 | 1 |
 | F5 Login/out | 8 | 7 | 0 | 1 |
 | F6 Roles | 6 | 6 | 0 | 0 |
-| **Total** | **31** | **24** | **5** | **2** |
+| **Total** | **31** | **24 → 29** | **5 → 0** | **2** |
+
+*Numbers shown as v0.7.0 → v0.7.1. On 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**.*
 
 > Failing tests are **not** a bad thing to show in a report. Finding defects is the *purpose* of testing
 > (Sommerville calls this **defect testing**). Showing a defect, its fix, and the test passing afterwards
@@ -328,16 +333,21 @@ cash in the drawer.
 
 ## 7. Defects found during testing
 
-| ID | Severity | Description | Found by | Suggested fix | Target |
+| ID | Severity | Description | Found by | Fix | Status / target |
 |---|---|---|---|---|---|
-| DEF-01 | **High** | Adding or editing a product with an SKU that already exists crashes the server (500) instead of showing a message | TC-2.3, TC-3.4 | Before saving, check `Product.query.filter_by(sku=...)` (excluding the product being edited); if found, show the form again with an error | v0.7.1 |
-| DEF-02 | Medium | Non-number price/quantity crashes the server if the browser check is bypassed | TC-2.4 | Wrap `float()` / `int()` in `try/except ValueError` and show an error | v0.7.1 |
-| DEF-03 | **High** | Negative price and negative quantity are accepted | TC-2.5 | Server check: `price >= 0`, `quantity >= 0`; also add `min="0"` to the form inputs | v0.7.1 |
-| DEF-04 | Medium | Empty name/SKU accepted if the browser check is bypassed | TC-2.6 | Server check: `.strip()` the value and reject if empty | v0.7.1 |
-| DEF-05 | Low | Prices display with a `$` sign, but the store is in the Philippines | Code review; confirmed by hand | Change the `$` in `products.html` to `₱` | v0.7.1 |
+| DEF-01 | **High** | Adding or editing a product with an SKU that already exists crashes the server (500) instead of showing a message | TC-2.3, TC-3.4 | Before saving, check `Product.query.filter_by(sku=...)` (excluding the product being edited); if found, show the form again with an error | ✅ Fixed v0.7.1 |
+| DEF-02 | Medium | Non-number price/quantity crashes the server if the browser check is bypassed | TC-2.4 | Wrap `float()` / `int()` in `try/except ValueError` and show an error | ✅ Fixed v0.7.1 |
+| DEF-03 | **High** | Negative price and negative quantity are accepted | TC-2.5 | Server check: `price >= 0`, `quantity >= 0`; also add `min="0"` to the form inputs | ✅ Fixed v0.7.1 |
+| DEF-04 | Medium | Empty name/SKU accepted if the browser check is bypassed | TC-2.6 | Server check: `.strip()` the value and reject if empty | ✅ Fixed v0.7.1 |
+| DEF-05 | Low | Prices display with a `$` sign, but the store is in the Philippines | Code review; confirmed by hand | Change the `$` in `products.html` to `₱` | ✅ Fixed v0.7.1 |
 | DEF-06 | Low | After logging in, the user is always sent to Products instead of the page they first asked for | TC-5.8 | Read `request.args.get('next')` and redirect there (only if it is a page within this site) | later |
 | DEF-07 | Security, before submission | `SECRET_KEY` is written directly in `app.py` and pushed to a public GitHub repository | Code review | Read it from an environment variable; keep a development fallback | v1.0.0 |
 | DEF-08 | Security, before submission | Forms have no **CSRF protection** (CSRF = Cross-Site Request Forgery: another website tricking a logged-in user's browser into submitting a form) | Code review | Use Flask-WTF's `CSRFProtect` | v1.0.0 |
+
+> **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
+> both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
+> message; on error the form is shown again with a red Bootstrap alert and nothing touches the database.
+> The browser checks (`required`, `min="0"`) are a convenience; the server check is the real protection.
 
 > DEF-07 and DEF-08 are also good material for the professor's Lecture 11 items (*security terminology*
 > and *vulnerability avoidance techniques*).
@@ -610,7 +620,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - ⬜ Code comments explaining every block (currently there are none)
-- ⬜ Use branches and pull requests (required: "commit, push, merge, pull request")
+- 🟡 Use branches and pull requests (required: "commit, push, merge, pull request"): first one done, PR #1 for v0.7.1; keep using one branch + PR per feature
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

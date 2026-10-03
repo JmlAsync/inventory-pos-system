@@ -18,6 +18,38 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def validate_product_form(form, current_product_id=None):
+    """Check the product form on the server. Returns (data, error).
+    If something is wrong, data is None and error is a message for the user."""
+    # .strip() removes spaces at the start and end, so "   " counts as empty
+    name = form.get('name', '').strip()
+    sku = form.get('sku', '').strip()
+    category = form.get('category', '').strip() or None
+
+    # 1. Required fields must not be empty
+    if not name or not sku:
+        return None, 'Name and SKU are required.'
+
+    # 2. Price and quantity must be numbers (float/int raise ValueError if not)
+    try:
+        price = float(form.get('price', ''))
+        quantity = int(form.get('quantity', ''))
+    except ValueError:
+        return None, 'Price must be a number and quantity must be a whole number.'
+
+    # 3. No negative values
+    if price < 0 or quantity < 0:
+        return None, 'Price and quantity cannot be negative.'
+
+    # 4. SKU must be unique. Look for ANOTHER product that already uses this SKU
+    #    (when editing, the product being edited is allowed to keep its own SKU)
+    existing = Product.query.filter_by(sku=sku).first()
+    if existing and existing.id != current_product_id:
+        return None, f'SKU "{sku}" is already used by "{existing.name}".'
+
+    return {'name': name, 'sku': sku, 'price': price,
+            'quantity': quantity, 'category': category}, None
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -41,13 +73,11 @@ def products():
 @admin_required
 def add_product():
     if request.method == 'POST':
-        new_product = Product(
-            name=request.form['name'],
-            sku=request.form['sku'],
-            price=float(request.form['price']),
-            quantity=int(request.form['quantity']),
-            category=request.form.get('category')
-        )
+        data, error = validate_product_form(request.form)
+        if error:
+            # Show the form again with the error message; nothing is saved
+            return render_template('add_product.html', error=error)
+        new_product = Product(**data)
         db.session.add(new_product)
         db.session.commit()
         return redirect(url_for('products'))
@@ -59,11 +89,14 @@ def add_product():
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
     if request.method == 'POST':
-        product.name = request.form['name']
-        product.sku = request.form['sku']
-        product.price = float(request.form['price'])
-        product.quantity = int(request.form['quantity'])
-        product.category = request.form.get('category')
+        data, error = validate_product_form(request.form, current_product_id=product.id)
+        if error:
+            return render_template('edit_product.html', product=product, error=error)
+        product.name = data['name']
+        product.sku = data['sku']
+        product.price = data['price']
+        product.quantity = data['quantity']
+        product.category = data['category']
         db.session.commit()
         return redirect(url_for('products'))
     return render_template('edit_product.html', product=product)

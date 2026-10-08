@@ -2,12 +2,16 @@
 {% block title %}Sales Report{% endblock %}
 {% block content %}
 <h1>Sales Report</h1>
+<p class="page-subtitle">
+    {{ start.strftime('%b %d, %Y') }}{% if end != start %} – {{ end.strftime('%b %d, %Y') }}{% endif %}
+</p>
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 
 <!-- Choose the period. GET form: the dates appear in the address bar -->
-<form method="GET" action="{{ url_for('sales_report') }}" class="row g-2 align-items-end mb-4 d-print-none">
+<div class="card mb-4 d-print-none"><div class="card-body">
+<form method="GET" action="{{ url_for('sales_report') }}" class="row g-2 align-items-end">
     <div class="col-md-4">
         <label class="form-label">From</label>
         <input type="date" name="start" min="2000-01-01" max="2100-12-31" class="form-control" value="{{ start.isoformat() }}">
@@ -17,38 +21,39 @@
         <input type="date" name="end" min="2000-01-01" max="2100-12-31" class="form-control" value="{{ end.isoformat() }}">
     </div>
     <div class="col-md-4">
-        <button type="submit" class="btn btn-primary w-100">Show</button>
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Show</button>
     </div>
 </form>
-
-<p class="text-muted">
-    Period: {{ start.strftime('%b %d, %Y') }}{% if end != start %} – {{ end.strftime('%b %d, %Y') }}{% endif %}
-</p>
+</div></div>
 
 <!-- Summary cards -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card"><div class="card-body">
-            <div class="text-muted small">Revenue</div>
-            <div class="fs-3 fw-bold">{{ revenue|peso }}</div>
+        <div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span>
+            <div><div class="stat-label">Revenue</div>
+            <div class="stat-value">{{ revenue|peso }}</div></div>
         </div></div>
     </div>
     <div class="col-md-4">
-        <div class="card"><div class="card-body">
-            <div class="text-muted small">Sales</div>
-            <div class="fs-3 fw-bold">{{ sales|length }}</div>
+        <div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span>
+            <div><div class="stat-label">Sales</div>
+            <div class="stat-value">{{ sales|length }}</div></div>
         </div></div>
     </div>
     <div class="col-md-4">
-        <div class="card"><div class="card-body">
-            <div class="text-muted small">Items sold</div>
-            <div class="fs-3 fw-bold">{{ items_sold }}</div>
+        <div class="card stat-card h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon"><i class="bi bi-bag" aria-hidden="true"></i></span>
+            <div><div class="stat-label">Items sold</div>
+            <div class="stat-value">{{ items_sold }}</div></div>
         </div></div>
     </div>
 </div>
 
-<h2 class="h4">Top products</h2>
+<h2 class="section-title">Top products</h2>
 {% if top_products %}
+<div class="card app-card"><div class="table-responsive">
 <table class="table">
     <thead><tr><th>#</th><th>Product</th><th>Units sold</th><th class="text-end">Revenue</th></tr></thead>
     <tbody>
@@ -62,13 +67,15 @@
         {% endfor %}
     </tbody>
 </table>
+</div></div>
 {% else %}
-<p class="text-muted">No sales in this period.</p>
+<p class="text-body-secondary">No sales in this period.</p>
 {% endif %}
 
-<h2 class="h4 mt-4">All sales</h2>
+<h2 class="section-title">All sales</h2>
 {% if sales %}
-<table class="table table-striped">
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-hover">
     <thead><tr><th>Receipt #</th><th>Date &amp; time</th><th>Served by</th><th>Items</th><th class="text-end">Total</th></tr></thead>
     <tbody>
         {% for sale in sales %}
@@ -82,7 +89,8 @@
         {% endfor %}
     </tbody>
 </table>
+</div></div>
 {% else %}
-<p class="text-muted">No sales in this period.</p>
+<p class="text-body-secondary">No sales in this period.</p>
 {% endif %}
 {% endblock %}

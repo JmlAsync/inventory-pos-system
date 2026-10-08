@@ -1,0 +1,343 @@
+/* =====================================================================
+   Inventory & POS theme (v0.13.0)
+   ---------------------------------------------------------------------
+   Every colour lives here as a named variable ("custom property"), once
+   for the light theme and once for the dark theme. To change a colour,
+   change it here and every page follows.
+
+   Bootstrap switches themes with the attribute data-bs-theme on <html>:
+     data-bs-theme="light"  -> "Clean counter" (white and teal)
+     data-bs-theme="dark"   -> "Night shift"   (charcoal and amber)
+   ===================================================================== */
+
+/* ---------- Light theme: "Clean counter" ---------- */
+:root,
+[data-bs-theme="light"] {
+    --app-bg: #F7F7F5;              /* page background, a warm off-white */
+    --app-surface: #FFFFFF;         /* cards, sidebar, menus */
+    --app-surface-2: #FAFAF8;       /* table headers, subtle panels */
+    --app-border: #E3E1DA;
+    --app-text: #2C2C2A;
+    --app-muted: #6B6A64;
+    --app-accent: #0F6E56;          /* teal: buttons, links, active page */
+    --app-accent-hover: #0B5844;
+    --app-accent-contrast: #FFFFFF; /* text on top of the accent colour */
+    --app-accent-soft: rgba(15, 110, 86, 0.10);
+    --app-accent-ring: rgba(15, 110, 86, 0.25);
+    --app-shadow: 0 1px 2px rgba(30, 30, 28, 0.04), 0 2px 8px rgba(30, 30, 28, 0.04);
+
+    /* Hand the colours to Bootstrap so its own parts (text, borders, links) match */
+    --bs-body-bg: var(--app-bg);
+    --bs-body-color: var(--app-text);
+    --bs-border-color: var(--app-border);
+    --bs-secondary-color: var(--app-muted);
+    --bs-link-color: var(--app-accent);
+    --bs-link-color-rgb: 15, 110, 86;
+    --bs-link-hover-color: var(--app-accent-hover);
+    --bs-link-hover-color-rgb: 11, 88, 68;
+    --bs-primary: var(--app-accent);
+    --bs-primary-rgb: 15, 110, 86;
+}
+
+/* ---------- Dark theme: "Night shift" ---------- */
+[data-bs-theme="dark"] {
+    --app-bg: #1E1E1C;
+    --app-surface: #2C2C2A;
+    --app-surface-2: #262624;
+    --app-border: #444441;
+    --app-text: #F1EFE8;
+    --app-muted: #B4B2A9;
+    --app-accent: #EF9F27;          /* amber: easy on the eyes at night */
+    --app-accent-hover: #F5B24D;
+    --app-accent-contrast: #1E1E1C; /* dark text on amber reads better than white */
+    --app-accent-soft: rgba(239, 159, 39, 0.14);
+    --app-accent-ring: rgba(239, 159, 39, 0.30);
+    --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.30), 0 2px 10px rgba(0, 0, 0, 0.20);
+
+    --bs-body-bg: var(--app-bg);
+    --bs-body-color: var(--app-text);
+    --bs-border-color: var(--app-border);
+    --bs-secondary-color: var(--app-muted);
+    --bs-secondary-bg: var(--app-surface);
+    --bs-tertiary-bg: var(--app-surface-2);
+    --bs-emphasis-color: #FFFFFF;
+    --bs-link-color: var(--app-accent);
+    --bs-link-color-rgb: 239, 159, 39;
+    --bs-link-hover-color: var(--app-accent-hover);
+    --bs-link-hover-color-rgb: 245, 178, 77;
+    --bs-primary: var(--app-accent);
+    --bs-primary-rgb: 239, 159, 39;
+}
+
+/* ---------- Base ---------- */
+body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Page titles: plain <h1> tags inside the content area */
+.app-content h1:not([class]) {
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.25rem;
+}
+.page-subtitle { color: var(--app-muted); margin-bottom: 1.5rem; }
+.section-title { font-size: 1.05rem; font-weight: 600; margin: 1.75rem 0 0.75rem; }
+
+/* ---------- Layout: sidebar on the left, page on the right ---------- */
+.app-shell { display: flex; min-height: 100vh; }
+.app-main { flex: 1; min-width: 0; }               /* min-width 0 lets wide tables scroll instead of overflowing */
+.app-content { max-width: 1180px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+
+.app-sidebar { --bs-offcanvas-bg: var(--app-surface); --bs-offcanvas-width: 260px; }
+.sidebar-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.25rem 1rem;
+    background: var(--app-surface);
+}
+@media (min-width: 992px) {                        /* laptops and wider: sidebar always visible */
+    .app-sidebar {
+        width: 248px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        border-right: 1px solid var(--app-border);
+    }
+    .app-content { padding: 2.25rem 2.5rem 3rem; }
+}
+
+/* Top bar shown only on phones and narrow windows (the sidebar slides in from the left there) */
+.app-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--app-surface);
+    border-bottom: 1px solid var(--app-border);
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+/* Brand (logo + name) */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 700;
+    color: var(--app-text);
+    text-decoration: none;
+}
+.brand:hover { color: var(--app-text); }
+.brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-accent);
+    color: var(--app-accent-contrast);
+    font-size: 1.05rem;
+}
+
+/* Sidebar links */
+.side-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--app-muted);
+    padding: 0 0.85rem;
+    margin: 1.5rem 0 0.5rem;
+}
+.side-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: 10px;
+    color: var(--app-muted);
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s, color 0.15s;
+}
+.side-link .bi { font-size: 1.1rem; }
+.side-link:hover { background: var(--app-accent-soft); color: var(--app-text); }
+.side-link.active { background: var(--app-accent-soft); color: var(--app-accent); font-weight: 600; }
+
+/* Bottom of the sidebar: theme switch and the avatar menu */
+.side-footer { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--app-border); }
+.user-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--app-text);
+    text-align: left;
+}
+.user-chip:hover, .user-chip[aria-expanded="true"] { background: var(--app-accent-soft); }
+.user-chip .user-name { font-weight: 600; line-height: 1.2; }
+.user-chip .user-role { font-size: 0.78rem; color: var(--app-muted); }
+
+/* Light/dark switch: shows a moon in light mode and a sun in dark mode */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.5rem 0.85rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--app-muted);
+    font-weight: 500;
+}
+.theme-toggle:hover { color: var(--app-text); border-color: var(--app-accent); }
+.theme-toggle .when-dark { display: none; }
+[data-bs-theme="dark"] .theme-toggle .when-dark { display: inline; }
+[data-bs-theme="dark"] .theme-toggle .when-light { display: none; }
+.theme-toggle.icon-only { width: auto; margin: 0; padding: 0.4rem 0.6rem; }
+
+/* Round initials when a user has no picture yet (v0.12.0 avatar) */
+.avatar-initials { background: var(--app-accent); color: var(--app-accent-contrast); }
+
+/* ---------- Cards, tables, menus ---------- */
+.card {
+    --bs-card-bg: var(--app-surface);
+    --bs-card-border-color: var(--app-border);
+    --bs-card-border-radius: 14px;
+    --bs-card-inner-border-radius: 13px;
+    box-shadow: var(--app-shadow);
+}
+.app-card { overflow: hidden; }                    /* keeps the table corners round */
+.app-card .table { margin-bottom: 0; --bs-table-bg: transparent; }
+.app-card .table > :not(caption) > * > * { padding: 0.75rem 1rem; }
+.app-card .table thead th {
+    background: var(--app-surface-2);
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.app-card .table tbody tr:last-child > * { border-bottom: 0; }
+.app-card .table tfoot > tr > * { background: var(--app-surface-2); }
+.table { --bs-table-color: var(--app-text); vertical-align: middle; }
+.card .table { --bs-table-bg: transparent; }       /* tables inside cards take the card's colour */
+
+/* Summary numbers (home page and sales report) */
+.stat-card .stat-label { font-size: 0.8rem; color: var(--app-muted); font-weight: 500; }
+.stat-card .stat-value { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.01em; }
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-accent-soft);
+    color: var(--app-accent);
+    font-size: 1.2rem;
+}
+.stat-icon.warn { background: rgba(239, 159, 39, 0.16); color: #B86E00; }
+[data-bs-theme="dark"] .stat-icon.warn { color: #EF9F27; }
+
+/* Shortcut tiles on the home page */
+.tile {
+    display: flex;
+    flex-direction: row;               /* .card stacks things vertically; tiles go side by side */
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    color: var(--app-text);
+    text-decoration: none;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.tile:hover { color: var(--app-text); border-color: var(--app-accent); transform: translateY(-2px); }
+.tile .tile-title { font-weight: 600; }
+.tile .tile-text { font-size: 0.85rem; color: var(--app-muted); }
+
+.dropdown-menu {
+    --bs-dropdown-bg: var(--app-surface);
+    --bs-dropdown-border-color: var(--app-border);
+    --bs-dropdown-link-color: var(--app-text);
+    --bs-dropdown-link-hover-bg: var(--app-accent-soft);
+    --bs-dropdown-link-hover-color: var(--app-text);
+    --bs-dropdown-link-active-bg: var(--app-accent);
+    --bs-dropdown-link-active-color: var(--app-accent-contrast);
+    --bs-dropdown-border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 0.4rem;
+}
+.dropdown-item { border-radius: 8px; display: flex; align-items: center; gap: 0.6rem; }
+
+.alert { border-radius: 12px; }
+.badge { font-weight: 600; }
+
+/* ---------- Buttons and form fields follow the accent colour ---------- */
+.btn { border-radius: 10px; font-weight: 500; }
+.btn-primary {
+    --bs-btn-bg: var(--app-accent);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-color: var(--app-accent-contrast);
+    --bs-btn-hover-bg: var(--app-accent-hover);
+    --bs-btn-hover-border-color: var(--app-accent-hover);
+    --bs-btn-hover-color: var(--app-accent-contrast);
+    --bs-btn-active-bg: var(--app-accent-hover);
+    --bs-btn-active-border-color: var(--app-accent-hover);
+    --bs-btn-active-color: var(--app-accent-contrast);
+    --bs-btn-disabled-bg: var(--app-accent);
+    --bs-btn-disabled-border-color: var(--app-accent);
+    --bs-btn-disabled-color: var(--app-accent-contrast);
+    --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--app-accent);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-bg: var(--app-accent);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-accent-contrast);
+    --bs-btn-active-bg: var(--app-accent);
+    --bs-btn-active-border-color: var(--app-accent);
+    --bs-btn-active-color: var(--app-accent-contrast);
+    --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+.btn-light-subtle {
+    --bs-btn-bg: var(--app-surface);
+    --bs-btn-border-color: var(--app-border);
+    --bs-btn-color: var(--app-text);
+    --bs-btn-hover-bg: var(--app-surface-2);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-text);
+}
+.form-control, .form-select { border-radius: 10px; background-color: var(--app-surface); border-color: var(--app-border); }
+.form-control:focus, .form-select:focus {
+    border-color: var(--app-accent);
+    box-shadow: 0 0 0 0.25rem var(--app-accent-ring);
+}
+.form-control[readonly] { background-color: var(--app-surface-2); }
+.form-label { font-weight: 500; font-size: 0.9rem; }
+
+/* ---------- Login page (no sidebar) ---------- */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+.auth-card { width: 100%; max-width: 400px; }
+
+/* ---------- Printing: always light, no sidebar, no shadows ---------- */
+@media print {
+    body { background: #FFFFFF !important; color: #000000 !important; }
+    .app-content { padding: 0 !important; max-width: none; }
+    .card { box-shadow: none !important; }
+}

@@ -236,7 +236,11 @@ body {
 .app-card .table tbody tr:last-child > * { border-bottom: 0; }
 .app-card .table tfoot > tr > * { background: var(--app-surface-2); }
 .table { --bs-table-color: var(--app-text); vertical-align: middle; }
-.table td { overflow-wrap: anywhere; }             /* very long names wrap instead of stretching the table (v0.14.1) */
+/* Very long words wrap inside table cells (v0.14.1). "break-word", not "anywhere": with
+   "anywhere" narrow phone tables squeezed normal names into one letter per line (fixed v0.14.3) */
+.table td { overflow-wrap: break-word; word-break: normal; }
+/* Product names in tables: wrap anywhere, but never narrower than 8rem or wider than 22rem */
+.product-name, .long-text { display: inline-block; min-width: 8rem; max-width: 22rem; overflow-wrap: anywhere; }
 .card .table { --bs-table-bg: transparent; }       /* tables inside cards take the card's colour */
 
 /* Summary numbers (home page and sales report) */
@@ -387,6 +391,19 @@ img.product-thumb { border: 1px solid var(--app-border); }
 .menu-tile-left { font-size: 0.75rem; color: var(--app-muted); margin-top: auto; }
 .menu-tile-left.low { color: #B86E00; font-weight: 600; }
 [data-bs-theme="dark"] .menu-tile-left.low { color: #EF9F27; }
+/* Phone basket bar (v0.14.3) */
+.basket-bar {
+    position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1030;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.85rem 1.1rem; border-radius: 14px;
+    background: var(--app-accent); color: var(--app-accent-contrast);
+    text-decoration: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.basket-bar:hover { color: var(--app-accent-contrast); }
+@media (max-width: 991.98px) {
+    .app-content:has(.basket-bar) { padding-bottom: 6rem; }   /* room so the bar never hides the Pay button */
+    #basket { scroll-margin-top: 5rem; }                       /* stop below the sticky top bar */
+}
 @media (min-width: 992px) {
     .basket-column { position: sticky; top: 1.5rem; }   /* the basket stays in view while scrolling the menu */
 }

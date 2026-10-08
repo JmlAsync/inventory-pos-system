@@ -4,6 +4,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User, Sale, SaleItem
 from functools import wraps
 import math
+from datetime import datetime, date, timedelta
+from sqlalchemy import func
 from flask import abort
 
 app = Flask(__name__)
@@ -291,6 +293,58 @@ def complete_sale():
 def receipt(sale_id):
     sale = find_by_id(Sale, sale_id) or abort(404)
     return render_template('receipt.html', sale=sale)
+
+
+# ---------------- Sales report (v0.10.0) ----------------
+
+# Dates the report accepts (v0.10.0)
+EARLIEST_DATE = date(2000, 1, 1)
+LATEST_DATE = date(2100, 12, 31)
+
+
+@app.route('/reports/sales')
+@login_required
+@admin_required
+def sales_report():
+    """Totals, list of sales and top products for a date range (default: today)."""
+    today = date.today()
+    error = None
+    # Dates arrive in the address as text, e.g. /reports/sales?start=2026-10-08&end=2026-10-08
+    try:
+        start = datetime.strptime(request.args.get('start', today.isoformat()), '%Y-%m-%d').date()
+        end = datetime.strptime(request.args.get('end', today.isoformat()), '%Y-%m-%d').date()
+        # Realistic range only: a date like 9999-12-31 has no "next day" and would crash below
+        if not (EARLIEST_DATE <= start <= LATEST_DATE and EARLIEST_DATE <= end <= LATEST_DATE):
+            raise ValueError
+    except ValueError:
+        start = end = today
+        error = 'Please choose real dates between 2000 and 2100, so showing today instead.'
+    if start > end:
+        start, end = end, start   # swap them if entered the wrong way round
+
+    # From the start of the first day up to (but not including) the day after the last day
+    period_start = datetime.combine(start, datetime.min.time())
+    period_end = datetime.combine(end + timedelta(days=1), datetime.min.time())
+    in_period = (Sale.created_at >= period_start) & (Sale.created_at < period_end)
+
+    sales = Sale.query.filter(in_period).order_by(Sale.created_at.desc()).all()
+    revenue = round(sum(sale.total for sale in sales), 2)
+
+    # Top 5 products by units sold. func.sum adds up a column; group_by makes one row per product
+    units = func.sum(SaleItem.quantity)
+    top_products = (db.session.query(SaleItem.product_name, units,
+                                     func.sum(SaleItem.quantity * SaleItem.unit_price))
+                    .join(Sale).filter(in_period)
+                    .group_by(SaleItem.product_name)
+                    .order_by(units.desc())
+                    .limit(5).all())
+    # Total units sold in the period (coalesce turns "nothing" into 0 when there are no sales)
+    items_sold = (db.session.query(func.coalesce(func.sum(SaleItem.quantity), 0))
+                  .join(Sale).filter(in_period).scalar())
+
+    return render_template('sales_report.html', sales=sales, revenue=revenue,
+                           items_sold=items_sold, top_products=top_products,
+                           start=start, end=end, error=error)
 
 
 @app.errorhandler(403)

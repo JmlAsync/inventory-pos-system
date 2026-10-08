@@ -169,6 +169,19 @@ def bad_request(e):
     return render_template('400.html'), 400
 
 
+@app.after_request
+def add_security_headers(response):
+    """Extra instructions for the browser on every page (v0.13.4)."""
+    # Other websites may not show our pages inside a frame (stops "clickjacking":
+    # tricking you into clicking our buttons through an invisible frame)
+    response.headers['X-Frame-Options'] = 'DENY'
+    # Treat files exactly as the type we say (an uploaded "picture" is never run as a page)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Don't tell other websites which of our pages a link was clicked on
+    response.headers['Referrer-Policy'] = 'same-origin'
+    return response
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -576,5 +589,7 @@ def logout():
 if __name__ == '__main__':
     with app.app_context():
         upgrade_database()   # creates tables and adds any new columns (v0.12.0)
-    app.run(debug=True)
+    # Debug mode shows an in-browser console that can run Python code when something crashes,
+    # so it is OFF unless you ask for it (v0.13.4). While coding:  $env:FLASK_DEBUG = "1"
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1')
 

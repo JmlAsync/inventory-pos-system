@@ -143,6 +143,8 @@ NEW_COLUMNS = [
 # (Empty values don't count as duplicates, so cash sales without a reference are fine.)
 NEW_INDEXES = [
     'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_payment_reference ON sale (payment_reference)',
+    # v0.17.1: remove recipe lines left behind by products deleted in v0.17.0
+    'DELETE FROM recipe_item WHERE product_id IS NOT NULL AND product_id NOT IN (SELECT id FROM product)',
 ]
 
 
@@ -300,6 +302,9 @@ def delete_product(product_id):
               f'Set its quantity to 0 instead to stop selling it.', 'danger')
         return redirect(url_for('products'))
     delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)   # its picture goes too (v0.14.0)
+    # ...and its recipe (v0.17.1): SQLite may give this id to the next new product,
+    # which would otherwise "inherit" the recipe
+    RecipeItem.query.filter_by(product_id=product.id).delete()
     db.session.delete(product)
     db.session.commit()
     return redirect(url_for('products'))

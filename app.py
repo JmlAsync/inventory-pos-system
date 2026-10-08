@@ -330,14 +330,20 @@ def sales_report():
     sales = Sale.query.filter(in_period).order_by(Sale.created_at.desc()).all()
     revenue = round(sum(sale.total for sale in sales), 2)
 
-    # Top 5 products by units sold. func.sum adds up a column; group_by makes one row per product
-    units = func.sum(SaleItem.quantity)
-    top_products = (db.session.query(SaleItem.product_name, units,
-                                     func.sum(SaleItem.quantity * SaleItem.unit_price))
-                    .join(Sale).filter(in_period)
-                    .group_by(SaleItem.product_name)
-                    .order_by(units.desc())
-                    .limit(5).all())
+    # Top 5 products by units sold (v0.10.1). Grouped by PRODUCT (its id), not by name,
+    # so a product renamed after being sold still counts as one product.
+    # The name shown is the one used in its most recent sale.
+    totals = {}   # product id -> {'name', 'units', 'revenue', 'last_sold'}
+    for sale in sales:
+        for item in sale.items:
+            row = totals.setdefault(item.product_id, {'name': item.product_name, 'units': 0,
+                                                      'revenue': 0, 'last_sold': sale.created_at})
+            row['units'] += item.quantity
+            row['revenue'] += item.subtotal
+            if sale.created_at >= row['last_sold']:   # keep the most recent name
+                row['name'], row['last_sold'] = item.product_name, sale.created_at
+    best = sorted(totals.values(), key=lambda row: row['units'], reverse=True)[:5]
+    top_products = [(row['name'], row['units'], round(row['revenue'], 2)) for row in best]
     # Total units sold in the period (coalesce turns "nothing" into 0 when there are no sales)
     items_sold = (db.session.query(func.coalesce(func.sum(SaleItem.quantity), 0))
                   .join(Sale).filter(in_period).scalar())

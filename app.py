@@ -17,6 +17,18 @@ MAX_PRICE = 1_000_000      # pesos
 MAX_QUANTITY = 1_000_000   # units
 MAX_CASH = 1_000_000       # pesos
 
+# The biggest whole number SQLite can store (v0.8.4). Bigger ids can't exist,
+# and asking the database for them crashes it, so they count as "not found".
+MAX_DB_ID = 2**63 - 1
+
+
+def find_by_id(model, item_id):
+    """Look up one row by its id. Returns None when there is no such row,
+    including ids that are missing, below 1, or too big for the database."""
+    if item_id is None or item_id < 1 or item_id > MAX_DB_ID:
+        return None
+    return db.session.get(model, item_id)
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -98,7 +110,7 @@ def add_product():
 @login_required
 @admin_required
 def edit_product(product_id):
-    product = Product.query.get_or_404(product_id)
+    product = find_by_id(Product, product_id) or abort(404)
     if request.method == 'POST':
         data, error = validate_product_form(request.form, current_product_id=product.id)
         if error:
@@ -116,7 +128,7 @@ def edit_product(product_id):
 @login_required
 @admin_required
 def delete_product(product_id):
-    product = Product.query.get_or_404(product_id)
+    product = find_by_id(Product, product_id) or abort(404)
     db.session.delete(product)
     db.session.commit()
     return redirect(url_for('products'))
@@ -172,7 +184,7 @@ def show_sale_page(error=None):
 def new_sale():
     if request.method == 'POST':
         # The "Add to basket" form was submitted
-        product = db.session.get(Product, request.form.get('product_id', type=int) or 0)
+        product = find_by_id(Product, request.form.get('product_id', type=int))
         quantity = request.form.get('quantity', type=int)  # None if not a whole number
 
         if product is None:
@@ -257,7 +269,7 @@ def complete_sale():
 @app.route('/sales/<int:sale_id>')
 @login_required
 def receipt(sale_id):
-    sale = Sale.query.get_or_404(sale_id)
+    sale = find_by_id(Sale, sale_id) or abort(404)
     return render_template('receipt.html', sale=sale)
 
 

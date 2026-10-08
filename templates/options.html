@@ -23,7 +23,7 @@
         <div class="col-6 col-sm-2">
             <div class="input-group input-group-sm" title="How much of every ingredient this serving uses: 1 = the recipe as written (Hot / Iced), or e.g. 1.33 for a 16oz when recipes are for 12oz">
                 <span class="input-group-text">×</span>
-                <input type="number" class="form-control" name="scale" value="{{ option.scale|amount }}" min="0.01" max="10" step="any" aria-label="Recipe scale">
+                <input type="number" class="form-control" name="scale" value="{{ option.scale|plain_amount }}" min="0.01" max="10" step="any" aria-label="Recipe scale">
             </div>
         </div>
         {% endif %}

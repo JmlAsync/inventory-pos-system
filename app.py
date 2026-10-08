@@ -611,6 +611,9 @@ def fmt_amount(amount):
 
 
 app.jinja_env.filters['amount'] = fmt_amount
+# For number boxes (v0.17.4): no thousands separator, because a type="number" box
+# can't read "2,000" and would show up empty
+app.jinja_env.filters['plain_amount'] = lambda amount: fmt_amount(amount).replace(',', '')
 
 
 # ---------------- Sale processing (v0.8.0, options since v0.16.0) ----------------

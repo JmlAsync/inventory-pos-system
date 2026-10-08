@@ -43,7 +43,7 @@
                     <select name="unit" class="form-select form-select-sm" style="width: 5rem;" aria-label="Unit">
                         {% for unit in units %}<option{% if unit == ingredient.unit %} selected{% endif %}>{{ unit }}</option>{% endfor %}
                     </select>
-                    <input type="number" name="low_at" class="form-control form-control-sm" style="width: 7rem;" value="{{ ingredient.low_at|amount }}" min="0" step="any" required aria-label="Warn at">
+                    <input type="number" name="low_at" class="form-control form-control-sm" style="width: 7rem;" value="{{ ingredient.low_at|plain_amount }}" min="0" step="any" required aria-label="Warn at">
                     <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                 </form>
             </details>

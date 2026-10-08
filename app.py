@@ -17,6 +17,10 @@ MAX_PRICE = 1_000_000      # pesos
 MAX_QUANTITY = 1_000_000   # units
 MAX_CASH = 1_000_000       # pesos
 
+# Products with this many units or fewer are flagged as "low stock" (v0.9.0).
+# One number for every product keeps the database unchanged; change it here if needed.
+LOW_STOCK_THRESHOLD = 5
+
 # The biggest whole number SQLite can store (v0.8.4). Bigger ids can't exist,
 # and asking the database for them crashes it, so they count as "not found".
 MAX_DB_ID = 2**63 - 1
@@ -93,7 +97,11 @@ def home():
 @login_required
 def products():
     all_products = Product.query.all()
-    return render_template('products.html', products=all_products)
+    # Products at or below the threshold, lowest stock first, for the warning box
+    low_stock = (Product.query.filter(Product.quantity <= LOW_STOCK_THRESHOLD)
+                 .order_by(Product.quantity).all())
+    return render_template('products.html', products=all_products,
+                           low_stock=low_stock, threshold=LOW_STOCK_THRESHOLD)
 
 @app.route('/products/add', methods=['GET', 'POST'])
 @login_required

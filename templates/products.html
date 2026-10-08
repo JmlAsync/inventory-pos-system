@@ -7,6 +7,18 @@
     <a href="{{ url_for('add_product') }}" class="btn btn-success">Add Product</a>
     {% endif %}
 </div>
+
+{% if low_stock %}
+<!-- Low-stock warning (v0.9.0): lists every product at or below the threshold -->
+<div class="alert alert-warning">
+    <strong>Low stock ({{ low_stock|length }}):</strong>
+    {% for product in low_stock %}
+        {{ product.name }} ({{ product.quantity }} left){% if not loop.last %}, {% endif %}
+    {% endfor %}
+    <div class="small">Products with {{ threshold }} or fewer units are flagged. Time to reorder.</div>
+</div>
+{% endif %}
+
 <table class="table table-striped">
     <thead>
         <tr><th>Name</th><th>SKU</th><th>Price</th><th>Quantity</th><th>Category</th><th>Actions</th></tr>
@@ -17,7 +29,14 @@
             <td>{{ product.name }}</td>
             <td>{{ product.sku }}</td>
             <td>₱{{ "%.2f"|format(product.price) }}</td>
-            <td>{{ product.quantity }}</td>
+            <td>
+                {{ product.quantity }}
+                {% if product.quantity == 0 %}
+                    <span class="badge bg-danger">Out of stock</span>
+                {% elif product.quantity <= threshold %}
+                    <span class="badge bg-warning text-dark">Low</span>
+                {% endif %}
+            </td>
             <td>{{ product.category }}</td>
         <td>
                 {% if current_user.role == 'admin' %}

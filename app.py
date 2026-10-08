@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem, MenuOption
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement
 from functools import wraps
 import math
 import os
@@ -137,6 +137,7 @@ NEW_COLUMNS = [
     ('sale', 'payment_reference', 'VARCHAR(20)'),            # v0.15.0
     ('product', 'has_options', 'BOOLEAN NOT NULL DEFAULT 0'),  # v0.16.0
     ('sale_item', 'options', 'VARCHAR(200)'),                # v0.16.0
+    ('menu_option', 'scale', 'FLOAT NOT NULL DEFAULT 1'),    # v0.17.0
 ]
 # ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
 # (Empty values don't count as duplicates, so cash sales without a reference are fine.)
@@ -220,7 +221,8 @@ def home():
         todays_sales = Sale.query.filter(Sale.created_at >= start_of_today).all()
         stats = {
             'products': Product.query.count(),
-            'low_stock': Product.query.filter(Product.quantity <= LOW_STOCK_THRESHOLD).count(),
+            'low_stock': sum(1 for n in stock_levels(Product.query.all()).values() if n <= LOW_STOCK_THRESHOLD),
+            'low_ingredients': Ingredient.query.filter(Ingredient.quantity <= Ingredient.low_at).count(),
             'sales_today': len(todays_sales),
             'revenue_today': round(sum(sale.total for sale in todays_sales), 2),
         }
@@ -230,10 +232,15 @@ def home():
 @login_required
 def products():
     all_products = Product.query.all()
+    # How many of each can be sold: own quantity, or what the ingredients allow (v0.17.0)
+    recipes = Recipes()
+    stock = {p.id: (can_make(p, recipes) if recipes.has(p) else p.quantity) for p in all_products}
+    made_to_order = {p.id for p in all_products if recipes.has(p)}
     # Products at or below the threshold, lowest stock first, for the warning box
-    low_stock = (Product.query.filter(Product.quantity <= LOW_STOCK_THRESHOLD)
-                 .order_by(Product.quantity).all())
-    return render_template('products.html', products=all_products,
+    low_stock = sorted([p for p in all_products if stock[p.id] <= LOW_STOCK_THRESHOLD],
+                       key=lambda p: stock[p.id])
+    return render_template('products.html', products=all_products, stock=stock,
+                           made_to_order=made_to_order,
                            low_stock=low_stock, threshold=LOW_STOCK_THRESHOLD)
 
 @app.route('/products/add', methods=['GET', 'POST'])
@@ -263,7 +270,8 @@ def edit_product(product_id):
         data, error = validate_product_form(request.form, current_product_id=product.id)
         picture, picture_error = read_uploaded_picture(request.files.get('picture'))
         if error or picture_error:
-            return render_template('edit_product.html', product=product, error=error or picture_error)
+            return render_template('edit_product.html', product=product, error=error or picture_error,
+                                   has_recipe=RecipeItem.query.filter_by(product_id=product.id).first() is not None)
         product.name = data['name']
         product.sku = data['sku']
         product.price = data['price']
@@ -276,7 +284,8 @@ def edit_product(product_id):
             product.image = save_picture(picture, PRODUCT_IMAGE_FOLDER, 'product') if picture else None
         db.session.commit()
         return redirect(url_for('products'))
-    return render_template('edit_product.html', product=product)
+    return render_template('edit_product.html', product=product,
+                           has_recipe=RecipeItem.query.filter_by(product_id=product.id).first() is not None)
 
 @app.route('/products/delete/<int:product_id>', methods=['POST'])
 @login_required
@@ -332,6 +341,10 @@ def manage_options():
                 db.session.add(option)
             option.name = name
             option.price = round(price, 2)
+            if kind == 'size':
+                # How much of every ingredient this size uses compared with the recipe (v0.17.0)
+                scale = request.form.get('scale', type=float)
+                option.scale = round(scale, 3) if scale and math.isfinite(scale) and 0 < scale <= 10 else 1.0
             option.active = bool(request.form.get('active')) if option_id else True
             db.session.commit()
             flash(f'Saved {OPTION_KINDS[kind]} "{name}".', 'success')
@@ -340,6 +353,130 @@ def manage_options():
     return render_template('options.html',
                            sizes=MenuOption.query.filter_by(kind='size').order_by(*in_order).all(),
                            addons=MenuOption.query.filter_by(kind='addon').order_by(*in_order).all())
+
+
+# ---------------- Ingredient and recipe pages (v0.17.0, admin only) ----------------
+def read_amount(field, allow_negative=False):
+    """A number typed in a form, or None if it isn't a sensible amount."""
+    try:
+        value = float(request.form.get(field, ''))
+    except ValueError:
+        return None
+    if not math.isfinite(value) or abs(value) > MAX_QUANTITY or (value < 0 and not allow_negative):
+        return None
+    return round(value, 3)
+
+
+@app.route('/ingredients', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def ingredients():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        ingredient = find_by_id(Ingredient, request.form.get('ingredient_id', type=int))
+        if action in ('restock', 'count', 'edit') and ingredient is None:
+            abort(404)
+        if action == 'restock':
+            # A delivery: ADD to what is on hand, in one database step (never overwrites a sale)
+            amount = read_amount('amount')
+            if not amount:
+                flash('Type how much was received (more than 0).', 'danger')
+            else:
+                Ingredient.query.filter_by(id=ingredient.id).update(
+                    {Ingredient.quantity: Ingredient.quantity + amount}, synchronize_session=False)
+                db.session.add(IngredientMovement(ingredient_id=ingredient.id, change=amount,
+                                                  reason='restock', user_id=current_user.id))
+                db.session.commit()
+                flash(f'Added {fmt_amount(amount)} {ingredient.unit} of {ingredient.name}.', 'success')
+        elif action == 'count':
+            # A stock count: set what is really on the shelf; the difference is recorded
+            counted = read_amount('counted')
+            if counted is None:
+                flash('Type the amount you counted (0 or more).', 'danger')
+            else:
+                db.session.refresh(ingredient)
+                change = round(counted - ingredient.quantity, 3)
+                ingredient.quantity = counted
+                db.session.add(IngredientMovement(ingredient_id=ingredient.id, change=change,
+                                                  reason='count', user_id=current_user.id))
+                db.session.commit()
+                flash(f'{ingredient.name} set to {fmt_amount(counted)} {ingredient.unit} '
+                      f'({"+" if change >= 0 else ""}{fmt_amount(change)}).', 'success')
+        elif action in ('add', 'edit'):
+            name = request.form.get('name', '').strip()
+            unit = request.form.get('unit', '')
+            low_at = read_amount('low_at')
+            same_name = Ingredient.query.filter(func.lower(Ingredient.name) == name.lower(),
+                                                Ingredient.id != (ingredient.id if ingredient else 0)).first()
+            if not name or len(name) > 50:
+                flash('The name must be 1 to 50 characters.', 'danger')
+            elif unit not in INGREDIENT_UNITS:
+                flash('Choose a unit: g, ml or pcs.', 'danger')
+            elif low_at is None:
+                flash('"Warn at" must be a number, 0 or more.', 'danger')
+            elif same_name:
+                flash(f'There is already an ingredient called "{same_name.name}".', 'danger')
+            else:
+                if ingredient is None:
+                    ingredient = Ingredient(quantity=0)
+                    db.session.add(ingredient)
+                ingredient.name, ingredient.unit, ingredient.low_at = name, unit, low_at
+                db.session.commit()
+                flash(f'Saved {name}.' + (' Use Restock to add what you have.' if action == 'add' else ''), 'success')
+        else:
+            abort(400)
+        return redirect(url_for('ingredients'))
+    all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
+    recent = IngredientMovement.query.order_by(IngredientMovement.id.desc()).limit(15).all()
+    return render_template('ingredients.html', ingredients=all_ingredients, recent=recent,
+                           units=INGREDIENT_UNITS)
+
+
+@app.route('/recipe/<kind>/<int:item_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_recipe(kind, item_id):
+    """Recipe of one product (per 1, default size) or one size/add-on (v0.17.0)."""
+    if kind == 'product':
+        owner = find_by_id(Product, item_id) or abort(404)
+        lines = RecipeItem.query.filter_by(product_id=owner.id)
+    elif kind == 'option':
+        owner = find_by_id(MenuOption, item_id) or abort(404)
+        lines = RecipeItem.query.filter_by(option_id=owner.id)
+    else:
+        abort(404)
+    if request.method == 'POST':
+        line = find_by_id(RecipeItem, request.form.get('line_id', type=int))
+        if line is not None and line not in lines.all():
+            abort(404)   # a line of another recipe
+        if request.form.get('action') == 'remove' and line is not None:
+            db.session.delete(line)
+            db.session.commit()
+            flash('Ingredient removed from the recipe.', 'success')
+        else:
+            amount = read_amount('amount', allow_negative=(kind == 'option'))
+            ingredient = find_by_id(Ingredient, request.form.get('ingredient_id', type=int))
+            if line is None and ingredient is None:
+                flash('Choose an ingredient.', 'danger')
+            elif amount is None or amount == 0 or (kind == 'product' and amount < 0):
+                flash('Type an amount' + (' (more than 0).' if kind == 'product'
+                                          else ' (negative to replace an ingredient, e.g. -180 ml milk).'), 'danger')
+            elif line is not None:
+                line.amount = amount
+                db.session.commit()
+                flash('Recipe saved.', 'success')
+            elif lines.filter_by(ingredient_id=ingredient.id).first():
+                flash(f'{ingredient.name} is already in this recipe; change its amount instead.', 'danger')
+            else:
+                db.session.add(RecipeItem(ingredient_id=ingredient.id, amount=amount,
+                                          product_id=owner.id if kind == 'product' else None,
+                                          option_id=owner.id if kind == 'option' else None))
+                db.session.commit()
+                flash(f'Added {ingredient.name} to the recipe.', 'success')
+        return redirect(url_for('edit_recipe', kind=kind, item_id=item_id))
+    return render_template('recipe.html', kind=kind, owner=owner,
+                           lines=lines.join(Ingredient).order_by(Ingredient.name).all(),
+                           ingredients=Ingredient.query.order_by(Ingredient.name).all())
 
 
 # ---------------- Login attempt limit (v0.13.3) ----------------
@@ -382,6 +519,94 @@ def login():
         failed_logins.setdefault(key, []).append(datetime.now())
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
+
+# ---------------- Ingredients and recipes (v0.17.0) ----------------
+# A product WITH a recipe takes its stock from its ingredients: one Sea Salt uses 18 g of
+# beans, 180 ml of milk... so "how many can we still make" is worked out from what is on
+# hand. A product WITHOUT a recipe keeps its own quantity, as before.
+INGREDIENT_UNITS = ['g', 'ml', 'pcs']
+
+
+class Recipes:
+    """All recipe lines, read from the database once per request:
+    product id -> {ingredient id: amount}, and the same for options."""
+    def __init__(self):
+        self.of_product, self.of_option = {}, {}
+        for item in RecipeItem.query.all():
+            if item.product_id:
+                target = self.of_product.setdefault(item.product_id, {})
+            else:
+                target = self.of_option.setdefault(item.option_id, {})
+            target[item.ingredient_id] = target.get(item.ingredient_id, 0) + item.amount
+
+    def has(self, product):
+        return product.id in self.of_product
+
+    def usage(self, product, size=None, addons=(), quantity=1):
+        """Ingredients used by `quantity` of a product with this size and add-ons.
+        The size's scale multiplies everything (a 16oz uses 1.33 times a 12oz).
+        Negative option amounts replace an ingredient; nothing goes below 0."""
+        per_one = dict(self.of_product.get(product.id, {}))
+        for option in ([size] if size else []) + list(addons):
+            for ingredient_id, amount in self.of_option.get(option.id, {}).items():
+                per_one[ingredient_id] = per_one.get(ingredient_id, 0) + amount
+        scale = size.scale if size else 1
+        return {ingredient_id: round(amount * scale * quantity, 3)
+                for ingredient_id, amount in per_one.items() if amount > 0}
+
+
+def add_usage(total, usage):
+    for ingredient_id, amount in usage.items():
+        total[ingredient_id] = round(total.get(ingredient_id, 0) + amount, 3)
+    return total
+
+
+def shortages(usage):
+    """Ingredients in `usage` that there isn't enough of: [(ingredient, needed, on hand)]."""
+    short = []
+    for ingredient_id, needed in usage.items():
+        ingredient = db.session.get(Ingredient, ingredient_id)
+        if ingredient is not None and needed > ingredient.quantity + 1e-9:
+            short.append((ingredient, needed, ingredient.quantity))
+    return short
+
+
+def default_size():
+    return (MenuOption.query.filter_by(kind='size', active=True)
+            .order_by(MenuOption.sort_order, MenuOption.id).first())
+
+
+def can_make(product, recipes, reserved=None, size=None):
+    """How many more of a recipe product (default size, no add-ons) can be made with what
+    is on hand, minus what `reserved` (e.g. the basket) already needs."""
+    reserved = reserved or {}
+    if product.has_options and size is None:
+        size = default_size()
+    per_one = recipes.usage(product, size if product.has_options else None)
+    if not per_one:
+        return 0
+    counts = []
+    for ingredient_id, amount in per_one.items():
+        ingredient = db.session.get(Ingredient, ingredient_id)
+        left = (ingredient.quantity if ingredient else 0) - reserved.get(ingredient_id, 0)
+        counts.append(max(0, math.floor((left + 1e-9) / amount)))
+    return min(counts)
+
+
+def stock_levels(products):
+    """product id -> how many can be sold now: can_make() for recipe products, quantity otherwise.
+    Used by the product list, the low-stock box and the home page."""
+    recipes = Recipes()
+    return {p.id: (can_make(p, recipes) if recipes.has(p) else p.quantity) for p in products}
+
+
+def fmt_amount(amount):
+    """18.0 -> '18', 0.5 -> '0.5' (no long decimals on screen)."""
+    return f'{amount:,.3f}'.rstrip('0').rstrip('.')
+
+
+app.jinja_env.filters['amount'] = fmt_amount
+
 
 # ---------------- Sale processing (v0.8.0, options since v0.16.0) ----------------
 # The basket is kept in the session (a small storage area Flask keeps for each
@@ -455,6 +680,15 @@ def basket_lines(basket):
     return lines, message
 
 
+def basket_usage(lines, recipes):
+    """All ingredients the basket lines need (recipe products only) (v0.17.0)."""
+    total = {}
+    for line in lines:
+        if recipes.has(line['product']):
+            add_usage(total, recipes.usage(line['product'], line['size'], line['addons'], line['quantity']))
+    return total
+
+
 def units_in_basket(basket, product_id):
     """How many of one product are in the basket, across all its sizes and add-ons."""
     return sum(q for key, q in basket.items() if key.split(':')[0] == str(product_id))
@@ -471,9 +705,14 @@ def show_sale_page(error=None):
     # (The real stock in the database only goes down when the sale is completed.)
     # Menu order (v0.14.2): grouped by category (products without one last), then by name
     in_menu_order = (Product.category.is_(None), Product.category, Product.name)
+    recipes = Recipes()
+    reserved = basket_usage(lines, recipes)   # ingredients the basket already needs (v0.17.0)
     choices = []
-    for product in Product.query.filter(Product.quantity > 0).order_by(*in_menu_order).all():
-        available = product.quantity - units_in_basket(basket, product.id)
+    for product in Product.query.order_by(*in_menu_order).all():
+        if recipes.has(product):
+            available = can_make(product, recipes, reserved)
+        else:
+            available = product.quantity - units_in_basket(basket, product.id)
         if available > 0:
             choices.append({'product': product, 'available': available})
     sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
@@ -516,9 +755,23 @@ def new_sale():
                 return show_sale_page('Please choose add-ons from the list.')
 
         basket = get_basket()
-        available = product.quantity - units_in_basket(basket, product.id)   # what can still be added
-        if quantity > available:
-            return show_sale_page(f'Not enough stock for {product.name}: only {available} more can be added.')
+        recipes = Recipes()
+        if recipes.has(product):
+            # Recipe product (v0.17.0): enough ingredients for the basket AND this line?
+            lines, _ = basket_lines(dict(basket))
+            size = db.session.get(MenuOption, size_id) if size_id else None
+            addons = [db.session.get(MenuOption, i) for i in addon_ids]
+            needed = add_usage(basket_usage(lines, recipes), recipes.usage(product, size, addons, quantity))
+            short = shortages(needed)
+            if short:
+                ingredient, need, have = short[0]
+                return show_sale_page(f'Not enough {ingredient.name} for {quantity} × {product.name}: '
+                                      f'the basket would need {fmt_amount(need)} {ingredient.unit}, '
+                                      f'only {fmt_amount(have)} {ingredient.unit} on hand.')
+        else:
+            available = product.quantity - units_in_basket(basket, product.id)   # what can still be added
+            if quantity > available:
+                return show_sale_page(f'Not enough stock for {product.name}: only {available} more can be added.')
 
         key = make_line_key(product.id, size_id, addon_ids)
         basket[key] = basket.get(key, 0) + quantity
@@ -562,13 +815,21 @@ def complete_sale():
     if problem:
         save_basket(basket)
         return show_sale_page(problem)
-    units = {}   # product -> units in the whole basket (one product can be on several lines)
+    recipes = Recipes()
+    units = {}   # product -> units in the whole basket (products WITHOUT a recipe)
     for line in lines:
-        units[line['product']] = units.get(line['product'], 0) + line['quantity']
+        if not recipes.has(line['product']):
+            units[line['product']] = units.get(line['product'], 0) + line['quantity']
     for product, quantity in units.items():
         if quantity > product.quantity:
             return show_sale_page(f'{product.name} no longer has enough stock. '
                                   f'Please remove it and add it again with a smaller quantity.')
+    needed = basket_usage(lines, recipes)   # ingredients for products WITH a recipe (v0.17.0)
+    short = shortages(needed)
+    if short:
+        ingredient, need, have = short[0]
+        return show_sale_page(f'Not enough {ingredient.name} left for this basket: it needs '
+                              f'{fmt_amount(need)} {ingredient.unit}, only {fmt_amount(have)} {ingredient.unit} on hand.')
     total = round(sum(line['subtotal'] for line in lines), 2)
 
     # Step 2: check the payment (v0.15.0: cash or GCash)
@@ -611,6 +872,21 @@ def complete_sale():
             db.session.rollback()   # cancel the whole sale: nothing is saved
             return show_sale_page(f'{name} was just sold by another sale and there is no longer '
                                   f'enough stock. Please check the basket again.')
+    # The same "atomic update" for every ingredient (v0.17.0): it only succeeds if enough is
+    # still on hand at that very moment, so two sales can't use the same milk twice.
+    for ingredient_id, amount in needed.items():
+        updated = (Ingredient.query
+                   .filter(Ingredient.id == ingredient_id, Ingredient.quantity >= amount - 1e-9)
+                   .update({Ingredient.quantity: Ingredient.quantity - amount},
+                           synchronize_session=False))
+        if updated == 0:
+            db.session.rollback()   # cancel the whole sale, including stock already deducted
+            ingredient = db.session.get(Ingredient, ingredient_id)
+            return show_sale_page(f'{ingredient.name} was just used up by another sale. '
+                                  f'Please check the basket again.')
+        # Write down the change in the ingredient's history ("stock ledger")
+        sale.movements.append(IngredientMovement(ingredient_id=ingredient_id, change=-amount,
+                                                 reason='sale', user_id=current_user.id))
     for line in lines:
         # One receipt line per basket line. The price includes the size and add-ons,
         # and the options are copied as text, so old receipts stay correct (v0.16.0)

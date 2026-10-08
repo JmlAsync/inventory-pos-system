@@ -35,6 +35,14 @@
     {% endif %}
 </div>
 
+{% if current_user.role == 'admin' and stats.low_ingredients %}
+{# Ingredients at or below their warning level (v0.17.0) #}
+<a href="{{ url_for('ingredients') }}" class="alert alert-warning d-flex align-items-center gap-2 text-decoration-none mt-3">
+    <i class="bi bi-droplet-half" aria-hidden="true"></i>
+    <span><strong>{{ stats.low_ingredients }} ingredient{{ '' if stats.low_ingredients == 1 else 's' }}</strong> running low. Open Ingredients to restock.</span>
+</a>
+{% endif %}
+
 <h2 class="section-title">Shortcuts</h2>
 <div class="row g-3">
     <div class="col-md-6 col-xl-4">

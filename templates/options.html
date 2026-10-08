@@ -14,18 +14,28 @@
     <form method="POST" action="{{ url_for('manage_options') }}" class="row g-2 align-items-center option-row{% if not option.active %} is-hidden{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="option_id" value="{{ option.id }}">
-        <div class="col-sm-5"><input type="text" class="form-control" name="name" value="{{ option.name }}" maxlength="50" required aria-label="Name"></div>
+        <div class="col-sm-{{ 3 if kind == 'size' else 5 }}"><input type="text" class="form-control" name="name" value="{{ option.name }}" maxlength="50" required aria-label="Name"></div>
         <div class="col-6 col-sm-3">
             <div class="input-group"><span class="input-group-text">+₱</span>
             <input type="number" class="form-control" name="price" value="{{ '%.2f'|format(option.price) }}" min="0" max="1000000" step="0.01" required aria-label="Extra price"></div>
         </div>
+        {% if kind == 'size' %}
+        <div class="col-6 col-sm-2">
+            <div class="input-group input-group-sm" title="How much of every ingredient this size uses, e.g. 1.33 for 16oz when recipes are for 12oz">
+                <span class="input-group-text">×</span>
+                <input type="number" class="form-control" name="scale" value="{{ option.scale|amount }}" min="0.01" max="10" step="any" aria-label="Recipe scale">
+            </div>
+        </div>
+        {% endif %}
         <div class="col-3 col-sm-2">
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="active" value="1" id="active{{ option.id }}"{% if option.active %} checked{% endif %}>
                 <label class="form-check-label" for="active{{ option.id }}">Offered</label>
             </div>
         </div>
-        <div class="col-3 col-sm-2 text-end"><button type="submit" class="btn btn-sm btn-outline-primary">Save</button></div>
+        <div class="col-3 col-sm-2 text-end text-nowrap">
+            <a href="{{ url_for('edit_recipe', kind='option', item_id=option.id) }}" class="btn btn-sm btn-light-subtle" title="Ingredients this {{ 'size' if kind == 'size' else 'add-on' }} uses"><i class="bi bi-journal-text" aria-hidden="true"></i><span class="visually-hidden">Recipe</span></a>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Save</button></div>
     </form>
     {% else %}
     <p class="text-body-secondary">None yet.</p>

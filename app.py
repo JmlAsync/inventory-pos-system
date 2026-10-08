@@ -49,6 +49,10 @@ def validate_product_form(form, current_product_id=None):
     if not name or not sku:
         return None, 'Name and SKU are required.'
 
+    # 1b. Text must fit the database columns in models.py (v0.8.6)
+    if len(name) > 100 or len(sku) > 50 or len(category or '') > 50:
+        return None, 'Name can be at most 100 characters; SKU and category at most 50.'
+
     # 2. Price and quantity must be numbers (float/int raise ValueError if not)
     try:
         price = float(form.get('price', ''))

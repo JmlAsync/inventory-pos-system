@@ -429,8 +429,14 @@ def read_line(key, quantity):
             or any(a is None or not a.active or a.kind != 'addon' for a in addons)):
         return None, (f'A size or add-on chosen for {product.name} is no longer offered, '
                       f'so that line was taken out of the basket.')
+    if (size or addons) and not product.has_options:
+        # The admin unticked "sizes and add-ons" for this product after it was added (v0.16.1)
+        return None, (f'{product.name} no longer has sizes or add-ons, so that line was taken out '
+                      f'of the basket. Please add it again.')
     unit_price = round(product.price + (size.price if size else 0) + sum(a.price for a in addons), 2)
     options_text = ', '.join(([size.name] if size else []) + [a.name for a in addons])   # e.g. "16oz, Sub Oat"
+    if len(options_text) > 200:   # the receipt column holds 200 characters (v0.16.1)
+        options_text = options_text[:199] + '…'
     return {'key': key, 'product': product, 'size': size, 'addons': addons, 'quantity': quantity,
             'unit_price': unit_price, 'options': options_text,
             'subtotal': round(unit_price * quantity, 2)}, None

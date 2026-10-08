@@ -4,6 +4,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User, Sale, SaleItem
 from functools import wraps
 import math
+import os
+import secrets
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
 from flask import abort
@@ -11,6 +13,8 @@ from flask import abort
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
 app.config['SECRET_KEY'] = 'dev-secret-change-this-later'
+# Largest upload allowed (v0.12.0): bigger requests are refused with error 413
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024   # 2 MB
 db.init_app(app)
 
 # Upper limits for numbers typed into forms (v0.8.3). Generous for a mini-store,
@@ -88,6 +92,27 @@ def peso(amount):
     """Show money the Philippine way, e.g. 6079.5 -> '₱6,079.50' (v0.11.2).
     Used in templates as {{ sale.total|peso }}."""
     return f'₱{amount:,.2f}'
+
+
+# ---------------- Database upgrades (v0.12.0) ----------------
+# db.create_all() creates missing TABLES but never adds COLUMNS to existing ones,
+# so columns added by later versions are listed here and added once, automatically.
+NEW_COLUMNS = [
+    ('sale', 'cash_received', 'FLOAT NOT NULL DEFAULT 0'),   # v0.8.0
+    ('sale', 'change_due', 'FLOAT NOT NULL DEFAULT 0'),      # v0.8.0
+    ('user', 'avatar', 'VARCHAR(100)'),                      # v0.12.0
+]
+
+
+def upgrade_database():
+    """Create missing tables, then add any missing columns from NEW_COLUMNS."""
+    db.create_all()
+    inspector = db.inspect(db.engine)
+    with db.engine.begin() as connection:
+        for table, column, column_type in NEW_COLUMNS:
+            existing = [c['name'] for c in inspector.get_columns(table)]
+            if column not in existing:
+                connection.execute(db.text(f'ALTER TABLE "{table}" ADD COLUMN {column} {column_type}'))
 
 
 login_manager = LoginManager()
@@ -367,6 +392,82 @@ def sales_report():
                            start=start, end=end, error=error)
 
 
+# ---------------- Profile picture (v0.12.0) ----------------
+AVATAR_FOLDER = os.path.join(app.static_folder, 'avatars')
+
+
+def detect_image_type(data):
+    """Return 'png', 'jpg' or 'webp' by looking at the file's first bytes
+    (its "magic number"), or None if it isn't one of those images.
+    The file name can lie; the bytes can't easily."""
+    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'png'
+    if data.startswith(b'\xff\xd8\xff'):
+        return 'jpg'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return 'webp'
+    return None
+
+
+def delete_avatar_file(user):
+    """Remove the user's current picture file, if any."""
+    if user.avatar:
+        path = os.path.join(AVATAR_FOLDER, os.path.basename(user.avatar))
+        if os.path.exists(path):
+            os.remove(path)
+
+
+@app.template_global()
+def avatar_url(user):
+    """Web address of the user's picture, or None to show initials instead
+    (also None if the file has gone missing)."""
+    if user.avatar and os.path.exists(os.path.join(AVATAR_FOLDER, os.path.basename(user.avatar))):
+        return url_for('static', filename='avatars/' + user.avatar)
+    return None
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        file = request.files.get('picture')
+        data = file.read() if file else b''
+        if not data:
+            flash('Choose a picture first.', 'danger')
+            return redirect(url_for('profile'))
+        kind = detect_image_type(data)
+        if kind is None:
+            flash('That file isn\'t a PNG, JPG or WebP picture.', 'danger')
+            return redirect(url_for('profile'))
+        os.makedirs(AVATAR_FOLDER, exist_ok=True)
+        # A random file name, so nobody can guess or overwrite another user's picture
+        filename = f'user{current_user.id}_{secrets.token_hex(8)}.{kind}'
+        with open(os.path.join(AVATAR_FOLDER, filename), 'wb') as f:
+            f.write(data)
+        delete_avatar_file(current_user)   # remove the old picture
+        current_user.avatar = filename
+        db.session.commit()
+        flash('Profile picture updated.', 'success')
+        return redirect(url_for('profile'))
+    return render_template('profile.html')
+
+
+@app.route('/profile/remove', methods=['POST'])
+@login_required
+def remove_avatar():
+    delete_avatar_file(current_user)
+    current_user.avatar = None
+    db.session.commit()
+    flash('Profile picture removed.', 'success')
+    return redirect(url_for('profile'))
+
+
+@app.errorhandler(413)
+def too_large(e):
+    flash('That picture is too big. The limit is 2 MB.', 'danger')
+    return redirect(url_for('profile'))
+
+
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
@@ -380,6 +481,6 @@ def logout():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
+        upgrade_database()   # creates tables and adds any new columns (v0.12.0)
     app.run(debug=True)
 

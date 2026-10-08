@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Your profile{% endblock %}
+{% block content %}
+<div class="card mx-auto" style="max-width: 28rem;">
+    <div class="card-body text-center">
+        {{ avatar(current_user, 112) }}
+        <h1 class="h4 mt-3 mb-1">{{ current_user.username }}</h1>
+        <span class="badge text-bg-secondary text-capitalize">{{ current_user.role }}</span>
+
+        <!-- enctype="multipart/form-data" is needed to send a file with a form -->
+        <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" class="mt-4 text-start">
+            <label class="form-label" for="picture">Change picture</label>
+            <input class="form-control" type="file" id="picture" name="picture"
+                   accept="image/png, image/jpeg, image/webp" required>
+            <div class="form-text">PNG, JPG or WebP, up to 2 MB. It's shown in a circle.</div>
+            <button type="submit" class="btn btn-success w-100 mt-3">Upload picture</button>
+        </form>
+
+        {% if current_user.avatar %}
+        <form method="POST" action="{{ url_for('remove_avatar') }}" class="mt-2">
+            <button type="submit" class="btn btn-outline-danger w-100">Remove picture</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

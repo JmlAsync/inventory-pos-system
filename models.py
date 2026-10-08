@@ -20,6 +20,17 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False)
+    # File name of the profile picture inside static/avatars, or None (v0.12.0)
+    avatar = db.Column(db.String(100))
+
+    @property
+    def initials(self):
+        """Up to two letters for the round avatar when there's no picture,
+        e.g. 'admin' -> 'AD', 'maria.santos' -> 'MS'."""
+        parts = self.username.replace('.', ' ').replace('_', ' ').split()
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        return self.username[:2].upper()
 
 
 class Sale(db.Model):

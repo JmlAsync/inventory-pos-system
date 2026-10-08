@@ -1,0 +1,13 @@
+{# Round profile picture, or the user's initials when there's no picture (v0.12.0).
+   Use it with:  {% from "_avatar.html" import avatar %}  then  {{ avatar(current_user, 32) }} #}
+{% macro avatar(user, size=32) %}
+{% set url = avatar_url(user) %}
+{% if url %}
+<img src="{{ url }}" alt="{{ user.username }}" class="rounded-circle border"
+     style="width: {{ size }}px; height: {{ size }}px; object-fit: cover;">
+{% else %}
+<span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold text-white bg-success"
+      style="width: {{ size }}px; height: {{ size }}px; font-size: {{ (size * 0.4)|int }}px;"
+      aria-label="{{ user.username }}">{{ user.initials }}</span>
+{% endif %}
+{% endmacro %}

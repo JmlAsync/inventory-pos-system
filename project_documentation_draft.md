@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.18.1** (2026-10-09). Versions v0.8.2–v0.18.1 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.18.2** (2026-10-09). Versions v0.8.2–v0.18.2 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -92,7 +92,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.16.0–v0.16.1 | Servings (sizes) and add-ons for drinks (+ edge-case patch) | Yes |
 | v0.17.0–v0.17.3 | Ingredients, recipes and ingredient history (+ deleted-product recipe patch, Hot / Iced wording, demo sales fix) | Yes: drinks are limited by milk and beans on hand |
 | v0.17.4 | Patch: number boxes without thousands separators | Yes |
-| v0.18.0–v0.18.1 | Ingredients page redesign: groups, search, stock bars, Update window, History tab (+ keep-your-place patch) | Yes: easier to find and update an ingredient |
+| v0.18.0–v0.18.2 | Ingredients page redesign: groups, search, stock bars, Update window, History tab (+ keep-your-place patch) | Yes: easier to find and update an ingredient |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -176,6 +176,8 @@ The tag message summarizes what the increment added.
 | v0.17.4 | 2026-10-09 | `c985356` | Number boxes show `2000`, not `2,000` (which they can't read) *(pull request #41)* |
 | v0.18.0 | 2026-10-09 | `9689751` | Ingredients page: groups, Full level and stock bars, search and filters, Needs attention, Update window, ingredient page, History tab *(pull request #42)* |
 | v0.18.1 | 2026-10-09 | `11e33e7` | Ingredients page keeps the search, filter and row after an update *(pull request #43)* |
+| — | 2026-10-09 | — | Documentation update for v0.17.4–v0.18.1 *(pull request #44, no tag)* |
+| v0.18.2 | 2026-10-09 | `4f1ca90` | Products table keeps SKUs and stock counts on one line *(pull request #45)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -507,9 +509,7 @@ Later she clicks **History** and filters to Cocoa powder to see last night's cou
 | S7 | TC-7.19: cash lower than the total → "Not enough cash" | ![Not enough cash](screenshots/v0.8.0_TC-7.19_not_enough_cash.png) |
 | S8 | TC-7.13: receipt #6 with cash and change | ![Receipt with cash and change](screenshots/v0.8.0_TC-7.13_receipt.png) |
 | S9 | TC-7.20: print preview shows only the receipt | ![Print preview](screenshots/v0.8.0_TC-7.20_print_preview.png) |
-
-> Still to capture: **TC-7.21 (v0.8.1)**, an old receipt (`/sales/1`) showing "Cash and change not recorded…"
-> (file name `v0.8.1_TC-7.21_not_recorded.png`).
+| S10 | TC-7.21 (v0.8.1): a receipt made before cash tracking says "Cash and change not recorded" *(taken by Claude, 2026-10-09)* | ![Old receipt: not recorded](screenshots/v0.8.1_TC-7.21_not_recorded.png) |
 
 ### Patches v0.8.2–v0.8.6 — robustness of the sale flow and forms
 
@@ -583,6 +583,15 @@ Later she clicks **History** and filters to Cocoa powder to see last night's cou
 | TC-11.10 | Logged in | Open `/profile/remove` in the address bar (GET) | 405, picture kept | 405 | ✅ |
 | TC-11.11 | Visitor | Open `/profile` | Login page | As expected | ✅ |
 
+
+#### Screenshots: profile picture (v0.12.0) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S11 | TC-11.1: no picture yet, initials "AD"; the avatar menu with Change picture, Change password, Log out | ![Avatar menu](screenshots/v0.12.0_TC-11.1_avatar_menu.png) |
+| S12 | TC-11.5: a text file named `.png` is refused | ![Not a picture](screenshots/v0.12.0_TC-11.5_not_a_picture.png) |
+| S13 | TC-11.2: picture uploaded and shown in a circle (page and sidebar) | ![Profile picture](screenshots/v0.12.0_TC-11.2_profile_picture.png) |
+
 ### F11 — Modern theme *(v0.13.0)*
 
 | ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
@@ -596,6 +605,17 @@ Later she clicks **History** and filters to Cocoa powder to see last night's cou
 | TC-12.7 | Demo data | Admin opens Home | Products 15, Low stock 4, today's sales and revenue match the report for today | As expected | ✅ |
 | TC-12.8 | Visitor | Open `/products` | Login page with a styled "Please log in" message | **v0.11.2:** message shown as plain text · **v0.13.0:** blue info box | ❌→✅ DEF-26 |
 | TC-12.9 | All earlier tests | Run the full regression suite | Everything still passes | All 10 suites + 17 avatar checks pass | ✅ |
+
+
+#### Screenshots: modern theme (v0.13.0) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S14 | TC-12.3 / TC-12.7: Home in the light theme with today's numbers and the low-ingredient warning | ![Home, light](screenshots/v0.13.0_TC-12.3_home_light.png) |
+| S15 | TC-12.3: the same page in the dark theme | ![Home, dark](screenshots/v0.13.0_TC-12.3_home_dark.png) |
+| S16 | TC-12.4: printing a receipt from dark mode gives a light page without the sidebar | ![Print from dark](screenshots/v0.13.0_TC-12.4_print_from_dark.png) |
+| S17 | TC-12.5: phone (390 px), the sidebar slides in from the menu button | ![Phone menu](screenshots/v0.13.0_TC-12.5_phone_menu.png) |
+| S18 | TC-12.8: "Please log in" as a blue info box | ![Login message](screenshots/v0.13.0_TC-12.8_login_message.png) |
 
 ### F12 — Security patches *(v0.13.1–v0.13.5)*
 
@@ -617,6 +637,15 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-13.12 | Change password correctly, then log in with old and new | Old refused, new works | As expected | ✅ (DEF-31 fixed) |
 | TC-13.13 | Log in with `admin' OR '1'='1` (SQL injection) | Refused | Refused (SQLAlchemy sends input as data) | ✅ |
 | TC-13.14 | Product named `<script>alert(1)</script>` (XSS) | Shown as text | Shown as text (Jinja escapes it) | ✅ |
+
+
+#### Screenshots: security patches (v0.13.2–v0.13.5) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S19 | TC-13.3: a form sent without its security token is refused ("This form has expired") | ![Form without token](screenshots/v0.13.2_TC-13.3_form_without_token.png) |
+| S20 | TC-13.7: after 5 wrong passwords the login waits 5 minutes | ![Too many attempts](screenshots/v0.13.3_TC-13.7_too_many_attempts.png) |
+| S21 | TC-13.11: a new password shorter than 8 characters is refused by the server (the browser's own check was switched off for this test) | ![Password too short](screenshots/v0.13.5_TC-13.11_password_too_short.png) |
 
 ### F13 — Product pictures and café menu *(v0.14.0–v0.14.3)*
 
@@ -642,6 +671,16 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-14.18 | All earlier tests | Full regression (10 suites + avatar + security + pictures) | Everything passes | As expected | ✅ |
 | TC-14.19 | Window 992–1360 px wide, 3 items in the basket | Look at the basket | Remove (×) button visible on every line | **v0.14.3:** cut off at the right edge · **v0.14.4:** visible at 390, 768, 992, 1100, 1199, 1200 and 1360 px | ❌→✅ DEF-37 |
 
+
+#### Screenshots: product pictures and menu (v0.14.0–v0.14.3) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S22 | TC-14.2: adding a product with a picture | ![Add product with picture](screenshots/v0.14.0_TC-14.2_add_product_with_picture.png) |
+| S23 | TC-14.11: New Sale menu: picture or icon tiles, category buttons, "left" counts | ![Menu tiles](screenshots/v0.14.0_TC-14.11_menu_tiles.png) |
+| S24 | TC-14.13 (v0.14.1): a 100-letter name wraps inside its tile | ![Long name wraps](screenshots/v0.14.1_TC-14.13_long_name_wraps.png) |
+| S25 | TC-14.15 (v0.14.3): phone basket bar "2 items · ₱175.00 — Pay" | ![Phone basket bar](screenshots/v0.14.3_TC-14.15_phone_basket_bar.png) |
+
 ### F14 — Payment method *(v0.15.0)*
 
 | ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
@@ -656,6 +695,15 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-15.8 | Basket | Method `card` (not offered) | Refused | As expected | ✅ |
 | TC-15.9 | Sales of both kinds | Sales Report | Revenue split "Cash ₱… · GCash ₱…"; Paid by column | As expected | ✅ |
 | TC-15.10 | Browser | Tap GCash, then Cash | Cash boxes hide/show; empty reference blocked by the browser; change preview still works | As expected | ✅ |
+
+
+#### Screenshots: payment method (v0.15.0) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S26 | TC-15.10: GCash chosen: the cash boxes are replaced by the 13-digit reference | ![GCash payment](screenshots/v0.15.0_TC-15.10_gcash_payment.png) |
+| S27 | TC-15.4: receipt "Paid by GCash" with the reference, options under each drink | ![GCash receipt](screenshots/v0.15.0_TC-15.4_gcash_receipt.png) |
+| S28 | TC-15.9: Sales Report revenue split "Cash ₱… · GCash ₱…" and a Paid by column | ![Report cash and GCash](screenshots/v0.15.0_TC-15.9_report_cash_gcash.png) |
 
 ### F15 — Sizes and add-ons *(v0.16.0, v0.16.1)*
 
@@ -676,6 +724,15 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-16.14 | Café menu | Look at the tiles and the drink window | Tiles say "Hot / Iced · add-ons"; window says "Serving"; admin page "Servings & Add-ons" | **v0.16.0–v0.17.1:** "Size" · **v0.17.2:** as expected | ❌→✅ DEF-41 |
 | TC-16.12 | 6 add-ons with 50-character names | Complete the sale | Options text fits the 200-character column | **v0.16.0:** 316 characters saved · **v0.16.1:** shortened with "…" | ❌→✅ DEF-39 |
 
+
+#### Screenshots: servings and add-ons (v0.16.0–v0.17.2) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S29 | TC-16.13: the drink window: Iced + Sub Oat, live price ₱180.00 | ![Drink window](screenshots/v0.16.0_TC-16.13_drink_window.png) |
+| S30 | TC-16.13: basket lines "Iced, Sub Oat" and "Hot" with their own prices | ![Basket with options](screenshots/v0.16.0_TC-16.13_basket_with_options.png) |
+| S31 | TC-16.14 (v0.17.2): the Servings & Add-ons page with Hot / Iced and the upgrades | ![Servings and add-ons](screenshots/v0.17.2_TC-16.14_servings_and_addons.png) |
+
 ### F16 — Ingredients and recipes *(v0.17.0, v0.17.1)*
 
 | ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
@@ -695,6 +752,15 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-17.13 | Product with a recipe, never sold | Delete it, then add a new product (SQLite reuses the id) | New product has no recipe | **v0.17.0:** new cookie inherited the recipe (could sell 4 instead of 20) · **v0.17.1:** no recipe | ❌→✅ DEF-40 |
 | TC-17.14 | Café menu in `local_demo/` (every product has a recipe, quantity 0) | `python seed_demo_data.py --fresh` | Real demo sales with items and totals | **v0.17.2:** 56 receipts of ₱0.00 with no items (Home showed 8 sales but only the newest one's revenue) · **v0.17.3:** 52 real sales | ❌→✅ DEF-42 |
 
+
+#### Screenshots: ingredients and recipes (v0.17.0) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S32 | TC-17.4: a product's recipe (ingredients grouped in the list since v0.18.0) | ![Recipe page](screenshots/v0.17.0_TC-17.4_recipe_page.png) |
+| S33 | TC-17.5 (+ v0.18.2): Products shows "can make" counts worked out from the ingredients | ![Products can make](screenshots/v0.17.0_TC-17.5_products_can_make.png) |
+| S34 | TC-17.7: 60 lattes need 12,000 ml of milk, only 9,840 ml on hand: refused with the amounts | ![Not enough milk](screenshots/v0.17.0_TC-17.7_not_enough_milk.png) |
+
 ### F17 — Ingredients page redesign *(v0.17.4, v0.18.0, v0.18.1)*
 
 | ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
@@ -713,13 +779,74 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-18.12 | Filter "Milk & cream" | Restock Whipped cream | Back at the same row, filter still on, row in view | **v0.18.0:** back at the top, filter cleared · **v0.18.1:** as expected | ❌→✅ DEF-44 |
 | TC-18.13 | Phone (390 px) | Open Ingredients and Update | No sideways scrolling; window fits | As expected | ✅ |
 | TC-18.14 | All earlier tests | Full regression (19 suites) | Everything passes | As expected | ✅ |
+| TC-18.15 | Products with "can make" counts | Look at the Products table | SKU and count on one line each | **v0.18.1:** "HC-" / "001" and "100 can" / "make" on two lines · **v0.18.2:** one line | ❌→✅ DEF-45 |
+
+
+#### Screenshots: Ingredients page (v0.18.0–v0.18.1) *(taken by Claude, 2026-10-09)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S35 | TC-18.3: groups, Needs attention (Iced cups, Matcha powder low), stock bars with the warn mark | ![Ingredients, light](screenshots/v0.18.0_TC-18.3_ingredients_light.png) |
+| S36 | TC-18.3: the same page in the dark theme | ![Ingredients, dark](screenshots/v0.18.0_TC-18.3_ingredients_dark.png) |
+| S37 | TC-18.6: search "milk" shows the 3 milks | ![Search milk](screenshots/v0.18.0_TC-18.6_search_milk.png) |
+| S38 | TC-18.7: Update window on Restock after "Fill up to full" (+2,200 ml) | ![Update window](screenshots/v0.18.0_TC-18.7_update_window.png) |
+| S39 | TC-18.12 (v0.18.1): after the restock the list comes back to the Oat milk row, highlighted, now full | ![Back at the row](screenshots/v0.18.1_TC-18.12_back_at_the_row.png) |
+| S40 | TC-18.9: an ingredient's own page: Restock, Count, Edit, Used in, Latest changes | ![Ingredient page](screenshots/v0.18.0_TC-18.9_ingredient_page.png) |
+| S41 | TC-18.11: History tab: the count, the restock and the ingredients used by sale #62 | ![History](screenshots/v0.18.0_TC-18.11_history.png) |
+| S42 | TC-18.13: phone (390 px): name and Update on top, bar and amount below, no sideways scrolling | ![Phone ingredients](screenshots/v0.18.0_TC-18.13_phone_ingredients.png) |
 
 > **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
 > for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### Test summary (v0.7.0 → v0.18.1)
+### How Claude tested v0.8.2 – v0.18.2
+
+**Method.** Each version was built in a separate copy of the repository and tested before it was published:
+1. **Automated tests** with Flask's *test client* (it sends requests to the app like a browser, but from a script), on a
+   fresh database each time. Upgrades were tested by first creating a database in the *old* shape (e.g. without the
+   `avatar` or `category` columns) and then starting the new version.
+2. **Attack tests** (F12): each weakness was attacked on the old version first (forged cookie, request without a CSRF
+   token, 200 password guesses) and again on the fix.
+3. **Race tests** with a real multi-threaded server: up to 20 "cashiers" press Complete Sale at the same moment
+   (TC-7.26, TC-17.11).
+4. **Browser tests** with Chromium driven by Playwright, using the real Bootstrap files: clicking, typing, the change
+   preview, the drink and ingredient windows, light/dark, print mode, and phone width (390 px). Every run also checks
+   that the page has **no JavaScript errors**.
+5. **Screenshot review**: the screenshots above were looked at one by one; this found DEF-25, DEF-32, DEF-36,
+   DEF-42, DEF-43 and DEF-45.
+6. **Regression**: after every version, *all* earlier suites were run again; a version was only published when all passed.
+7. **Publishing check**: each set of pull requests was first replayed on a fresh copy of GitHub's `main`; after
+   publishing, GitHub's code was compared with the tested code (identical) and the tests run again on it.
+
+Demo data for the screenshots used a fake clock (3:30 PM) so "today's sales" look like a normal afternoon, and a generic
+café menu; the real café's menu and photos stay on the student's computer only (`local_demo/`).
+
+**Automated suites (all passing on v0.18.2):**
+
+| Suite | Covers | Checks |
+|---|---|---|
+| v0.7.1 regression | F1–F6: product forms, login, roles (31 requests, no server crash) | 31 |
+| Sale tests | F7: basket, cash and change, stock deduction, receipts | 28 |
+| Logout basket | DEF-09: basket emptied on logout | 1 |
+| Race scenarios + 20-cashier stress | DEF-13: no overselling, no lost updates | 3 + 2 |
+| Number limits | DEF-14: nan, infinity, huge numbers | 17 inputs |
+| Browser change preview | live change while typing, no JS errors | 2 |
+| Low stock | F8 | 7 |
+| Sales report | F9 | 10 |
+| Demo data (twice) | TC-10.2: the demo seed is safe to run again | 1 |
+| Profile picture | F10 / TC-11.x | 17 |
+| Security | F12 / TC-13.x | 38 |
+| Product pictures + menu | F13 / TC-14.x | 25 |
+| Payment | F14 / TC-15.x | 19 |
+| Servings and add-ons | F15 / TC-16.x | 34 |
+| Ingredients and recipes (+ 20-till stress test) | F16 / TC-17.x | 38 + 1 |
+| Demo data with recipes | DEF-42, both menus | 2 |
+| Ingredients page | F17 / TC-18.x | 34 |
+| Number boxes | DEF-43 | 1 scan of 4 pages |
+| **19 suites** | | **about 300 checks** |
+
+### Test summary (v0.7.0 → v0.18.2)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -741,8 +868,8 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | F14 Payment method | 10 | 10 | 0 | 0 |
 | F15 Servings + add-ons | 14 | 11 → **14** | 3 → **0** | 0 |
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
-| F17 Ingredients page | 14 | 12 → **14** | 2 → **0** | 0 |
-| **Total** | **192** | **146 → 190** | **43 → 0** | **3 → 2** |
+| F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
+| **Total** | **193** | **146 → 191** | **44 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -800,6 +927,7 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | DEF-42 | Medium (demo data) | With the café's menu every product gets its stock from ingredients (quantity 0), so the demo sales found no product to sell and created only empty ₱0.00 receipts | Screenshot review of v0.17.2 (Home: 8 sales, ₱570.00) (TC-17.14) | Demo sales pick products that can be made (`stock_levels()`); no sales are created if nothing can be sold; new `test_seed.py` checks both menus | ✅ Fixed v0.17.3 |
 | DEF-43 | Medium | Number boxes were filled with "2,000", which a number box can't read, so they showed up empty; the Edit form of Fresh milk (warn at 2,000 ml) could not be saved | Screenshot review while redesigning (TC-18.1) | `plain_amount` filter (no separator) for every number box | ✅ Fixed v0.17.4 |
 | DEF-44 | Low (usability) | After each Restock / Count / Edit the list reloaded at the top with the search and filter cleared | v0.18.x stabilization (TC-18.12) | Return to the row (`#ing-<id>`), remember search and filter for the tab | ✅ Fixed v0.18.1 |
+| DEF-45 | Low (cosmetic) | In the Products table SKUs broke after the dash ("HC-" / "001") and "100 can make" took two lines | Screenshot review for the documentation (TC-18.15) | SKU and count cells keep their text on one line | ✅ Fixed v0.18.2 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -815,7 +943,7 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.18.1** (future increments):
+> **Known limitations after v0.18.2** (future increments):
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
 > - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.

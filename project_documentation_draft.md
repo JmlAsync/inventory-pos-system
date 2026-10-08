@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.13.0** (2026-10-09). Versions v0.8.2–v0.13.0 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.14.3** (2026-10-09). Versions v0.8.2–v0.14.3 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -33,10 +33,10 @@
 | Project name | Inventory & POS (Point-of-Sale) System |
 | Type | Web application |
 | Developer | Solo project |
-| Business purpose | Help a small store keep track of its products and stock, and (in later iterations) record sales at the counter |
+| Business purpose | Help a small store keep track of its products and stock and record sales at the counter. From v0.14.0 the demo shop is a **café** (coffee and pastries), because a café owner is interested in the project |
 | Language / framework | Python 3.11.9, Flask 3.1.3 |
 | Database | SQLite, accessed through Flask-SQLAlchemy 3.1.1 |
-| Login and security | Flask-Login 0.6.3; passwords hashed with Werkzeug (scrypt) |
+| Login and security | Flask-Login 0.6.3; passwords hashed with Werkzeug (scrypt); CSRF tokens, login attempt limit, secret key outside the code (v0.13.1–v0.13.5) |
 | User interface | HTML templates (Jinja2) styled with Bootstrap 5.3.3 |
 | Version control | Git + GitHub — `https://github.com/JmlAsync/inventory-pos-system` |
 | Versioning scheme | Semantic versioning (`MAJOR.MINOR.PATCH`), one tag per finished increment |
@@ -85,6 +85,9 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.11.1–v0.11.2 | Stabilization patches: receipt order, ₱ thousands separators | Yes |
 | v0.12.0 | Profile picture: round avatar with initials, upload/change/remove; automatic database upgrade | Yes |
 | v0.13.0 | Modern theme: left sidebar, light/dark switch, dashboard home | Yes: same features, new look |
+| v0.13.1–v0.13.5 | Security patches: secret key, CSRF, login limit, debug off + headers, change password | Yes: each attack re-run and now blocked |
+| v0.14.0 | Product pictures, tap-to-add menu on New Sale, café demo menu | Yes |
+| v0.14.1–v0.14.3 | Stabilization patches: long names, menu order + remembered category, phone basket bar | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -145,6 +148,16 @@ The tag message summarizes what the increment added.
 | — | 2026-10-09 | — | Documentation update for v0.8.2–v0.11.2 *(pull request #18, no tag)* |
 | v0.12.0 | 2026-10-09 | `5f3648e` | Profile pictures: round avatar (initials until a picture is uploaded), avatar menu, automatic database upgrade *(pull request #19)* |
 | v0.13.0 | 2026-10-09 | `ea368ff` | Modern theme: left sidebar with icons, light "Clean counter" / dark "Night shift" switch, dashboard home, card layout *(pull request #20)* |
+| — | 2026-10-09 | — | Documentation update for v0.12.0–v0.13.0 *(pull request #21, no tag)* |
+| v0.13.1 | 2026-10-09 | `b9e44a8` | Secret key out of the code (environment variable or `instance/secret_key.txt`) *(pull request #22)* |
+| v0.13.2 | 2026-10-09 | `9da53af` | CSRF tokens on every form; logout is a button; SameSite cookie *(pull request #23)* |
+| v0.13.3 | 2026-10-09 | `9134e6a` | Login attempt limit: 5 wrong passwords → wait 5 minutes *(pull request #24)* |
+| v0.13.4 | 2026-10-09 | `aed2017` | Debug mode off by default; browser security headers *(pull request #25)* |
+| v0.13.5 | 2026-10-09 | `7893486` | Change password on the profile page *(pull request #26)* |
+| v0.14.0 | 2026-10-09 | `59c6d54` | Product pictures with icon tiles, tap-to-add menu on New Sale, café demo menu (`--fresh`) *(pull request #27)* |
+| v0.14.1 | 2026-10-09 | `2795482` | Very long names wrap on the menu and in tables *(pull request #28)* |
+| v0.14.2 | 2026-10-09 | `afea681` | Menu in category order; chosen category kept after each tap *(pull request #29)* |
+| v0.14.3 | 2026-10-09 | `e598e88` | Phone basket bar; table columns stay readable *(pull request #30)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -268,6 +281,23 @@ stock, sales today, revenue today) and shortcut tiles. In the evening the store 
 **Dark mode** at the bottom of the sidebar: the system turns charcoal with amber highlights. Tomorrow it opens in
 dark mode again because her browser remembers the choice. When she prints a receipt from dark mode, the
 printout is still black on white. On her phone, the sidebar hides behind a ☰ menu button at the top.
+
+### Story F12 — Account safety *(v0.13.1–v0.13.5)*
+On her first day with the system, Maria opens her avatar menu, chooses **Change password**, types the default
+`admin123` once and her new password twice. A password shorter than 8 characters, or the same as her username, is
+refused with a message. Later, someone at the counter tries to guess her password: after 5 wrong tries the page says
+*"Too many failed attempts. Please wait 5 minutes and try again."*, even if the sixth guess is right. Behind the
+scenes, every form carries a hidden security token, so a stranger's website can't make her browser add a product or
+log her out, and the key that protects her login cookie is no longer published on GitHub.
+
+### Story F13 — Product pictures and the café menu *(v0.14.0–v0.14.3)*
+Ana runs a small café. When she adds "Iced Ube Latte (16oz)" she attaches a photo; products without one show a
+coloured icon (a hot cup for hot coffee, an iced cup for iced drinks, a pastry for pastries, a cake for cakes).
+At the counter, Juan opens **New Sale** and sees the menu as picture tiles grouped by category. He taps
+**Pastries**, then taps **Butter Croissant** twice; each tap adds one, and the Pastries filter stays selected
+*(v0.14.2)*. Each tile shows what is left ("3 left" in amber when low). The basket sits beside the menu on the
+laptop; on his phone a bar at the bottom shows *"2 items · ₱190.00 — Pay"* and jumps to the basket *(v0.14.3)*.
+For an exact quantity he can still use the product list and the Quantity box below the menu.
 
 ---
 
@@ -517,12 +547,56 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 | TC-12.8 | Visitor | Open `/products` | Login page with a styled "Please log in" message | **v0.11.2:** message shown as plain text · **v0.13.0:** blue info box | ❌→✅ DEF-26 |
 | TC-12.9 | All earlier tests | Run the full regression suite | Everything still passes | All 10 suites + 17 avatar checks pass | ✅ |
 
+### F12 — Security patches *(v0.13.1–v0.13.5)*
+
+Each row is an attack or misuse tried on purpose (on the code published as v0.13.0), then again after the fix.
+
+| ID | Attack / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|
+| TC-13.1 | Build a login cookie with the secret key published on GitHub, open the Sales Report | Refused | **v0.13.0:** Sales Report opened as admin with no password · **v0.13.1:** sent to the login page | ❌→✅ DEF-07 |
+| TC-13.2 | Restart the app | Same secret key (users stay logged in); `instance/` ignored by git; `SECRET_KEY` environment variable wins | As expected | ✅ |
+| TC-13.3 | Logged in as admin, send "Add product" without the hidden token / with a wrong token | Refused (400), nothing added | **v0.13.0:** product added · **v0.13.2:** 400 "This form has expired", nothing added | ❌→✅ DEF-08 |
+| TC-13.4 | Every POST form on Products, New Sale, Profile, Add, Edit | Each carries a token | All forms counted: tokens = forms | ✅ |
+| TC-13.5 | Open `/logout` as a link (GET) | Not allowed (405); logout only by button | **v0.13.0:** logged out · **v0.13.2:** 405 | ❌→✅ DEF-28 |
+| TC-13.6 | Session cookie | `HttpOnly` and `SameSite=Lax` | As expected | ✅ |
+| TC-13.7 | 200 wrong passwords for admin, then the right one | Locked after 5 tries | **v0.13.0:** right password accepted after 200 guesses · **v0.13.3:** 6th try → 429 "Too many failed attempts" | ❌→✅ DEF-27 |
+| TC-13.8 | Locked cashier; admin logs in from elsewhere / 4 wrong then right / wait 5 minutes | Other accounts unaffected; 4 wrong still OK; lock ends | As expected | ✅ |
+| TC-13.9 | Page headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` | **v0.13.0:** none · **v0.13.4:** all three | ❌→✅ DEF-29 |
+| TC-13.10 | Start with `python app.py` | Debug console off unless `FLASK_DEBUG=1` | **v0.13.0:** `debug=True` · **v0.13.4:** off | ❌→✅ DEF-30 |
+| TC-13.11 | Change password: wrong current / not matching / same as username / shorter than 8 | Refused with a message each | As expected | ✅ |
+| TC-13.12 | Change password correctly, then log in with old and new | Old refused, new works | As expected | ✅ (DEF-31 fixed) |
+| TC-13.13 | Log in with `admin' OR '1'='1` (SQL injection) | Refused | Refused (SQLAlchemy sends input as data) | ✅ |
+| TC-13.14 | Product named `<script>alert(1)</script>` (XSS) | Shown as text | Shown as text (Jinja escapes it) | ✅ |
+
+### F13 — Product pictures and café menu *(v0.14.0–v0.14.3)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-14.1 | Database from v0.13 (no `image` column) | Start the app | Column added automatically | Added | ✅ |
+| TC-14.2 | Admin | Add a product with a PNG | Saved under a random name in `static/products/`; shown in the list | As expected | ✅ |
+| TC-14.3 | Admin | Add with a text file named `.png` / a GIF on edit | Refused with a message; nothing saved | As expected | ✅ |
+| TC-14.4 | Admin | Add with no file | Allowed; icon tile shown | As expected | ✅ |
+| TC-14.5 | Products named Iced Latte, Butter Croissant, Chocolate Cake, Americano, Hot Chocolate, Bottled Water | Look at the icons | Iced cup, pastry, cake, hot cup, cup, box | As expected | ✅ |
+| TC-14.6 | Product with a picture | Edit without a file / with a JPG / tick "Remove the picture" | Kept / replaced (old file deleted) / removed (file deleted) | As expected | ✅ |
+| TC-14.7 | Admin | 3 MB picture on Add Product | Back to Add Product with "too big" | **Draft:** sent to the profile page · **v0.14.0:** back to the form | ❌→✅ (fixed before release) |
+| TC-14.8 | Product never sold / with sales | Delete it | Picture deleted / product and picture kept | As expected | ✅ |
+| TC-14.9 | Picture file missing, or name set to `../../app.py` | Show the product; delete it | Icon tile; `app.py` untouched | As expected | ✅ |
+| TC-14.10 | Duplicate SKU + new picture on Edit | Save | Error; no stray picture file | As expected | ✅ |
+| TC-14.11 | Café demo data | New Sale | One tile per product in stock; sold-out Ube Cheesecake not shown; category buttons | As expected | ✅ |
+| TC-14.12 | New Sale | Tap a tile | 1 added; "left" count goes down | As expected | ✅ |
+| TC-14.13 | Product name of 100 letters without spaces | New Sale and Products | Wraps inside its tile / cell | **v0.14.0:** spilled over the basket · **v0.14.1:** wraps | ❌→✅ DEF-32 |
+| TC-14.14 | Menu with drinks and pastries | Look at the order; tap a pastry while "Pastries" is chosen | Grouped by category; Pastries still chosen | **v0.14.1:** A–Z mixed, filter reset to All after each tap · **v0.14.2:** as expected | ❌→✅ DEF-33, DEF-34 |
+| TC-14.15 | Phone (390 px), 2 items in basket | Look at the screen; tap the bar | Bar "2 items · ₱130.00 — Pay"; jumps to Complete Sale | **v0.14.2:** basket only after scrolling past the whole menu · **v0.14.3:** as expected | ❌→✅ DEF-35 |
+| TC-14.16 | Phone, basket table | Read the names | Normal names on one line | **v0.14.1–v0.14.2:** "Ensaymada" one letter per line · **v0.14.3:** fixed | ❌→✅ DEF-36 |
+| TC-14.17 | `seed_demo_data.py --fresh` at 3:30 PM | Run it | Old database renamed as a backup; 22 café items; sales for 7 days + today until 3:30 PM only; receipt numbers in time order | As expected (today: 4 sales, 7:09 AM–2:32 PM) | ✅ |
+| TC-14.18 | All earlier tests | Full regression (10 suites + avatar + security + pictures) | Everything passes | As expected | ✅ |
+
 > **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
 > for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### Test summary (v0.7.0 → v0.13.0)
+### Test summary (v0.7.0 → v0.14.3)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -539,7 +613,9 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 | Demo data | 4 | 2 → **4** | 2 → **0** | 0 |
 | F10 Profile picture | 11 | 11 | 0 | 0 |
 | F11 Modern theme | 9 | 7 → **9** | 2 → **0** | 0 |
-| **Total** | **107** | **80 → 105** | **24 → 0** | **3 → 2** |
+| F12 Security | 14 | 8 → **14** | 6 → **0** | 0 |
+| F13 Pictures + café | 18 | 13 → **18** | 5 → **0** | 0 |
+| **Total** | **139** | **101 → 137** | **35 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -559,8 +635,8 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 | DEF-04 | Medium | Empty name/SKU accepted if the browser check is bypassed | TC-2.6 | Server check: `.strip()` the value and reject if empty | ✅ Fixed v0.7.1 |
 | DEF-05 | Low | Prices display with a `$` sign, but the store is in the Philippines | Code review; confirmed by hand | Change the `$` in `products.html` to `₱` | ✅ Fixed v0.7.1 |
 | DEF-06 | Low | After logging in, the user is always sent to Products instead of the page they first asked for | TC-5.8 | Read `request.args.get('next')` and redirect there (only if it is a page within this site) | later |
-| DEF-07 | Security, before submission | `SECRET_KEY` is written directly in `app.py` and pushed to a public GitHub repository | Code review | Read it from an environment variable; keep a development fallback | v1.0.0 |
-| DEF-08 | Security, before submission | Forms have no **CSRF protection** (CSRF = Cross-Site Request Forgery: another website tricking a logged-in user's browser into submitting a form) | Code review | Use Flask-WTF's `CSRFProtect` | v1.0.0 |
+| DEF-07 | **Critical** (security) | `SECRET_KEY` is written directly in `app.py` and pushed to a public GitHub repository. Proven on 2026-10-09: a cookie built with it opened the Sales Report as admin without a password | Code review; attack test TC-13.1 | Key from the `SECRET_KEY` environment variable, else a random key created once in `instance/secret_key.txt` (not uploaded) | ✅ Fixed v0.13.1 |
+| DEF-08 | **High** (security) | Forms have no **CSRF protection** (CSRF = Cross-Site Request Forgery: another website tricking a logged-in user's browser into submitting a form). Proven: a product was added by a request without any token | Code review; TC-13.3 | Own small CSRF check: a random token per session in a hidden field of every form, compared with `secrets.compare_digest`; no new library needed | ✅ Fixed v0.13.2 |
 | DEF-09 | **High** | Logging out did not empty the basket, so on a shared counter computer the next user saw the previous cashier's items | Testing during development (TC-7.17) | `session.pop('basket', None)` in `logout()` | ✅ Fixed before v0.8.0 release |
 | DEF-10 | Medium (usability) | The New Sale dropdown showed database stock, ignoring items already in the basket, so it looked like more could be sold | Hand testing by Yesha (TC-7.4) | Dropdown shows **available = stock − basket**; products fully in the basket are hidden; message says how many *more* can be added | ✅ Fixed before v0.8.0 merge |
 | DEF-11 | **High** (deployment) | After upgrading the code, **Complete Sale** crashed: "table sale has no column named cash_received". `db.create_all()` creates missing *tables* but never adds *columns* to existing ones | Hand testing by Yesha (TC-7.23) | One-time **migration** script `add_cash_columns_once.py` (SQL `ALTER TABLE … ADD COLUMN`), database backed up first. The crashed sale saved nothing, because the save is one transaction | ✅ Fixed 2026-10-08 (database change, no code change) |
@@ -579,6 +655,16 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 | DEF-24 | Medium | Sales report with end date 9999-12-31 crashed (no next day exists) | Pre-release testing of v0.10.0 (TC-9.5) | Dates limited to 2000–2100 | ✅ Fixed before v0.10.0 release |
 | DEF-25 | Medium | With the web font loading normally, a slow or blocked font server held up the New Sale script, so the change preview stayed at ₱0.00 (browsers wait for stylesheets before running scripts) | Pre-release testing of v0.13.0 (TC-12.6) | Font stylesheet loads in the background (`media="print"` switched to `all` when loaded) | ✅ Fixed before v0.13.0 release |
 | DEF-26 | Low | "Please log in to access this page." (from Flask-Login) shown as unstyled text, because its category `message` has no Bootstrap colour | v0.13.0 restyle (TC-12.8) | Category `message` shown as `info` | ✅ Fixed v0.13.0 |
+| DEF-27 | **High** (security) | No limit on wrong passwords: 200 guesses in a row, then the right password still worked | Security review (TC-13.7) | 5 wrong passwords per username + IP address → wait 5 minutes (429) | ✅ Fixed v0.13.3 |
+| DEF-28 | Low (security) | Logout worked as a plain link, so any website could log a user out | Security review (TC-13.5) | Logout only as a POST button with token | ✅ Fixed v0.13.2 |
+| DEF-29 | Medium (security) | No browser security headers: pages could be framed by other sites (clickjacking) | Security review (TC-13.9) | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` on every response | ✅ Fixed v0.13.4 |
+| DEF-30 | Medium (security) | `app.run(debug=True)`: on a crash, the debugger console can run Python code | Security review (TC-13.10) | Debug only with `FLASK_DEBUG=1` | ✅ Fixed v0.13.4 |
+| DEF-31 | Medium (security) | Default passwords (`admin123`) could not be changed | Security review | Change password on the profile page | ✅ Fixed v0.13.5 |
+| DEF-32 | Low | A long name without spaces spilled out of its menu tile over the basket | v0.14.x stabilization (TC-14.13) | Wrap anywhere, max 3 lines in tiles | ✅ Fixed v0.14.1 |
+| DEF-33 | Low (usability) | Menu tiles sorted A–Z, mixing drinks and pastries | v0.14.x stabilization (TC-14.14) | Order by category, then name | ✅ Fixed v0.14.2 |
+| DEF-34 | Medium (usability) | Each tap reloaded the menu back to "All", so the cashier had to choose the category again for every item | v0.14.x stabilization (TC-14.14) | Chosen category remembered for the browser tab | ✅ Fixed v0.14.2 |
+| DEF-35 | Medium (usability) | On phones the basket and Pay button were below the whole menu | v0.14.x stabilization (TC-14.15) | Bottom bar with item count and total that jumps to the basket | ✅ Fixed v0.14.3 |
+| DEF-36 | Medium (regression from v0.14.1) | On phones, basket names were squeezed to one letter per line | v0.14.x stabilization (TC-14.16) | Table cells wrap only long words; names kept 8–22rem wide | ✅ Fixed v0.14.3 |
 
 > **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
 > both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
@@ -589,7 +675,13 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.13.0** (future increments):
+> **Known limitations after v0.14.3** (future increments):
+> - **Drinks are counted as cups, not ingredients.** A real café runs out of milk or beans, not "lattes". Fix: recipes (each drink uses grams of beans and ml of milk) and ingredient stock.
+> - **Sizes are separate products** (Latte 12oz and 16oz). Fix: product *variants* (one product, several sizes and prices).
+> - **Sold-out items are hidden from the menu** instead of shown greyed out.
+> - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
+> - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
+> - **No Content-Security-Policy header** yet, because the pages use inline scripts and CDN files.
 > - **Styling comes from the internet** (Bootstrap, icons and font from CDNs, i.e. content delivery networks). Without internet the system still works but looks unstyled. Fix: save those files in `static/` so it runs fully offline.
 > - **The light/dark choice is saved per browser**, not per user account.
 > - **Cash only.** GCash/card would need a payment-method choice, recorded but not connected to GCash itself, which needs a merchant account.
@@ -600,8 +692,27 @@ printout is still black on white. On her phone, the sidebar hides behind a ☰ m
 > - **Money stored as `Float`**, rounded to centavos. Real POS systems store whole centavos or `Decimal`.
 > - **SQLite allows one writer at a time.** Fine for a small shop; many tills would need a server database.
 
-> DEF-07 and DEF-08 are also good material for the professor's Lecture 11 items (*security terminology*
-> and *vulnerability avoidance techniques*).
+### Security review (2026-10-09) — threats and controls
+
+Good material for the professor's Lecture 11 (security terminology, vulnerability avoidance) and Lecture 12
+(threat and control analysis). Each threat was **tested as an attack**, not just assumed.
+
+| Threat (what an attacker tries) | Asset at risk | Control in the system | Tested by | Status |
+|---|---|---|---|---|
+| Steal the database and read passwords | User accounts | Passwords stored as scrypt **hashes** | Code review | ✅ since v0.6.0 |
+| SQL injection in the login form | Whole database | SQLAlchemy sends input as data, never as SQL | TC-13.13 | ✅ |
+| Cross-site scripting (XSS) through a product name | Other users' browsers | Jinja escapes everything shown | TC-13.14 | ✅ |
+| Forge a login cookie | Admin access | Secret key not in the code | TC-13.1 | ✅ v0.13.1 |
+| Cross-site request forgery (CSRF) | Products, sales, passwords | Token in every form; SameSite cookie | TC-13.3–13.6 | ✅ v0.13.2 |
+| Guess passwords (brute force) | User accounts | 5 tries then 5 minutes wait; change default passwords | TC-13.7, 13.8, 13.11 | ✅ v0.13.3, v0.13.5 |
+| Clickjacking / content sniffing | User actions | Security headers | TC-13.9 | ✅ v0.13.4 |
+| Run code through the debugger console | The computer | Debug off by default | TC-13.10 | ✅ v0.13.4 |
+| Cashier uses admin pages | Products, reports | `@admin_required` → 403 | TC-6.x | ✅ since v0.7.0 |
+| Upload a harmful file as a "picture" | Server, other users | Content check (PNG/JPG/WebP bytes), 2 MB limit, random names, `nosniff` | TC-11.5–11.7, TC-14.3, TC-14.9 | ✅ |
+| Two sales take the last item at once | Stock accuracy | Atomic conditional update | TC-7.24–7.26 | ✅ since v0.8.2 |
+
+Words used: **threat** (something that could cause harm), **vulnerability** (a weakness it can use), **control**
+(the protection), **attack** (an attempt to exploit a vulnerability).
 
 ---
 
@@ -627,6 +738,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | UC-10 | View sales report | Admin | Built (v0.10.0, fixed v0.10.1–v0.10.2) |
 | UC-11 | Change profile picture | User (Admin and Cashier) | Built (v0.12.0) |
 | UC-12 | Switch light/dark theme | Visitor and User | Built (v0.13.0) |
+| UC-13 | Change password | User (Admin and Cashier) | Built (v0.13.5) |
 
 **Relationships between use cases** (needed for the diagram):
 - UC-05, UC-06, UC-07, UC-08 and UC-10 all **«include»** a hidden step, *Check permission (role)*. «include» means
@@ -711,7 +823,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Data** | Basket (in the session): product IDs and quantities. Saved: **Sale** (date and time, user, total, cash received, change due) and one **SaleItem** per line (product, name and unit price *at the time of sale*, quantity) |
 | **Stimulus** | The user adds items to the basket, enters the cash received and clicks Complete Sale |
 | **Response** | Stock and cash are checked; the sale and its items are saved and stock reduced in **one transaction**; the basket is emptied; a printable receipt is shown. Invalid input → message, nothing saved |
-| **Comments** | Includes *Check permission* (must be logged in). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct |
+| **Comments** | Includes *Check permission* (must be logged in). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct. Since v0.14.0 products are added by tapping picture tiles (1 per tap, filtered by category) or from the list with a quantity |
 
 **UC-09 View low-stock warning** *(built v0.9.0)*
 
@@ -756,6 +868,17 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Stimulus** | Clicking Dark mode / Light mode in the sidebar (or the moon/sun button on the login page) |
 | **Response** | Every page changes colour at once; the choice is kept after reloading. Printing always uses light |
 | **Comments** | Runs entirely in the browser; the server and database are not involved |
+
+**UC-13 Change password** *(built v0.13.5)*
+
+| | |
+|---|---|
+| **Actors** | Admin, Cashier |
+| **Description** | Replaces the user's password, e.g. the default `admin123` |
+| **Data** | Current password, new password typed twice; stored as a hash in `user.password_hash` |
+| **Stimulus** | Avatar menu → Change password, fill in the form, click Change password |
+| **Response** | Password changed with a success message; or a message if the current password is wrong, the two don't match, it equals the username or is shorter than 8 characters |
+| **Comments** | Includes *Check permission* (must be logged in) and the CSRF token check |
 
 ---
 
@@ -885,13 +1008,13 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 30 | Detailed usage scenario (L8 p. 53) | ⬜ |
 | 31 | Reliability terminology (L11 p. 25) | ⬜ |
 | 32 | Safety terminology (L11 p. 35) | ⬜ |
-| 33 | Security terminology (L11 p. 42) | ⬜ (use DEF-07, DEF-08, password hashing) |
-| 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks, upload checks (file content, 2 MB limit, random names) already exist |
+| 33 | Security terminology (L11 p. 42) | 🟡 §7 Security review (threat, vulnerability, control, attack) |
+| 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks, upload checks (file content, 2 MB limit, random names), CSRF tokens, login limit, security headers |
 | 35 | Risk classification table (L12 p. 15) | ⬜ |
 | 36 | Software fault tree (L12 p. 18) | ⬜ |
 | 37 | Safety requirements (L12 p. 23) | ⬜ |
 | 38 | Functional reliability requirements (L12 p. 39) | ⬜ |
-| 39 | Threat and control analysis (L12 p. 46) | ⬜ |
+| 39 | Threat and control analysis (L12 p. 46) | 🟡 §7 Security review table |
 
 **Other submission requirements (Section C/D):**
 - ⬜ Code comments explaining every block (currently there are none)

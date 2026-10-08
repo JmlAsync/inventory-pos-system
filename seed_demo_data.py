@@ -22,7 +22,7 @@ import shutil
 import sys
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type
+from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type, stock_levels
 from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem
 
 LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_demo', 'menu.json')
@@ -175,7 +175,13 @@ def add_past_sales(days=7):
         print("  (sales already exist, so no demo sales added)")
         return
     random.seed(42)  # same "random" data every time, so the demo is predictable
-    products = Product.query.filter(Product.quantity > 0).all()
+    # Products that can be sold now (v0.17.3): products with a recipe have quantity 0 and
+    # get their stock from the ingredients, so ask stock_levels() instead of quantity > 0
+    levels = stock_levels(Product.query.all())
+    products = [p for p in Product.query.all() if levels[p.id] > 0]
+    if not products:
+        print("  (no product can be sold, so no demo sales added)")
+        return
     users = User.query.all()
     sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order).all()
     addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order).all()

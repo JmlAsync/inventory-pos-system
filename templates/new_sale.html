@@ -70,7 +70,7 @@
 
     {# ---------- Right: the basket and payment ---------- #}
     <div class="col-lg-5">
-        <div class="basket-column">
+        <div class="basket-column" id="basket">
         <h2 class="section-title mt-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
         {% if lines %}
         <div class="card app-card mb-3"><div class="table-responsive">
@@ -84,7 +84,7 @@
                     <td>
                         <div class="d-flex align-items-center gap-2">
                             {{ product_thumb(line.product, 32) }}
-                            <span><span class="d-block fw-medium">{{ line.product.name }}</span>
+                            <span><span class="d-block fw-medium product-name">{{ line.product.name }}</span>
                             <span class="small text-body-secondary">{{ line.product.price|peso }} each</span></span>
                         </div>
                     </td>
@@ -144,6 +144,15 @@
         </div>
     </div>
 </div>
+
+{% if lines %}
+{# Phones (v0.14.3): the basket is below the long menu, so a bar at the bottom of the
+   screen shows the total and jumps to the basket. d-lg-none hides it on wide screens. #}
+<a href="#basket" class="basket-bar d-lg-none d-print-none">
+    <span><i class="bi bi-basket me-2" aria-hidden="true"></i>{{ lines|sum(attribute='quantity') }} item{{ '' if lines|sum(attribute='quantity') == 1 else 's' }} · {{ total|peso }}</span>
+    <span class="fw-semibold">Pay <i class="bi bi-arrow-down" aria-hidden="true"></i></span>
+</a>
+{% endif %}
 
 <script>
     // Category buttons (v0.14.0): hide the tiles of other categories. Nothing is sent to the server.

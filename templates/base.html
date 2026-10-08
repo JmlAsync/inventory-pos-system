@@ -87,6 +87,7 @@
                     <ul class="dropdown-menu w-100">
                         <li><span class="dropdown-item-text small text-body-secondary">Signed in as {{ current_user.role|capitalize }}</span></li>
                         <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-camera" aria-hidden="true"></i>Change picture</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('profile') }}#password"><i class="bi bi-key" aria-hidden="true"></i>Change password</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             {# Log out is a small form, not a link (v0.13.2) #}

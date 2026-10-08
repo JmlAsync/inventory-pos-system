@@ -56,7 +56,10 @@
         <div class="col-sm-6"><label class="form-label small">Ingredient</label>
             <select name="ingredient_id" class="form-select" required>
                 <option value="">-- Choose --</option>
-                {% for ingredient in ingredients %}<option value="{{ ingredient.id }}">{{ ingredient.name }} ({{ ingredient.unit }})</option>{% endfor %}
+                {# Grouped like the Ingredients page (v0.18.0) #}
+                {% for category, items in ingredients|groupby('category') %}<optgroup label="{{ category }}">
+                {% for ingredient in items|sort(attribute='name') %}<option value="{{ ingredient.id }}">{{ ingredient.name }} ({{ ingredient.unit }})</option>{% endfor %}
+                </optgroup>{% endfor %}
             </select></div>
         <div class="col-6 col-sm-3"><label class="form-label small">Amount</label><input type="number" name="amount" class="form-control" step="any" required></div>
         <div class="col-6 col-sm-3"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add</button></div>

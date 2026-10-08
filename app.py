@@ -138,6 +138,8 @@ NEW_COLUMNS = [
     ('product', 'has_options', 'BOOLEAN NOT NULL DEFAULT 0'),  # v0.16.0
     ('sale_item', 'options', 'VARCHAR(200)'),                # v0.16.0
     ('menu_option', 'scale', 'FLOAT NOT NULL DEFAULT 1'),    # v0.17.0
+    ('ingredient', 'category', "VARCHAR(30) NOT NULL DEFAULT 'Other'"),   # v0.18.0
+    ('ingredient', 'full_at', 'FLOAT NOT NULL DEFAULT 0'),   # v0.18.0
 ]
 # ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
 # (Empty values don't count as duplicates, so cash sales without a reference are fine.)
@@ -157,6 +159,15 @@ def upgrade_database():
             existing = [c['name'] for c in inspector.get_columns(table)]
             if column not in existing:
                 connection.execute(db.text(f'ALTER TABLE "{table}" ADD COLUMN {column} {column_type}'))
+                if (table, column) == ('ingredient', 'category'):
+                    # First start of v0.18.0: put existing ingredients into a likely group
+                    rows = connection.execute(db.text('SELECT id, name FROM ingredient')).fetchall()
+                    for ingredient_id, name in rows:
+                        connection.execute(db.text('UPDATE ingredient SET category = :c WHERE id = :i'),
+                                           {'c': guess_ingredient_category(name), 'i': ingredient_id})
+                if (table, column) == ('ingredient', 'full_at'):
+                    # ... and treat what is on hand now as "full", so the stock bars start sensible
+                    connection.execute(db.text('UPDATE ingredient SET full_at = quantity WHERE quantity > low_at'))
         for statement in NEW_INDEXES:
             connection.execute(db.text(statement))
 
@@ -411,6 +422,10 @@ def ingredients():
             name = request.form.get('name', '').strip()
             unit = request.form.get('unit', '')
             low_at = read_amount('low_at')
+            # v0.18.0: group and full level. Missing fields keep what the ingredient has
+            # (or a guess / 0 for a new one), so older forms and tests still work.
+            category = request.form.get('category') or (ingredient.category if ingredient else guess_ingredient_category(name))
+            full_at = read_amount('full_at') if request.form.get('full_at', '') != '' else (ingredient.full_at if ingredient else 0)
             same_name = Ingredient.query.filter(func.lower(Ingredient.name) == name.lower(),
                                                 Ingredient.id != (ingredient.id if ingredient else 0)).first()
             if not name or len(name) > 50:
@@ -419,6 +434,10 @@ def ingredients():
                 flash('Choose a unit: g, ml or pcs.', 'danger')
             elif low_at is None:
                 flash('"Warn at" must be a number, 0 or more.', 'danger')
+            elif category not in INGREDIENT_CATEGORIES:
+                flash('Choose one of the groups in the list.', 'danger')
+            elif full_at is None or (full_at and full_at <= low_at):
+                flash('"Full" must be more than "Warn at" (or 0 if you don\'t want a stock bar).', 'danger')
             elif same_name:
                 flash(f'There is already an ingredient called "{same_name.name}".', 'danger')
             else:
@@ -426,15 +445,66 @@ def ingredients():
                     ingredient = Ingredient(quantity=0)
                     db.session.add(ingredient)
                 ingredient.name, ingredient.unit, ingredient.low_at = name, unit, low_at
+                ingredient.category, ingredient.full_at = category, full_at
                 db.session.commit()
                 flash(f'Saved {name}.' + (' Use Restock to add what you have.' if action == 'add' else ''), 'success')
         else:
             abort(400)
+        # Forms on an ingredient's own page go back there; the rest go back to the list.
+        # Only an id is accepted, never a web address, so nobody can be sent to another site.
+        if request.form.get('return_to') == 'detail' and ingredient is not None and ingredient.id:
+            return redirect(url_for('ingredient_detail', ingredient_id=ingredient.id))
         return redirect(url_for('ingredients'))
+
     all_ingredients = Ingredient.query.order_by(Ingredient.name).all()
-    recent = IngredientMovement.query.order_by(IngredientMovement.id.desc()).limit(15).all()
-    return render_template('ingredients.html', ingredients=all_ingredients, recent=recent,
-                           units=INGREDIENT_UNITS)
+    # Groups in the fixed order; unknown groups (shouldn't happen) go under "Other"
+    groups = {category: [] for category in INGREDIENT_CATEGORIES}
+    for ingredient in all_ingredients:
+        groups.get(ingredient.category, groups['Other']).append(ingredient)
+    attention = sorted((i for i in all_ingredients if stock_status(i) != 'ok'),
+                       key=lambda i: (stock_status(i) != 'out', i.name))
+    return render_template('ingredients.html', ingredients=all_ingredients,
+                           groups=[(c, items) for c, items in groups.items() if items],
+                           attention=attention, units=INGREDIENT_UNITS, categories=INGREDIENT_CATEGORIES,
+                           percent=stock_percent, status=stock_status)
+
+
+@app.route('/ingredients/<int:ingredient_id>')
+@login_required
+@admin_required
+def ingredient_detail(ingredient_id):
+    """One ingredient: restock, count, edit and its own history (v0.18.0). The Update
+    window on the list does the same without leaving the page; this page is the fallback."""
+    ingredient = find_by_id(Ingredient, ingredient_id) or abort(404)
+    history = (IngredientMovement.query.filter_by(ingredient_id=ingredient.id)
+               .order_by(IngredientMovement.id.desc()).limit(20).all())
+    used_in = RecipeItem.query.filter_by(ingredient_id=ingredient.id).all()
+    return render_template('ingredient_detail.html', ingredient=ingredient, history=history,
+                           used_in=used_in, units=INGREDIENT_UNITS, categories=INGREDIENT_CATEGORIES,
+                           percent=stock_percent, status=stock_status)
+
+
+HISTORY_REASONS = {'sale': 'Sale', 'restock': 'Restock', 'count': 'Stock count'}
+
+
+@app.route('/ingredients/history')
+@login_required
+@admin_required
+def ingredients_history():
+    """Every change to ingredient stock, newest first, filterable (v0.18.0)."""
+    query = IngredientMovement.query
+    chosen = find_by_id(Ingredient, request.args.get('ingredient', type=int))
+    reason = request.args.get('reason', '')
+    if chosen:
+        query = query.filter_by(ingredient_id=chosen.id)
+    if reason in HISTORY_REASONS:
+        query = query.filter_by(reason=reason)
+    else:
+        reason = ''
+    moves = query.order_by(IngredientMovement.id.desc()).limit(200).all()
+    return render_template('ingredients_history.html', moves=moves, chosen=chosen, reason=reason,
+                           reasons=HISTORY_REASONS,
+                           ingredients=Ingredient.query.order_by(Ingredient.name).all())
 
 
 @app.route('/recipe/<kind>/<int:item_id>', methods=['GET', 'POST'])
@@ -530,6 +600,44 @@ def login():
 # beans, 180 ml of milk... so "how many can we still make" is worked out from what is on
 # hand. A product WITHOUT a recipe keeps its own quantity, as before.
 INGREDIENT_UNITS = ['g', 'ml', 'pcs']
+
+# Groups on the Ingredients page (v0.18.0), in the order they are shown
+INGREDIENT_CATEGORIES = ['Coffee', 'Milk & cream', 'Syrups & sauces', 'Toppings', 'Bakery',
+                         'Cups & packaging', 'Other']
+# Words that suggest a group; the first rule that matches wins (cups before milk, etc.)
+INGREDIENT_CATEGORY_RULES = [
+    (('cup', 'lid', 'straw', 'sleeve', 'bag', 'napkin'), 'Cups & packaging'),
+    (('espresso', 'coffee', 'bean'), 'Coffee'),
+    (('dough', 'croissant', 'bread', 'broas', 'waffle'), 'Bakery'),
+    (('syrup', 'sauce', 'spread', 'sweetener', 'sugar', 'paste', 'honey'), 'Syrups & sauces'),
+    (('milk', 'cream', 'foam', 'butter'), 'Milk & cream'),
+    (('powder', 'crumb', 'flakes', 'marshmallow', 'salt', 'biscuit', 'sesame', 'cinnamon', 'cocoa', 'sprinkle', 'nut'), 'Toppings'),
+]
+
+
+def guess_ingredient_category(name):
+    """A likely group for an ingredient name, e.g. 'Oat milk' -> 'Milk & cream' (v0.18.0)."""
+    text = (name or '').lower()
+    for words, category in INGREDIENT_CATEGORY_RULES:
+        if any(word in text for word in words):
+            return category
+    return 'Other'
+
+
+def stock_percent(ingredient):
+    """How full the shelf is, 0-100, or None when no full level is set (v0.18.0)."""
+    if ingredient.full_at and ingredient.full_at > 0:
+        return max(0, min(100, round(ingredient.quantity / ingredient.full_at * 100)))
+    return None
+
+
+def stock_status(ingredient):
+    """'out', 'low' or 'ok' (v0.18.0)."""
+    if ingredient.quantity <= 0:
+        return 'out'
+    if ingredient.quantity <= ingredient.low_at:
+        return 'low'
+    return 'ok'
 
 
 class Recipes:

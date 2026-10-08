@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Ingredient history{% endblock %}
+{% block content %}
+{# Every change to ingredient stock (v0.17.0), on its own tab since v0.18.0 #}
+<h1>Ingredients</h1>
+<p class="page-subtitle">Every change: sales, deliveries (restock) and stock counts, newest first.</p>
+<ul class="nav nav-pills page-tabs mb-3">
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
+    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
+</ul>
+<div class="card mb-3"><div class="card-body">
+<form method="GET" class="row g-2 align-items-end">
+    <div class="col-sm-5"><label class="form-label">Ingredient</label>
+        <select name="ingredient" class="form-select">
+            <option value="">All ingredients</option>
+            {% for ing in ingredients %}<option value="{{ ing.id }}"{% if chosen and chosen.id == ing.id %} selected{% endif %}>{{ ing.name }}</option>{% endfor %}
+        </select></div>
+    <div class="col-sm-4"><label class="form-label">Why</label>
+        <select name="reason" class="form-select">
+            <option value="">Everything</option>
+            {% for key, label in reasons.items() %}<option value="{{ key }}"{% if reason == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+    <div class="col-sm-3"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Show</button></div>
+</form>
+</div></div>
+{% if moves %}
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-sm">
+    <thead><tr><th>When</th><th>Ingredient</th><th class="text-end">Change</th><th>Why</th><th>By</th></tr></thead>
+    <tbody>
+    {% for move in moves %}
+    <tr>
+        <td class="text-nowrap">{{ move.created_at.strftime('%b %d, %I:%M %p') }}</td>
+        <td><a href="{{ url_for('ingredient_detail', ingredient_id=move.ingredient_id) }}" class="text-reset">{{ move.ingredient.name }}</a></td>
+        <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ move.ingredient.unit }}</td>
+        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
+        <td>{{ move.user.username if move.user else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+{% if moves|length == 200 %}<p class="small text-body-secondary mt-2">Showing the latest 200 changes. Choose an ingredient to see older ones.</p>{% endif %}
+{% else %}
+<p class="text-body-secondary">No changes{% if chosen or reason %} match these filters{% else %} yet{% endif %}.</p>
+{% endif %}
+{% endblock %}

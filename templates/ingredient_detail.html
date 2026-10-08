@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_ingredient.html" import restock_form, count_form, edit_form, stock_bar, status_badge %}
+{% block title %}{{ ingredient.name }}{% endblock %}
+{% block content %}
+{# One ingredient (v0.18.0): the same actions as the Update window, plus its recipes and history #}
+{% set state = status(ingredient) %}
+<a href="{{ url_for('ingredients') }}" class="small text-decoration-none"><i class="bi bi-arrow-left" aria-hidden="true"></i> Ingredients</a>
+<div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+    <h1 class="h3 fw-bold mb-0">{{ ingredient.name }}</h1> {{ status_badge(state) }}
+    <span class="badge rounded-pill text-bg-light border">{{ ingredient.category }}</span>
+</div>
+<p class="page-subtitle mt-1"><strong>{{ ingredient.quantity|amount }} {{ ingredient.unit }}</strong> on hand
+    {% if ingredient.full_at %}of {{ ingredient.full_at|amount }}{% endif %} · warn at {{ ingredient.low_at|amount }} {{ ingredient.unit }}</p>
+<div class="mb-4" style="max-width: 32rem;">{{ stock_bar(ingredient, percent(ingredient), state) }}</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4"><div class="card h-100"><div class="card-body">
+        <h2 class="h6 fw-bold mb-3"><i class="bi bi-truck me-2" aria-hidden="true"></i>Restock</h2>{{ restock_form(ingredient, 'detail') }}</div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-body">
+        <h2 class="h6 fw-bold mb-3"><i class="bi bi-clipboard-check me-2" aria-hidden="true"></i>Count</h2>{{ count_form(ingredient, 'detail') }}</div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-body">
+        <h2 class="h6 fw-bold mb-3"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit</h2>{{ edit_form(ingredient, units, categories, 'detail') }}</div></div></div>
+</div>
+
+<h2 class="section-title">Used in</h2>
+{% if used_in %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    {% for line in used_in %}
+    {% set owner = line.product or line.option %}
+    <a class="chip text-decoration-none" href="{{ url_for('edit_recipe', kind='product' if line.product_id else 'option', item_id=line.product_id or line.option_id) }}">
+        {{ owner.name if owner else '?' }} · {{ '+' if line.amount > 0 else '' }}{{ line.amount|amount }} {{ ingredient.unit }}</a>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-body-secondary">Not in any recipe yet.</p>
+{% endif %}
+
+<h2 class="section-title">Latest changes</h2>
+{% if history %}
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-sm">
+    <thead><tr><th>When</th><th class="text-end">Change</th><th>Why</th><th>By</th></tr></thead>
+    <tbody>
+    {% for move in history %}
+    <tr>
+        <td class="text-nowrap">{{ move.created_at.strftime('%b %d, %I:%M %p') }}</td>
+        <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ ingredient.unit }}</td>
+        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
+        <td>{{ move.user.username if move.user else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+<a href="{{ url_for('ingredients_history', ingredient=ingredient.id) }}" class="small d-inline-block mt-2">See all changes</a>
+{% else %}
+<p class="text-body-secondary">No changes yet.</p>
+{% endif %}
+<script>
+    document.querySelectorAll('.js-refill').forEach(function (b) {
+        b.addEventListener('click', function () { const f = b.closest('form'); f.querySelector('input[name="amount"]').value = f.dataset.refill; });
+    });
+</script>
+{% endblock %}

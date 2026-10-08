@@ -99,6 +99,10 @@ class Ingredient(db.Model):
     unit = db.Column(db.String(10), nullable=False, default='g')    # g, ml or pcs
     quantity = db.Column(db.Float, nullable=False, default=0)       # how much is on hand
     low_at = db.Column(db.Float, nullable=False, default=0)         # warn at or below this
+    # v0.18.0: a group for the Ingredients page, and the amount when the shelf is full
+    # (0 = not set). The stock bar shows quantity / full_at.
+    category = db.Column(db.String(30), nullable=False, default='Other')
+    full_at = db.Column(db.Float, nullable=False, default=0)
 
 
 class RecipeItem(db.Model):
@@ -111,6 +115,8 @@ class RecipeItem(db.Model):
     option_id = db.Column(db.Integer, db.ForeignKey('menu_option.id'))
     amount = db.Column(db.Float, nullable=False)
     ingredient = db.relationship('Ingredient')
+    product = db.relationship('Product')        # v0.18.0: for "Used in" on an ingredient's page
+    option = db.relationship('MenuOption')
 
 
 class IngredientMovement(db.Model):

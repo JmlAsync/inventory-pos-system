@@ -1,0 +1,77 @@
+{# Pieces shared by the Ingredients list, the Update window and an ingredient's own page (v0.18.0).
+   In the Update window "ing" is None and the script fills in the values. #}
+
+{% macro hidden_fields(ing, action, return_to='') %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="{{ action }}">
+<input type="hidden" name="ingredient_id" value="{{ ing.id if ing else '' }}" class="js-id">
+{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+{% endmacro %}
+
+{% macro restock_form(ing=None, return_to='') %}
+{% set refill = (ing.full_at - ing.quantity) if ing and ing.full_at and ing.full_at > ing.quantity else 0 %}
+<form method="POST" action="{{ url_for('ingredients') }}" data-panel="restock" data-refill="{{ refill }}">
+    {{ hidden_fields(ing, 'restock', return_to) }}
+    <label class="form-label" for="restock{{ ing.id if ing else '' }}">Amount received</label>
+    <div class="input-group">
+        <input type="number" class="form-control" id="restock{{ ing.id if ing else '' }}" name="amount" min="0.001" step="any" required placeholder="e.g. 1000">
+        <span class="input-group-text js-unit">{{ ing.unit if ing else '' }}</span>
+    </div>
+    <div class="form-text">Adds to what is on hand, e.g. a delivery.
+        <button type="button" class="btn btn-link btn-sm p-0 align-baseline js-refill"{% if not refill %} hidden{% endif %}>Fill up to full (+<span class="js-refill-amount">{{ refill|amount }}</span>)</button></div>
+    <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add to stock</button>
+</form>
+{% endmacro %}
+
+{% macro count_form(ing=None, return_to='') %}
+<form method="POST" action="{{ url_for('ingredients') }}" data-panel="count">
+    {{ hidden_fields(ing, 'count', return_to) }}
+    <label class="form-label" for="count{{ ing.id if ing else '' }}">Counted on the shelf</label>
+    <div class="input-group">
+        <input type="number" class="form-control" id="count{{ ing.id if ing else '' }}" name="counted" min="0" step="any" required placeholder="e.g. 750">
+        <span class="input-group-text js-unit">{{ ing.unit if ing else '' }}</span>
+    </div>
+    <div class="form-text">Replaces the amount on hand; the difference is saved in the history.</div>
+    <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save count</button>
+</form>
+{% endmacro %}
+
+{% macro edit_form(ing=None, units=(), categories=(), return_to='', action='edit') %}
+<form method="POST" action="{{ url_for('ingredients') }}" data-panel="{{ action }}" class="row g-2">
+    {{ hidden_fields(ing, action, return_to) }}
+    <div class="col-12"><label class="form-label">Name</label>
+        <input type="text" class="form-control js-f-name" name="name" maxlength="50" required value="{{ ing.name if ing else '' }}" placeholder="e.g. Oat milk"></div>
+    <div class="col-8"><label class="form-label">Group</label>
+        <select class="form-select js-f-category" name="category">
+            {% for category in categories %}<option{% if (ing and ing.category == category) or (not ing and category == 'Other') %} selected{% endif %}>{{ category }}</option>{% endfor %}
+        </select></div>
+    <div class="col-4"><label class="form-label">Unit</label>
+        <select class="form-select js-f-unit" name="unit">
+            {% for unit in units %}<option{% if ing and ing.unit == unit %} selected{% endif %}>{{ unit }}</option>{% endfor %}
+        </select></div>
+    <div class="col-6"><label class="form-label">Warn at</label>
+        <input type="number" class="form-control js-f-low" name="low_at" min="0" step="any" required value="{{ ing.low_at|plain_amount if ing else '0' }}"></div>
+    <div class="col-6"><label class="form-label">Full</label>
+        <input type="number" class="form-control js-f-full" name="full_at" min="0" step="any" value="{{ ing.full_at|plain_amount if ing else '0' }}"></div>
+    <div class="col-12 form-text mt-0">"Warn at": shown as Low at or below this. "Full": the amount on a full shelf, for the stock bar (0 = no bar).</div>
+    <div class="col-12"><button type="submit" class="btn btn-primary w-100 mt-2">
+        {% if action == 'add' %}<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add ingredient{% else %}<i class="bi bi-check2 me-1" aria-hidden="true"></i>Save changes{% endif %}</button></div>
+</form>
+{% endmacro %}
+
+{# The coloured bar: how full the shelf is, with a mark at the warn level #}
+{% macro stock_bar(ing, pct, state) %}
+{% if pct is not none %}
+<div class="stock-bar" role="img" aria-label="{{ pct }}% of a full shelf">
+    <span class="stock-fill is-{{ state }}" style="width: {{ pct }}%;"></span>
+    {% if ing.full_at %}<span class="stock-mark" style="left: {{ [100, (ing.low_at / ing.full_at * 100)|round|int]|min }}%;" title="Warn at {{ ing.low_at|amount }} {{ ing.unit }}"></span>{% endif %}
+</div>
+{% else %}
+<div class="small text-body-secondary">No full level set</div>
+{% endif %}
+{% endmacro %}
+
+{% macro status_badge(state) %}
+{% if state == 'out' %}<span class="badge rounded-pill text-bg-danger">Out</span>
+{% elif state == 'low' %}<span class="badge rounded-pill text-bg-warning">Low</span>{% endif %}
+{% endmacro %}

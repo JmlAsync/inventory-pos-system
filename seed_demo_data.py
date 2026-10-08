@@ -22,7 +22,7 @@ import shutil
 import sys
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type, stock_levels
+from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type, stock_levels, guess_ingredient_category
 from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem
 
 LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_demo', 'menu.json')
@@ -141,9 +141,14 @@ def add_options(menu):
 
 def add_ingredients_and_recipes(menu):
     """Ingredients and recipes (v0.17.0). Recipes are only added to things that have none yet."""
-    for name, unit, on_hand, low_at in menu.get("ingredients", []):
+    for row in menu.get("ingredients", []):
+        # [name, unit, on hand, warn at] + optional [group, full] (v0.18.0)
+        name, unit, on_hand, low_at = row[:4]
+        category = row[4] if len(row) > 4 else guess_ingredient_category(name)
+        full_at = row[5] if len(row) > 5 else max(on_hand, low_at * 4)
         if Ingredient.query.filter_by(name=name).first() is None:
-            db.session.add(Ingredient(name=name, unit=unit, quantity=on_hand, low_at=low_at))
+            db.session.add(Ingredient(name=name, unit=unit, quantity=on_hand, low_at=low_at,
+                                      category=category, full_at=full_at))
             print(f"  + ingredient {name}")
     db.session.flush()   # give the new ingredients their ids
     for owner, lines in menu.get("recipes", {}).items():

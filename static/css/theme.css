@@ -439,3 +439,41 @@ img.product-thumb { border: 1px solid var(--app-border); }
     .app-content { padding: 0 !important; max-width: none; }
     .card { box-shadow: none !important; }
 }
+
+/* ---------- Ingredients page (v0.18.0) ---------- */
+.page-tabs { --bs-nav-pills-link-active-bg: var(--app-accent); --bs-nav-pills-link-active-color: var(--app-accent-contrast); --bs-nav-link-color: var(--app-muted); --bs-nav-link-hover-color: var(--app-text); gap: 0.25rem; }
+.page-tabs .nav-link { border-radius: 10px; font-weight: 500; }
+.search-box { position: relative; min-width: 14rem; }
+.search-box .bi { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--app-muted); }
+.search-box .form-control { padding-left: 2.4rem; }
+.new-ingredient { position: relative; }
+.new-ingredient > summary { list-style: none; }
+.new-ingredient > summary::-webkit-details-marker { display: none; }
+.new-ingredient-panel { position: absolute; right: 0; top: calc(100% + 0.5rem); z-index: 1040; width: min(26rem, calc(100vw - 2rem)); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.chip-warn { border-color: rgba(239, 159, 39, 0.6); color: #B86E00; }
+[data-bs-theme="dark"] .chip-warn { color: #EF9F27; }
+.chip-warn.active { background: #EF9F27; border-color: #EF9F27; color: #1E1E1C; }
+.ing-group { overflow: hidden; }
+.ing-group-head { padding: 0.6rem 1.1rem; font-weight: 700; background: var(--app-surface-2); border-bottom: 1px solid var(--app-border); }
+.attention-group { border-color: rgba(239, 159, 39, 0.55); }
+.attention-group .ing-group-head { background: rgba(239, 159, 39, 0.12); color: var(--app-text); }
+.ing-row {
+    display: grid; grid-template-columns: minmax(10rem, 1.4fr) minmax(8rem, 1.2fr) minmax(8rem, 0.9fr) auto;
+    align-items: center; gap: 0.35rem 1.25rem; padding: 0.5rem 1.1rem;
+}
+.ing-row + .ing-row { border-top: 1px solid var(--app-border); }
+.ing-row[hidden] { display: none; }
+.ing-name { font-weight: 600; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.ing-name .product-name { min-width: 0; }
+.ing-amount { text-align: right; white-space: nowrap; }
+.stock-bar { position: relative; height: 8px; border-radius: 999px; background: var(--app-surface-2); border: 1px solid var(--app-border); }
+.stock-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--app-accent); }
+.stock-fill.is-low { background: #EF9F27; }
+.stock-fill.is-out { background: #DC3545; }
+.stock-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--app-muted); border-radius: 1px; }
+@media (max-width: 767.98px) {   /* phones: name and button on top, bar and amount below */
+    .ing-row { grid-template-columns: 1fr auto; grid-template-areas: "name button" "bar amount"; }
+    .ing-name { grid-area: name; } .js-update { grid-area: button; }
+    .ing-bar { grid-area: bar; } .ing-amount { grid-area: amount; }
+    .new-ingredient-panel { right: auto; left: 0; }
+}

@@ -13,6 +13,8 @@ class Product(db.Model):
     category = db.Column(db.String(50))
     # File name of the product's picture in static/products/, or None (v0.14.0)
     image = db.Column(db.String(100))
+    # True for drinks: the cashier picks a size and may add add-ons (v0.16.0)
+    has_options = db.Column(db.Boolean, nullable=False, default=False)
 
     def __repr__(self):
         return f"<Product {self.name}>"
@@ -65,7 +67,22 @@ class SaleItem(db.Model):
     product_name = db.Column(db.String(100), nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
+    # Size and add-ons chosen, copied as text, e.g. "16oz, Sub Oat" (v0.16.0).
+    # unit_price already includes their extra cost.
+    options = db.Column(db.String(200))
 
     @property
     def subtotal(self):
         return round(self.unit_price * self.quantity, 2)
+
+
+class MenuOption(db.Model):
+    """A size (e.g. 16oz) or an add-on (e.g. Sub Oat) that drinks can have (v0.16.0).
+    price is the EXTRA cost on top of the product's own price (0 for the base size)."""
+    __tablename__ = 'menu_option'
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(10), nullable=False)       # 'size' or 'addon'
+    name = db.Column(db.String(50), nullable=False)
+    price = db.Column(db.Float, nullable=False, default=0)
+    active = db.Column(db.Boolean, nullable=False, default=True)   # hidden options aren't offered
+    sort_order = db.Column(db.Integer, nullable=False, default=0)  # smaller numbers first

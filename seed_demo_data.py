@@ -1,58 +1,71 @@
 """Fill the database with realistic demo data for the presentation (v0.11.0).
-Since v0.14.0 the demo shop is a café (coffee and pastries).
+Since v0.14.0 the demo shop is a café; since v0.16.0 drinks have sizes and add-ons.
 
 Run it once with:   python seed_demo_data.py
-It is safe to run again: products and users that already exist are skipped,
+It is safe to run again: products, options and users that already exist are skipped,
 and demo sales are only added when the database has no sales yet.
 
-To start over with ONLY the café demo:   python seed_demo_data.py --fresh
+To start over with ONLY the demo data:   python seed_demo_data.py --fresh
 That first renames the current database to instance/inventory_backup_<date-time>.db
 (nothing is deleted), then creates a new one.
 Run it shortly before presenting: today's demo sales stop at the current time.
+
+A real shop's menu (v0.16.0): put it in local_demo/menu.json (same shape as DEFAULT_MENU
+below, and optional photos in local_demo/photos/). The local_demo folder is NOT uploaded
+to GitHub, so a shop's own names and photos stay on your computer.
 """
+import json
 import math
 import os
 import random
+import shutil
 import sys
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from app import app, upgrade_database
-from models import db, Product, User, Sale, SaleItem
+from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type
+from models import db, Product, User, Sale, SaleItem, MenuOption
 
-# (name, SKU, price in pesos, quantity in stock, category)
-# A small café menu (v0.14.0). For drinks, "quantity" means cups that can still be
-# made today (limited by beans, milk and cups); for pastries it's pieces on the shelf.
-DEMO_PRODUCTS = [
-    # Hot coffee (12oz)
-    ("Americano (12oz)",               "HC-001", 110.00, 40, "Hot Coffee"),
-    ("Cafe Latte (12oz)",              "HC-002", 140.00, 35, "Hot Coffee"),
-    ("Cappuccino (12oz)",              "HC-003", 140.00, 30, "Hot Coffee"),
-    ("Spanish Latte (12oz)",           "HC-004", 155.00, 25, "Hot Coffee"),
-    ("Caramel Macchiato (12oz)",       "HC-005", 160.00, 25, "Hot Coffee"),
-    # Iced coffee (16oz)
-    ("Iced Americano (16oz)",          "IC-001", 120.00, 40, "Iced Coffee"),
-    ("Iced Latte (16oz)",              "IC-002", 150.00, 35, "Iced Coffee"),
-    ("Iced Spanish Latte (16oz)",      "IC-003", 165.00, 30, "Iced Coffee"),
-    ("Iced Caramel Macchiato (16oz)",  "IC-004", 170.00, 25, "Iced Coffee"),
-    ("Iced Mocha (16oz)",              "IC-005", 170.00, 20, "Iced Coffee"),
-    # Non-coffee
-    ("Matcha Latte (12oz)",            "NC-001", 160.00, 20, "Non-Coffee"),
-    ("Iced Matcha Latte (16oz)",       "NC-002", 170.00, 20, "Non-Coffee"),
-    ("Hot Chocolate (12oz)",           "NC-003", 130.00, 20, "Non-Coffee"),
-    ("Iced Strawberry Milk (16oz)",    "NC-004", 150.00, 15, "Non-Coffee"),
-    # Pastries
-    ("Butter Croissant",               "PA-001",  95.00,  5, "Pastries"),   # low stock (5 = threshold)
-    ("Ensaymada",                      "PA-002",  65.00, 12, "Pastries"),
-    ("Chocolate Chip Cookie",          "PA-003",  60.00, 18, "Pastries"),
-    ("Banana Bread (slice)",           "PA-004",  75.00, 10, "Pastries"),
-    ("Cinnamon Roll",                  "PA-005", 110.00,  4, "Pastries"),   # low stock
-    # Cakes
-    ("Basque Burnt Cheesecake (slice)", "CK-001", 180.00, 8, "Cakes"),
-    ("Chocolate Cake (slice)",         "CK-002", 150.00,  3, "Cakes"),      # low stock
-    ("Ube Cheesecake (slice)",         "CK-003", 165.00,  0, "Cakes"),      # sold out
-]
+LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_demo', 'menu.json')
+
+# A small generic café menu. For drinks, "quantity" means cups that can still be
+# made today; for pastries it's pieces on the shelf.
+# Products: [name, SKU, price in pesos, quantity, category, has sizes/add-ons, photo file or null]
+DEFAULT_MENU = {
+    "products": [
+        ["Americano",              "HC-001", 110.00, 40, "Hot Coffee",  True,  None],
+        ["Cafe Latte",             "HC-002", 140.00, 35, "Hot Coffee",  True,  None],
+        ["Cappuccino",             "HC-003", 140.00, 30, "Hot Coffee",  True,  None],
+        ["Spanish Latte",          "HC-004", 155.00, 25, "Hot Coffee",  True,  None],
+        ["Iced Americano",         "IC-001", 120.00, 40, "Iced Coffee", True,  None],
+        ["Iced Latte",             "IC-002", 150.00, 35, "Iced Coffee", True,  None],
+        ["Iced Caramel Macchiato", "IC-003", 170.00, 25, "Iced Coffee", True,  None],
+        ["Iced Mocha",             "IC-004", 170.00, 20, "Iced Coffee", True,  None],
+        ["Matcha Latte",           "NC-001", 160.00, 20, "Non-Coffee",  True,  None],
+        ["Hot Chocolate",          "NC-002", 130.00, 20, "Non-Coffee",  True,  None],
+        ["Butter Croissant",       "PA-001",  95.00,  5, "Pastries",    False, None],   # low stock (5 = threshold)
+        ["Ensaymada",              "PA-002",  65.00, 12, "Pastries",    False, None],
+        ["Chocolate Chip Cookie",  "PA-003",  60.00, 18, "Pastries",    False, None],
+        ["Cinnamon Roll",          "PA-004", 110.00,  4, "Pastries",    False, None],   # low stock
+        ["Basque Burnt Cheesecake (slice)", "CK-001", 180.00, 8, "Cakes", False, None],
+        ["Chocolate Cake (slice)", "CK-002", 150.00,  3, "Cakes",       False, None],   # low stock
+        ["Ube Cheesecake (slice)", "CK-003", 165.00,  0, "Cakes",       False, None],   # sold out
+    ],
+    # [name, extra price]. The first size is the default (placeholder sizes: change them
+    # on the Sizes & Add-ons page once the owner confirms).
+    "sizes": [["12oz", 0], ["16oz", 20]],
+    "addons": [["Extra Shot", 30], ["Oat Milk", 40], ["Syrup", 20]],
+}
 
 DEMO_USERS = [("admin", "admin123", "admin"), ("cashier", "cashier123", "cashier")]
+
+
+def load_menu():
+    """The shop's own menu from local_demo/menu.json if it exists, else the generic one."""
+    if os.path.exists(LOCAL_MENU):
+        with open(LOCAL_MENU, encoding='utf-8') as f:
+            print(f"  using the local menu in {LOCAL_MENU}")
+            return json.load(f)
+    return DEFAULT_MENU
 
 
 def add_users():
@@ -63,12 +76,41 @@ def add_users():
             print(f"  + user {username}")
 
 
-def add_products():
-    for name, sku, price, quantity, category in DEMO_PRODUCTS:
+def copy_photo(photo):
+    """Copy a photo from local_demo/photos/ into static/products/; return its new name or None."""
+    if not photo:
+        return None
+    source = os.path.join(os.path.dirname(LOCAL_MENU), 'photos', os.path.basename(photo))
+    if not os.path.exists(source):
+        print(f"  (photo {photo} not found, an icon is shown instead)")
+        return None
+    with open(source, 'rb') as f:
+        kind = detect_image_type(f.read(16))
+    if kind is None:
+        print(f"  (photo {photo} is not a PNG, JPG or WebP picture, so it was skipped)")
+        return None
+    os.makedirs(PRODUCT_IMAGE_FOLDER, exist_ok=True)
+    name = f"product_demo_{os.path.splitext(os.path.basename(photo))[0]}.{kind}"
+    shutil.copyfile(source, os.path.join(PRODUCT_IMAGE_FOLDER, name))
+    return name
+
+
+def add_products(menu):
+    for name, sku, price, quantity, category, has_options, photo in menu["products"]:
         if Product.query.filter_by(sku=sku).first() is None:   # SKU must be unique
-            db.session.add(Product(name=name, sku=sku, price=price,
-                                   quantity=quantity, category=category))
+            db.session.add(Product(name=name, sku=sku, price=price, quantity=quantity,
+                                   category=category, has_options=has_options,
+                                   image=copy_photo(photo)))
             print(f"  + product {name}")
+
+
+def add_options(menu):
+    """Sizes and add-ons (v0.16.0)."""
+    for kind, key in (("size", "sizes"), ("addon", "addons")):
+        for order, (name, price) in enumerate(menu.get(key, []), start=1):
+            if MenuOption.query.filter_by(kind=kind, name=name).first() is None:
+                db.session.add(MenuOption(kind=kind, name=name, price=price, sort_order=order))
+                print(f"  + {kind} {name}")
 
 
 OPENING_HOUR = 7    # the café opens at 7 AM ...
@@ -85,6 +127,8 @@ def add_past_sales(days=7):
     random.seed(42)  # same "random" data every time, so the demo is predictable
     products = Product.query.filter(Product.quantity > 0).all()
     users = User.query.all()
+    sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order).all()
+    addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order).all()
     now = datetime.now()
     used_references = set()
     for days_ago in range(days, -1, -1):   # ... 2 days ago, yesterday, today (0)
@@ -99,11 +143,19 @@ def add_past_sales(days=7):
                 continue
             sale = Sale(user_id=random.choice(users).id, created_at=when)
             total = 0
-            for product in random.sample(products, random.randint(1, 3)):  # 1 to 3 different items
+            for product in random.sample(products, min(len(products), random.randint(1, 3))):  # 1 to 3 different items
                 quantity = random.randint(1, 2)
+                unit_price, chosen = product.price, []
+                if product.has_options and sizes:
+                    # Mostly the small size; sometimes an add-on (v0.16.0)
+                    size = sizes[0] if random.random() < 0.6 else random.choice(sizes)
+                    extras = random.sample(addons, 1) if addons and random.random() < 0.3 else []
+                    chosen = [size] + extras
+                    unit_price = round(product.price + sum(o.price for o in chosen), 2)
                 sale.items.append(SaleItem(product_id=product.id, product_name=product.name,
-                                           unit_price=product.price, quantity=quantity))
-                total += round(product.price * quantity, 2)
+                                           unit_price=unit_price, quantity=quantity,
+                                           options=', '.join(o.name for o in chosen) or None))
+                total += round(unit_price * quantity, 2)
             sale.total = round(total, 2)
             if random.random() < 0.35:
                 # About a third pay by GCash (v0.15.0): exact amount, a made-up 13-digit reference
@@ -138,9 +190,11 @@ if '--fresh' in sys.argv:
 
 with app.app_context():
     upgrade_database()     # make sure every table and column exists (v0.12.0)
+    menu = load_menu()
     add_users()
-    add_products()
-    db.session.commit()    # save users and products first, so they have ids
+    add_options(menu)
+    add_products(menu)
+    db.session.commit()    # save users, options and products first, so they have ids
     add_past_sales()
     db.session.commit()
     print("Demo data ready.")

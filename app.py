@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem
+from models import db, Product, User, Sale, SaleItem, MenuOption
 from functools import wraps
 import math
 import os
@@ -115,7 +115,8 @@ def validate_product_form(form, current_product_id=None):
         return None, f'SKU "{sku}" is already used by "{existing.name}".'
 
     return {'name': name, 'sku': sku, 'price': price,
-            'quantity': quantity, 'category': category}, None
+            'quantity': quantity, 'category': category,
+            'has_options': bool(form.get('has_options'))}, None   # tick box (v0.16.0)
 
 @app.template_filter('peso')
 def peso(amount):
@@ -134,6 +135,8 @@ NEW_COLUMNS = [
     ('product', 'image', 'VARCHAR(100)'),                    # v0.14.0
     ('sale', 'payment_method', "VARCHAR(10) NOT NULL DEFAULT 'cash'"),   # v0.15.0
     ('sale', 'payment_reference', 'VARCHAR(20)'),            # v0.15.0
+    ('product', 'has_options', 'BOOLEAN NOT NULL DEFAULT 0'),  # v0.16.0
+    ('sale_item', 'options', 'VARCHAR(200)'),                # v0.16.0
 ]
 # ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
 # (Empty values don't count as duplicates, so cash sales without a reference are fine.)
@@ -266,6 +269,7 @@ def edit_product(product_id):
         product.price = data['price']
         product.quantity = data['quantity']
         product.category = data['category']
+        product.has_options = data['has_options']
         # Picture (v0.14.0): a new upload replaces the old one; the tick box removes it
         if picture or request.form.get('remove_picture'):
             delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)
@@ -290,6 +294,53 @@ def delete_product(product_id):
     db.session.delete(product)
     db.session.commit()
     return redirect(url_for('products'))
+
+# ---------------- Sizes and add-ons (v0.16.0) ----------------
+OPTION_KINDS = {'size': 'size', 'addon': 'add-on'}
+
+
+@app.route('/options', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_options():
+    """Admin page to add, rename, reprice and hide sizes and add-ons.
+    Options are hidden rather than deleted, because old receipts and recipes refer to them."""
+    if request.method == 'POST':
+        option_id = request.form.get('option_id', type=int)
+        kind = request.form.get('kind', '')
+        name = request.form.get('name', '').strip()
+        try:
+            price = float(request.form.get('price', ''))
+        except ValueError:
+            price = None
+        if option_id:   # editing an existing option
+            option = find_by_id(MenuOption, option_id) or abort(404)
+            kind = option.kind
+        elif kind not in OPTION_KINDS:
+            abort(400)
+        if not name or len(name) > 50:
+            flash('The name must be 1 to 50 characters.', 'danger')
+        elif price is None or not math.isfinite(price) or price < 0 or price > MAX_PRICE:
+            flash(f'The extra price must be a number from 0 to ₱{MAX_PRICE:,}.', 'danger')
+        elif (MenuOption.query.filter(MenuOption.kind == kind, func.lower(MenuOption.name) == name.lower(),
+                                      MenuOption.id != (option_id or 0)).first()):
+            flash(f'There is already a {OPTION_KINDS[kind]} called "{name}".', 'danger')
+        else:
+            if not option_id:
+                last = db.session.query(func.max(MenuOption.sort_order)).filter_by(kind=kind).scalar() or 0
+                option = MenuOption(kind=kind, sort_order=last + 1)
+                db.session.add(option)
+            option.name = name
+            option.price = round(price, 2)
+            option.active = bool(request.form.get('active')) if option_id else True
+            db.session.commit()
+            flash(f'Saved {OPTION_KINDS[kind]} "{name}".', 'success')
+        return redirect(url_for('manage_options'))
+    in_order = (MenuOption.sort_order, MenuOption.id)
+    return render_template('options.html',
+                           sizes=MenuOption.query.filter_by(kind='size').order_by(*in_order).all(),
+                           addons=MenuOption.query.filter_by(kind='addon').order_by(*in_order).all())
+
 
 # ---------------- Login attempt limit (v0.13.3) ----------------
 # Without a limit, a program can try thousands of passwords a minute. After
@@ -332,9 +383,13 @@ def login():
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
 
-# ---------------- Sale processing (v0.8.0) ----------------
+# ---------------- Sale processing (v0.8.0, options since v0.16.0) ----------------
 # The basket is kept in the session (a small storage area Flask keeps for each
-# logged-in browser) as a dictionary: {"product_id": quantity}.
+# logged-in browser) as a dictionary: {"line key": quantity}.
+# A line key is the product id, plus the chosen size and add-ons for drinks (v0.16.0):
+#   "7"          -> product 7, no options
+#   "7:2:1.4"    -> product 7, size option 2, add-on options 1 and 4
+# So "Sea Salt 16oz + Oat" and "Sea Salt 12oz" are separate basket lines.
 # Nothing is saved to the database until the sale is completed.
 
 def get_basket():
@@ -343,42 +398,89 @@ def get_basket():
 def save_basket(basket):
     session['basket'] = basket
 
+
+def make_line_key(product_id, size_id=None, addon_ids=()):
+    """Build a basket line key (see above). Add-ons are sorted so the same choice
+    always gives the same key, whatever order they were ticked in."""
+    if size_id is None and not addon_ids:
+        return str(product_id)
+    return f"{product_id}:{size_id or ''}:{'.'.join(str(i) for i in sorted(set(addon_ids)))}"
+
+
+def read_line(key, quantity):
+    """Turn a basket key into a line: product, size, add-ons, unit price and subtotal.
+    Returns (line, problem). problem is a message when the line can no longer be sold
+    (product deleted, or an option removed or hidden by the admin)."""
+    parts = key.split(':')
+    try:
+        product_id = int(parts[0])
+        size_id = int(parts[1]) if len(parts) > 1 and parts[1] else None
+        addon_ids = [int(i) for i in parts[2].split('.')] if len(parts) > 2 and parts[2] else []
+    except ValueError:
+        return None, 'An item in the basket was not understood, so it was taken out.'
+    product = find_by_id(Product, product_id)
+    if product is None:
+        # The product was deleted after it was added (v0.8.5)
+        return None, ('A product in the basket was deleted from the product list, '
+                      'so it was taken out of the basket. Please check the total.')
+    size = db.session.get(MenuOption, size_id) if size_id else None
+    addons = [db.session.get(MenuOption, i) for i in addon_ids]
+    if ((size_id and (size is None or not size.active or size.kind != 'size'))
+            or any(a is None or not a.active or a.kind != 'addon' for a in addons)):
+        return None, (f'A size or add-on chosen for {product.name} is no longer offered, '
+                      f'so that line was taken out of the basket.')
+    unit_price = round(product.price + (size.price if size else 0) + sum(a.price for a in addons), 2)
+    options_text = ', '.join(([size.name] if size else []) + [a.name for a in addons])   # e.g. "16oz, Sub Oat"
+    return {'key': key, 'product': product, 'size': size, 'addons': addons, 'quantity': quantity,
+            'unit_price': unit_price, 'options': options_text,
+            'subtotal': round(unit_price * quantity, 2)}, None
+
+
+def basket_lines(basket):
+    """All readable lines of the basket. Unreadable ones are removed; returns (lines, message)."""
+    lines, message = [], None
+    for key, quantity in list(basket.items()):   # list(): we may remove items while looping
+        line, problem = read_line(key, quantity)
+        if problem:
+            basket.pop(key)
+            message = message or problem
+            continue
+        lines.append(line)
+    return lines, message
+
+
+def units_in_basket(basket, product_id):
+    """How many of one product are in the basket, across all its sizes and add-ons."""
+    return sum(q for key, q in basket.items() if key.split(':')[0] == str(product_id))
+
+
 def show_sale_page(error=None):
     """Build the basket lines and total, then show the New Sale page."""
     basket = get_basket()
-    lines = []
-    total = 0
-    for key, quantity in list(basket.items()):   # list(): we may remove items while looping
-        product = db.session.get(Product, int(key))
-        if product is None:
-            # The product was deleted after it was added: take it out of the basket,
-            # otherwise the sale could never be completed (v0.8.5)
-            basket.pop(key)
-            error = error or ('A product in the basket was deleted from the product list, '
-                              'so it was taken out of the basket. Please check the total.')
-            continue
-        subtotal = round(product.price * quantity, 2)
-        total += subtotal
-        lines.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+    lines, problem = basket_lines(basket)
+    error = error or problem
     save_basket(basket)
+    total = round(sum(line['subtotal'] for line in lines), 2)
     # Products that can still be added: stock minus what is already in the basket.
     # (The real stock in the database only goes down when the sale is completed.)
-    choices = []
     # Menu order (v0.14.2): grouped by category (products without one last), then by name
     in_menu_order = (Product.category.is_(None), Product.category, Product.name)
+    choices = []
     for product in Product.query.filter(Product.quantity > 0).order_by(*in_menu_order).all():
-        available = product.quantity - basket.get(str(product.id), 0)
+        available = product.quantity - units_in_basket(basket, product.id)
         if available > 0:
             choices.append({'product': product, 'available': available})
-    return render_template('new_sale.html', choices=choices, lines=lines,
-                           total=round(total, 2), error=error)
+    sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
+    addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
+    return render_template('new_sale.html', choices=choices, lines=lines, total=total,
+                           sizes=sizes, addons=addons, error=error)
 
 
 @app.route('/sales/new', methods=['GET', 'POST'])
 @login_required
 def new_sale():
     if request.method == 'POST':
-        # The "Add to basket" form was submitted
+        # A tile, the options window or the "Add to basket" form was submitted
         product = find_by_id(Product, request.form.get('product_id', type=int))
         quantity = request.form.get('quantity', type=int)  # None if not a whole number
 
@@ -387,14 +489,33 @@ def new_sale():
         if quantity is None or quantity < 1:
             return show_sale_page('Quantity must be a whole number of at least 1.')
 
+        # Size and add-ons (v0.16.0), only for products that offer them
+        size_id, addon_ids = None, []
+        if product.has_options:
+            sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
+            size_id = request.form.get('size_id', type=int)
+            if sizes:
+                if size_id is None:
+                    size_id = sizes[0].id          # the smallest size if none was chosen (e.g. the list form)
+                if size_id not in [s.id for s in sizes]:
+                    return show_sale_page('Please choose one of the sizes offered.')
+            else:
+                size_id = None
+            active_addons = {a.id for a in MenuOption.query.filter_by(kind='addon', active=True)}
+            try:
+                addon_ids = sorted({int(i) for i in request.form.getlist('addon_ids')})
+            except ValueError:
+                return show_sale_page('Please choose add-ons from the list.')
+            if not set(addon_ids) <= active_addons:
+                return show_sale_page('Please choose add-ons from the list.')
+
         basket = get_basket()
-        key = str(product.id)  # session data is stored as text, so keys are strings
-        in_basket = basket.get(key, 0)
-        available = product.quantity - in_basket   # what can still be added
+        available = product.quantity - units_in_basket(basket, product.id)   # what can still be added
         if quantity > available:
             return show_sale_page(f'Not enough stock for {product.name}: only {available} more can be added.')
 
-        basket[key] = in_basket + quantity
+        key = make_line_key(product.id, size_id, addon_ids)
+        basket[key] = basket.get(key, 0) + quantity
         save_basket(basket)
         return redirect(url_for('new_sale'))
 
@@ -404,8 +525,20 @@ def new_sale():
 @app.route('/sales/remove/<int:product_id>', methods=['POST'])
 @login_required
 def remove_from_basket(product_id):
+    """Take every line of this product out of the basket."""
     basket = get_basket()
-    basket.pop(str(product_id), None)  # remove it if it is there
+    for key in [k for k in basket if k.split(':')[0] == str(product_id)]:
+        basket.pop(key)
+    save_basket(basket)
+    return redirect(url_for('new_sale'))
+
+
+@app.route('/sales/remove-line', methods=['POST'])
+@login_required
+def remove_line():
+    """Take one basket line (one product with its size and add-ons) out (v0.16.0)."""
+    basket = get_basket()
+    basket.pop(request.form.get('line', ''), None)   # harmless if it isn't there
     save_basket(basket)
     return redirect(url_for('new_sale'))
 
@@ -417,18 +550,20 @@ def complete_sale():
     if not basket:
         return show_sale_page('The basket is empty.')
 
-    # Step 1: check EVERY item first and work out the total. Stock may have changed
+    # Step 1: check EVERY line first and work out the total. Stock may have changed
     # since it was added (for example, another cashier sold the last one).
-    total = 0
-    for key, quantity in basket.items():
-        product = db.session.get(Product, int(key))
-        if product is None:
-            return show_sale_page()   # takes the deleted product out and explains why
+    lines, problem = basket_lines(basket)
+    if problem:
+        save_basket(basket)
+        return show_sale_page(problem)
+    units = {}   # product -> units in the whole basket (one product can be on several lines)
+    for line in lines:
+        units[line['product']] = units.get(line['product'], 0) + line['quantity']
+    for product, quantity in units.items():
         if quantity > product.quantity:
             return show_sale_page(f'{product.name} no longer has enough stock. '
                                   f'Please remove it and add it again with a smaller quantity.')
-        total += round(product.price * quantity, 2)
-    total = round(total, 2)
+    total = round(sum(line['subtotal'] for line in lines), 2)
 
     # Step 2: check the payment (v0.15.0: cash or GCash)
     method = request.form.get('payment_method', 'cash')
@@ -457,8 +592,7 @@ def complete_sale():
     sale = Sale(user_id=current_user.id, total=total,
                 cash_received=round(cash, 2), change_due=round(cash - total, 2),
                 payment_method=method, payment_reference=reference)
-    for key, quantity in basket.items():
-        product = db.session.get(Product, int(key))
+    for product, quantity in units.items():
         name = product.name
         # Deduct stock in ONE database step that only succeeds if enough is still left
         # (an "atomic update"). This is safe even if another cashier sold some of it
@@ -471,9 +605,12 @@ def complete_sale():
             db.session.rollback()   # cancel the whole sale: nothing is saved
             return show_sale_page(f'{name} was just sold by another sale and there is no longer '
                                   f'enough stock. Please check the basket again.')
-        item = SaleItem(product_id=product.id, product_name=name,
-                        unit_price=product.price, quantity=quantity)
-        sale.items.append(item)
+    for line in lines:
+        # One receipt line per basket line. The price includes the size and add-ons,
+        # and the options are copied as text, so old receipts stay correct (v0.16.0)
+        sale.items.append(SaleItem(product_id=line['product'].id, product_name=line['product'].name,
+                                   unit_price=line['unit_price'], quantity=line['quantity'],
+                                   options=line['options'] or None))
 
     db.session.add(sale)
     try:

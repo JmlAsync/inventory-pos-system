@@ -29,9 +29,15 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="product_id" value="{{ choice.product.id }}">
                         <input type="hidden" name="quantity" value="1">
-                        <button type="submit" class="menu-tile w-100 h-100" title="Add 1 {{ choice.product.name }}">
+                        {% set with_options = choice.product.has_options and (sizes or addons) %}
+                        {# Drinks (v0.16.0): the tap opens the size/add-on window instead. Without
+                           JavaScript the tile still works and adds the default size. #}
+                        <button type="submit" class="menu-tile w-100 h-100{% if with_options %} js-options{% endif %}" title="Add 1 {{ choice.product.name }}"
+                                {% if with_options %}data-product-id="{{ choice.product.id }}" data-name="{{ choice.product.name }}"
+                                data-price="{{ choice.product.price }}" data-available="{{ choice.available }}"{% endif %}>
                             {{ product_thumb(choice.product, 56) }}
                             <span class="menu-tile-name">{{ choice.product.name }}</span>
+                            {% if with_options %}<span class="menu-tile-options"><i class="bi bi-sliders" aria-hidden="true"></i> Size{% if addons %} · add-ons{% endif %}</span>{% endif %}
                             <span class="menu-tile-price">{{ choice.product.price|peso }}</span>
                             <span class="menu-tile-left{% if choice.available <= 5 %} low{% endif %}">{{ '{:,}'.format(choice.available) }} left</span>
                         </button>
@@ -64,6 +70,7 @@
             <div class="col-md-3">
                 <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to basket</button>
             </div>
+            {% if sizes %}<div class="col-12 form-text mt-1">Drinks added from this list get the {{ sizes[0].name }} size with no add-ons. Tap the drink's picture to choose.</div>{% endif %}
         </form>
         </div></div>
     </div>
@@ -86,13 +93,15 @@
                             {{ product_thumb(line.product, 32) }}
                             <span><span class="d-block fw-medium product-name">{{ line.product.name }}</span>
                             {# Quantity shown under the name (v0.14.4), so the row fits narrow screens #}
-                            <span class="small text-body-secondary">{{ line.quantity }} × {{ line.product.price|peso }}</span></span>
+                            {% if line.options %}<span class="d-block small basket-options">{{ line.options }}</span>{% endif %}
+                            <span class="small text-body-secondary">{{ line.quantity }} × {{ line.unit_price|peso }}</span></span>
                         </div>
                     </td>
                     <td class="text-end text-nowrap">{{ line.subtotal|peso }}</td>
                     <td class="text-end">
-                        <form method="POST" action="{{ url_for('remove_from_basket', product_id=line.product.id) }}">
+                        <form method="POST" action="{{ url_for('remove_line') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="line" value="{{ line.key }}">
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove {{ line.product.name }}"><i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove</span></button>
                         </form>
                     </td>
@@ -179,6 +188,81 @@
     <span><i class="bi bi-basket me-2" aria-hidden="true"></i>{{ lines|sum(attribute='quantity') }} item{{ '' if lines|sum(attribute='quantity') == 1 else 's' }} · {{ total|peso }}</span>
     <span class="fw-semibold">Pay <i class="bi bi-arrow-down" aria-hidden="true"></i></span>
 </a>
+{% endif %}
+
+{# ---------- Size and add-ons window (v0.16.0) ----------
+   One shared window; the script below fills in the drink that was tapped.
+   <dialog> is built into browsers, so it works without Bootstrap's JavaScript. #}
+{% if sizes or addons %}
+<dialog id="optionsDialog" class="options-dialog" aria-labelledby="optionsTitle">
+    <form method="POST" action="{{ url_for('new_sale') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="product_id" id="optionsProduct">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <h2 class="h5 fw-bold mb-0" id="optionsTitle">Drink</h2>
+            <button type="button" class="btn-close js-close" aria-label="Close"></button>
+        </div>
+        {% if sizes %}
+        <div class="small fw-semibold text-body-secondary text-uppercase mb-2">Size</div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for size in sizes %}
+            <input type="radio" class="btn-check" name="size_id" id="size{{ size.id }}" value="{{ size.id }}" data-price="{{ size.price }}"{% if loop.first %} checked{% endif %}>
+            <label class="btn btn-outline-primary" for="size{{ size.id }}">{{ size.name }}{% if size.price %} <span class="small">+{{ size.price|peso }}</span>{% endif %}</label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if addons %}
+        <div class="small fw-semibold text-body-secondary text-uppercase mb-2">Add-ons</div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for addon in addons %}
+            <input type="checkbox" class="btn-check" name="addon_ids" id="addon{{ addon.id }}" value="{{ addon.id }}" data-price="{{ addon.price }}">
+            <label class="btn btn-outline-primary btn-sm" for="addon{{ addon.id }}">{{ addon.name }} <span class="small">+{{ addon.price|peso }}</span></label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="d-flex align-items-end gap-2">
+            <div style="width: 6.5rem;">
+                <label class="form-label small" for="optionsQuantity">Quantity</label>
+                <input type="number" class="form-control" name="quantity" id="optionsQuantity" min="1" value="1" required>
+            </div>
+            <button type="submit" class="btn btn-primary flex-grow-1" id="optionsSubmit">Add</button>
+        </div>
+    </form>
+</dialog>
+<script>
+    // Fill and open the window when a drink tile is tapped; show the live price
+    (function () {
+        const dialog = document.getElementById('optionsDialog');
+        if (!dialog || !dialog.showModal) { return; }   // very old browser: the tile adds the default size
+        let basePrice = 0;
+        const peso = n => '₱' + n.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        function updatePrice() {
+            let unit = basePrice;
+            dialog.querySelectorAll('input[data-price]:checked').forEach(function (i) { unit += parseFloat(i.dataset.price); });
+            const quantity = Math.max(1, parseInt(document.getElementById('optionsQuantity').value) || 1);
+            document.getElementById('optionsSubmit').textContent = 'Add ' + quantity + ' · ' + peso(unit * quantity);
+        }
+        document.querySelectorAll('.js-options').forEach(function (tile) {
+            tile.addEventListener('click', function (event) {
+                event.preventDefault();
+                basePrice = parseFloat(tile.dataset.price);
+                document.getElementById('optionsProduct').value = tile.dataset.productId;
+                document.getElementById('optionsTitle').textContent = tile.dataset.name + ' · ' + peso(basePrice);
+                const quantity = document.getElementById('optionsQuantity');
+                quantity.value = 1; quantity.max = tile.dataset.available;
+                dialog.querySelectorAll('input[name="addon_ids"]').forEach(function (i) { i.checked = false; });
+                const firstSize = dialog.querySelector('input[name="size_id"]');
+                if (firstSize) { firstSize.checked = true; }
+                updatePrice();
+                dialog.showModal();
+            });
+        });
+        dialog.addEventListener('change', updatePrice);
+        dialog.addEventListener('input', updatePrice);
+        dialog.querySelector('.js-close').addEventListener('click', function () { dialog.close(); });
+        dialog.addEventListener('click', function (event) { if (event.target === dialog) { dialog.close(); } });  // tap outside
+    })();
+</script>
 {% endif %}
 
 <script>

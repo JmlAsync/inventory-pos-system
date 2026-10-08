@@ -7,3 +7,5 @@ static/avatars/
 instance/
 # Uploaded product pictures (v0.14.0)
 static/products/
+# A shop's own menu and photos for demos stay on this computer (v0.16.0)
+local_demo/

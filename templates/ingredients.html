@@ -1,92 +1,181 @@
 {% extends "base.html" %}
+{% from "_ingredient.html" import restock_form, count_form, edit_form, stock_bar, status_badge %}
 {% block title %}Ingredients{% endblock %}
 {% block content %}
-{# Ingredient stock (v0.17.0). Sales use ingredients up automatically through the recipes. #}
-<h1>Ingredients</h1>
-<p class="page-subtitle">What's on hand. Each sale uses ingredients up through the recipes; use
-    <strong>Restock</strong> for deliveries and <strong>Count</strong> after counting the shelf.</p>
+{# Ingredient stock (v0.17.0), redesigned in v0.18.0: groups, search, stock bars and one Update button per row #}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div>
+        <h1>Ingredients</h1>
+        <p class="page-subtitle">Sales use ingredients up through the recipes. <strong>Restock</strong> adds a delivery;
+            <strong>Count</strong> sets what is really on the shelf.</p>
+    </div>
+</div>
+<ul class="nav nav-pills page-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
+</ul>
 
-<div class="card app-card mb-4"><div class="table-responsive">
-<table class="table align-middle">
-    <thead><tr><th>Ingredient</th><th class="text-end">On hand</th><th class="text-end">Warn at</th><th>Restock (+)</th><th>Count (=)</th><th></th></tr></thead>
-    <tbody>
-    {% for ingredient in ingredients %}
-    <tr>
-        <td class="fw-medium"><span class="long-text">{{ ingredient.name }}</span>
-            {% if ingredient.quantity <= 0 %}<span class="badge rounded-pill text-bg-danger ms-1">Out</span>
-            {% elif ingredient.quantity <= ingredient.low_at %}<span class="badge rounded-pill text-bg-warning ms-1">Low</span>{% endif %}</td>
-        <td class="text-end text-nowrap">{{ ingredient.quantity|amount }} {{ ingredient.unit }}</td>
-        <td class="text-end text-nowrap text-body-secondary">{{ ingredient.low_at|amount }} {{ ingredient.unit }}</td>
-        <td>
-            <form method="POST" class="d-flex gap-1" style="min-width: 10rem;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="restock"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
-                <input type="number" name="amount" class="form-control form-control-sm" min="0.001" step="any" required placeholder="+ {{ ingredient.unit }}" aria-label="Amount received">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
-            </form>
-        </td>
-        <td>
-            <form method="POST" class="d-flex gap-1" style="min-width: 10rem;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="count"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
-                <input type="number" name="counted" class="form-control form-control-sm" min="0" step="any" required placeholder="= {{ ingredient.unit }}" aria-label="Amount counted">
-                <button type="submit" class="btn btn-sm btn-light-subtle">Set</button>
-            </form>
-        </td>
-        <td>
-            <details>
-                <summary class="small text-body-secondary">Edit</summary>
-                <form method="POST" class="mt-2 d-flex flex-wrap gap-1" style="min-width: 16rem;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="edit"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
-                    <input type="text" name="name" class="form-control form-control-sm" value="{{ ingredient.name }}" maxlength="50" required aria-label="Name">
-                    <select name="unit" class="form-select form-select-sm" style="width: 5rem;" aria-label="Unit">
-                        {% for unit in units %}<option{% if unit == ingredient.unit %} selected{% endif %}>{{ unit }}</option>{% endfor %}
-                    </select>
-                    <input type="number" name="low_at" class="form-control form-control-sm" style="width: 7rem;" value="{{ ingredient.low_at|plain_amount }}" min="0" step="any" required aria-label="Warn at">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-                </form>
-            </details>
-        </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-body-secondary">No ingredients yet. Add the first one below.</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
+{# ---------- Search, filters and "New ingredient" ---------- #}
+<div class="card mb-3"><div class="card-body">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="search-box flex-grow-1">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" id="ingredientSearch" class="form-control" placeholder="Search ingredients…" aria-label="Search ingredients" autocomplete="off">
+        </div>
+        <details class="new-ingredient">
+            <summary class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New ingredient</summary>
+            <div class="new-ingredient-panel card"><div class="card-body">
+                {{ edit_form(None, units, categories, action='add') }}
+            </div></div>
+        </details>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Filter">
+        <button type="button" class="chip active" data-filter="all">All · {{ ingredients|length }}</button>
+        {% if attention %}<button type="button" class="chip chip-warn" data-filter="attention"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Low or out · {{ attention|length }}</button>{% endif %}
+        {% for category, items in groups %}
+        <button type="button" class="chip" data-filter="{{ category }}">{{ category }} · {{ items|length }}</button>
+        {% endfor %}
+    </div>
 </div></div>
 
-<div class="card mb-4" style="max-width: 48rem;"><div class="card-body">
-    <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>New ingredient</h2>
-    <form method="POST" class="row g-2 align-items-end">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="add">
-        <div class="col-sm-5"><label class="form-label small">Name</label><input type="text" name="name" class="form-control" maxlength="50" required placeholder="e.g. Oat milk"></div>
-        <div class="col-4 col-sm-2"><label class="form-label small">Unit</label><select name="unit" class="form-select">{% for unit in units %}<option>{{ unit }}</option>{% endfor %}</select></div>
-        <div class="col-4 col-sm-3"><label class="form-label small">Warn at</label><input type="number" name="low_at" class="form-control" min="0" step="any" value="0" required></div>
-        <div class="col-4 col-sm-2"><button type="submit" class="btn btn-primary w-100">Add</button></div>
-    </form>
-</div></div>
+{% macro row(ing) %}
+{% set state = status(ing) %}
+{% set pct = percent(ing) %}
+<div class="ing-row" data-name="{{ ing.name|lower }}" data-category="{{ ing.category }}" data-state="{{ state }}">
+    <div class="ing-name"><span class="product-name">{{ ing.name }}</span> {{ status_badge(state) }}</div>
+    <div class="ing-bar">{{ stock_bar(ing, pct, state) }}</div>
+    <div class="ing-amount" title="Warn at {{ ing.low_at|amount }} {{ ing.unit }}"><span class="fw-semibold">{{ ing.quantity|amount }} {{ ing.unit }}</span>{% if ing.full_at %}<span class="small text-body-secondary"> / {{ ing.full_at|amount }}</span>{% endif %}</div>
+    <a href="{{ url_for('ingredient_detail', ingredient_id=ing.id) }}" class="btn btn-sm btn-light-subtle js-update"
+       data-id="{{ ing.id }}" data-name="{{ ing.name }}" data-unit="{{ ing.unit }}" data-category="{{ ing.category }}"
+       data-quantity="{{ ing.quantity|amount }}" data-low="{{ ing.low_at|amount }}" data-full="{{ ing.full_at|amount }}"
+       data-refill="{{ ((ing.full_at - ing.quantity) if ing.full_at > ing.quantity else 0)|amount }}">Update</a>
+</div>
+{% endmacro %}
 
-<h2 class="section-title">Recent changes</h2>
-{% if recent %}
-<div class="card app-card"><div class="table-responsive">
-<table class="table table-sm">
-    <thead><tr><th>When</th><th>Ingredient</th><th class="text-end">Change</th><th>Why</th><th>By</th></tr></thead>
-    <tbody>
-    {% for move in recent %}
-    <tr>
-        <td class="text-nowrap">{{ move.created_at.strftime('%b %d, %I:%M %p') }}</td>
-        <td>{{ move.ingredient.name }}</td>
-        <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ move.ingredient.unit }}</td>
-        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
-        <td>{{ move.user.username if move.user else '—' }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
-</div></div>
-{% else %}
-<p class="text-body-secondary">No changes yet.</p>
+{# ---------- Needs attention: out first, then low ---------- #}
+{% if attention %}
+<section class="card ing-group attention-group mb-3" data-group="attention">
+    <div class="ing-group-head"><i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>Needs attention <span class="text-body-secondary fw-normal">· {{ attention|length }}</span></div>
+    {% for ing in attention %}{{ row(ing) }}{% endfor %}
+</section>
 {% endif %}
+
+{# ---------- One card per group ---------- #}
+{% for category, items in groups %}
+<section class="card ing-group mb-3" data-group="{{ category }}">
+    <div class="ing-group-head">{{ category }} <span class="text-body-secondary fw-normal">· <span class="js-count">{{ items|length }}</span></span></div>
+    {% for ing in items %}{{ row(ing) }}{% endfor %}
+</section>
+{% else %}
+<div class="card"><div class="card-body text-body-secondary">No ingredients yet. Use <strong>New ingredient</strong> above.</div></div>
+{% endfor %}
+<div class="card" id="noMatch" hidden><div class="card-body text-center text-body-secondary py-4">
+    <i class="bi bi-search fs-3 d-block mb-2" aria-hidden="true"></i>No ingredient matches your search.
+</div></div>
+
+{# ---------- The Update window (built-in <dialog>; without JavaScript, Update opens the ingredient's page) ---------- #}
+<dialog id="ingredientDialog" class="options-dialog" aria-labelledby="ingredientTitle">
+    <div class="d-flex justify-content-between align-items-start mb-1">
+        <h2 class="h5 fw-bold mb-0" id="ingredientTitle">Ingredient</h2>
+        <button type="button" class="btn-close js-close" aria-label="Close"></button>
+    </div>
+    <p class="small text-body-secondary mb-3"><span id="ingredientOnHand"></span> on hand · <a href="#" id="ingredientPage">history and recipes</a></p>
+    <div class="btn-group w-100 mb-3" role="group" aria-label="What to do">
+        <input type="radio" class="btn-check" name="ingredientTab" id="tabRestock" value="restock" checked>
+        <label class="btn btn-outline-primary" for="tabRestock">Restock</label>
+        <input type="radio" class="btn-check" name="ingredientTab" id="tabCount" value="count">
+        <label class="btn btn-outline-primary" for="tabCount">Count</label>
+        <input type="radio" class="btn-check" name="ingredientTab" id="tabEdit" value="edit">
+        <label class="btn btn-outline-primary" for="tabEdit">Edit</label>
+    </div>
+    {{ restock_form() }}
+    {{ count_form() }}
+    {{ edit_form(None, units, categories) }}
+</dialog>
+
+<script>
+(function () {
+    // ---- Search and filter (nothing is sent to the server) ----
+    const search = document.getElementById('ingredientSearch');
+    const chips = document.querySelectorAll('.chip[data-filter]');
+    let filter = 'all';
+    function apply() {
+        const text = search.value.trim().toLowerCase();
+        let shown = 0;
+        document.querySelectorAll('.ing-group').forEach(function (group) {
+            const isAttention = group.dataset.group === 'attention';
+            let visible = 0;
+            group.querySelectorAll('.ing-row').forEach(function (row) {
+                const ok = (!text || row.dataset.name.includes(text))   // names only; the group buttons pick a group
+                    && (filter === 'all' || filter === 'attention' ? (filter === 'all' || row.dataset.state !== 'ok') : row.dataset.category === filter);
+                row.hidden = !ok;
+                if (ok) { visible += 1; }
+            });
+            // The "Needs attention" card only shows with no search and no filter (its rows are also in their groups)
+            group.hidden = isAttention ? (text !== '' || filter !== 'all') : visible === 0;
+            if (!isAttention) { shown += visible; }
+        });
+        document.getElementById('noMatch').hidden = shown > 0;
+    }
+    search.addEventListener('input', apply);
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            chips.forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            filter = chip.dataset.filter;
+            apply();
+        });
+    });
+    if (new URLSearchParams(location.search).get('filter') === 'attention') {   // from the Home warning
+        const chip = document.querySelector('.chip[data-filter="attention"]');
+        if (chip) { chip.click(); }
+    }
+
+    // ---- The Update window ----
+    const dialog = document.getElementById('ingredientDialog');
+    if (!dialog || !dialog.showModal) { return; }   // very old browser: Update opens the ingredient's page
+    const forms = dialog.querySelectorAll('form[data-panel]');
+    function showPanel(name) {
+        forms.forEach(function (f) { f.hidden = f.dataset.panel !== name; });
+        dialog.querySelector('input[name="ingredientTab"][value="' + name + '"]').checked = true;
+    }
+    dialog.querySelectorAll('input[name="ingredientTab"]').forEach(function (tab) {
+        tab.addEventListener('change', function () { showPanel(tab.value); });
+    });
+    document.querySelectorAll('.js-update').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            const d = button.dataset;
+            document.getElementById('ingredientTitle').textContent = d.name;
+            document.getElementById('ingredientOnHand').textContent = d.quantity + ' ' + d.unit;
+            document.getElementById('ingredientPage').href = button.href;
+            dialog.querySelectorAll('.js-id').forEach(function (i) { i.value = d.id; });
+            dialog.querySelectorAll('.js-unit').forEach(function (u) { u.textContent = d.unit; });
+            dialog.querySelector('.js-f-name').value = d.name;
+            dialog.querySelector('.js-f-category').value = d.category;
+            dialog.querySelector('.js-f-unit').value = d.unit;
+            dialog.querySelector('.js-f-low').value = d.low.replace(/,/g, '');
+            dialog.querySelector('.js-f-full').value = d.full.replace(/,/g, '');
+            const refill = parseFloat(d.refill.replace(/,/g, '')) || 0;
+            const refillButton = dialog.querySelector('.js-refill');
+            refillButton.hidden = refill <= 0;
+            dialog.querySelector('.js-refill-amount').textContent = d.refill;
+            refillButton.dataset.amount = refill;
+            forms.forEach(function (f) { f.querySelectorAll('input[type="number"][name="amount"], input[name="counted"]').forEach(function (i) { i.value = ''; }); });
+            showPanel('restock');
+            dialog.showModal();
+            dialog.querySelector('input[name="amount"]').focus();
+        });
+    });
+    // "Fill up to full" puts the missing amount in the box (the dialog and the ingredient page)
+    document.querySelectorAll('.js-refill').forEach(function (b) {
+        b.addEventListener('click', function () {
+            const form = b.closest('form');
+            form.querySelector('input[name="amount"]').value = b.dataset.amount || form.dataset.refill;
+        });
+    });
+    dialog.querySelector('.js-close').addEventListener('click', function () { dialog.close(); });
+    dialog.addEventListener('click', function (e) { if (e.target === dialog) { dialog.close(); } });   // click outside closes
+})();
+</script>
 {% endblock %}

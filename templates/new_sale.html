@@ -147,14 +147,21 @@
 
 <script>
     // Category buttons (v0.14.0): hide the tiles of other categories. Nothing is sent to the server.
-    document.querySelectorAll('.chip[data-filter]').forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            document.querySelectorAll('.chip[data-filter]').forEach(function (c) { c.classList.remove('active'); });
-            chip.classList.add('active');
-            document.querySelectorAll('[data-category]').forEach(function (tile) {
-                tile.hidden = chip.dataset.filter !== 'all' && tile.dataset.category !== chip.dataset.filter;
-            });
+    // The chosen category is remembered for this browser tab (sessionStorage), so it stays
+    // selected after each tap reloads the page (v0.14.2).
+    function showCategory(chip) {
+        document.querySelectorAll('.chip[data-filter]').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        document.querySelectorAll('[data-category]').forEach(function (tile) {
+            tile.hidden = chip.dataset.filter !== 'all' && tile.dataset.category !== chip.dataset.filter;
         });
+        try { sessionStorage.setItem('pos-menu-category', chip.dataset.filter); } catch (e) {}
+    }
+    document.querySelectorAll('.chip[data-filter]').forEach(function (chip) {
+        chip.addEventListener('click', function () { showCategory(chip); });
+        var saved = null;
+        try { saved = sessionStorage.getItem('pos-menu-category'); } catch (e) {}
+        if (saved !== null && chip.dataset.filter === saved) { showCategory(chip); }
     });
 </script>
 {% endblock %}

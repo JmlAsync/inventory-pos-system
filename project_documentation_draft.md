@@ -1,7 +1,8 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.8.1** (tagged 2026-10-08).
+> This draft covers the system up to **v0.11.2** (2026-10-09). Versions v0.8.2–v0.11.2 were implemented and tested by Claude on request
+> (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
 > This is a *draft*, not the final report. The final report will be written in LibreOffice Writer and must
@@ -75,7 +76,14 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.7.1 | Bug fixes found by testing (patch) | Yes: invalid input now rejected with a message |
 | v0.8.0 | Sale processing: basket, cash & change, stock deduction, printable receipt | Yes: a full checkout works end to end |
 | v0.8.1 | Receipt fix found by hand testing (patch) | Yes: old receipts say "not recorded" |
-| v0.9.0 → | Low-stock warning, sales report, demo data (planned) | — |
+| v0.8.2–v0.8.6 | Stabilization patches: race-safe stock, number limits, huge ids, deleted products in basket, text lengths | Yes: every fix verified by tests |
+| v0.9.0 | Low-stock warning | Yes: badges + reorder box |
+| v0.9.1–v0.9.2 | Stabilization patches: readable box, empty category | Yes |
+| v0.10.0 | Sales report (admin) | Yes: revenue, top products, date range |
+| v0.10.1–v0.10.2 | Stabilization patches: renamed products, keep sold products | Yes |
+| v0.11.0 | Demo data seed script | Yes: realistic shop for the presentation |
+| v0.11.1–v0.11.2 | Stabilization patches: receipt order, ₱ thousands separators | Yes |
+| v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
 
@@ -117,6 +125,24 @@ The tag message summarizes what the increment added.
 | — | 2026-10-04 | `1d1dd0e` | *(no tag)* Update documentation for v0.7.1: test results and fixed defects |
 | v0.8.0 | 2026-10-08 | `1343236` | Sale processing: basket checkout, cash and change, stock deduction, printable receipt *(pull request #2)* |
 | v0.8.1 | 2026-10-08 | `538ce09` | Receipt fix: show 'not recorded' for sales made before cash tracking *(pull request #3)* |
+| — | 2026-10-08 | `bf7dc7d` | *(no tag)* Add v0.8.0 hand-test screenshots to documentation |
+| v0.8.2 | 2026-10-09 | `caf360f` | Safe stock: atomic deduction prevents overselling when sales overlap *(pull request #4)* |
+| v0.8.3 | 2026-10-09 | `1a15679` | Number limits: reject nan, infinity and unrealistic prices, quantities and cash *(pull request #5)* |
+| v0.8.4 | 2026-10-09 | `2f94325` | Not found instead of crash for ids too big for the database *(pull request #6)* |
+| v0.8.5 | 2026-10-09 | `9dbb8b0` | Deleted products are taken out of the basket instead of blocking the sale *(pull request #7)* |
+| v0.8.6 | 2026-10-09 | `decb8f0` | Text limits: name 100, SKU and category 50 characters *(pull request #8)* |
+| v0.9.0 | 2026-10-09 | `d27efd5` | Low-stock warning: badges and reorder alert for 5 units or fewer *(pull request #9)* |
+| v0.9.1 | 2026-10-09 | `403bd7b` | Low-stock box: 5 most urgent shown, count of the rest *(pull request #10)* |
+| v0.9.2 | 2026-10-09 | `a7b4c9c` | Empty category shows a dash instead of 'None' *(pull request #11)* |
+| v0.10.0 | 2026-10-09 | `aa07bb2` | Sales report: revenue, sales count, items sold and top products by date range *(pull request #12)* |
+| v0.10.1 | 2026-10-09 | `96b6682` | Top products: a renamed product counts once *(pull request #13)* |
+| v0.10.2 | 2026-10-09 | `d095cd9` | Products with sales history can't be deleted *(pull request #14)* |
+| v0.11.0 | 2026-10-09 | `9c0bbac` | Demo data: seed script with shop products and a week of sales *(pull request #15)* |
+| v0.11.1 | 2026-10-09 | `e02353c` | Demo data: receipt numbers follow the clock *(pull request #16)* |
+| v0.11.2 | 2026-10-09 | `16c6c7a` | Money shown with thousands separators (₱6,904.50) *(pull request #17)* |
+
+*From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
+Pull request numbers assume the versions were published in order in one session.*
 
 **How the version numbers work (semantic versioning):** `MAJOR.MINOR.PATCH`.
 - **MINOR** goes up when a new feature is added (v0.6.0 → v0.7.0).
@@ -205,15 +231,21 @@ receipt number, date and time, "Served by: cashier", every item, the total, the 
 noodles than the shop has, the system would have refused with a clear message and saved nothing. Receipts from before
 cash was recorded state "Cash and change not recorded" instead of showing a misleading ₱0.00 *(v0.8.1)*.
 
-### Planned stories (to be confirmed before building)
+### Story F8 — Low-stock warning *(v0.9.0, fixed in v0.9.1–v0.9.2)*
+When Maria opens **Products** in the morning, a yellow box at the top says *"Low stock (4): Shampoo Sachet (0 left),
+Ensaymada (3 left), Sardines 155g (4 left), Tomatoes 1kg (5 left)"*. In the table, Shampoo Sachet has a red
+**Out of stock** badge and the others a yellow **Low** badge. Jun sees the same box when he logs in as cashier, so he
+can tell Maria before customers ask. After the delivery, Maria edits Tomatoes to 25; its badge and its place in the
+box disappear. On a busy week with dozens of low products, the box shows only the five most urgent and says
+"and 30 more", so the product table stays visible *(v0.9.1)*. Products without a category show a dash *(v0.9.2)*.
 
-**F8 — Low-stock warning *(planned v0.9.0)*.** When Maria opens the product list, products whose quantity has
-fallen to or below a set threshold (for example 5) are highlighted, and a message at the top lists them, so she
-knows what to reorder from the supplier.
-
-**F9 — Sales report *(planned v0.10.0)*.** At the end of the day Maria opens **Sales Report**, chooses a date
-range, and sees each sale, the number of items sold and the total revenue, so she can compare it with the
-cash in the drawer.
+### Story F9 — Sales report *(v0.10.0, fixed in v0.10.1–v0.10.2)*
+At closing time Maria clicks **Sales Report** (cashiers don't see this link). Today's report shows three cards:
+revenue **₱1,215.00**, **9** sales and **23** items sold, then the top 5 products by units sold and every sale with
+a link to its receipt. To compare the week, she picks From = last Friday and To = today and clicks **Show**.
+She renamed "Cola" to "Cola 1.5L" on Wednesday; the report still counts it as one product *(v0.10.1)*. When she
+tries to delete a product that has been sold, the system refuses and suggests setting its quantity to 0, so old
+reports and receipts stay correct *(v0.10.2)*.
 
 ---
 
@@ -351,7 +383,7 @@ cash in the drawer.
 | TC-7.13 | Basket Coke × 3 (₱226.50), Coke stock 5 | Cash ₱500 → **Complete Sale** | Receipt: number, date, "Served by", items, total ₱226.50, cash ₱500.00, change ₱273.50; Coke stock 5 → 2; basket emptied | As expected *(by hand: receipt #4 ₱12.40, ₱500 cash → ₱487.60 change; receipt #6 ₱3.10, ₱10 cash → ₱6.90 change; A's stock 39 → 37 after receipts #6 and #7, screenshots S8, S1)* | ✅ |
 | TC-7.14 | Basket ₱15.00 | Cash exactly ₱15 | Change ₱0.00 | Change ₱0.00 | ✅ |
 | TC-7.15 | Logged in as **admin** | Complete a sale | Allowed; "Served by: admin" | As expected | ✅ |
-| TC-7.16 | Receipt for Coke at ₱75.50 exists | Change Coke's price, then delete Coke; reopen receipt | Receipt still shows "Coke 1.5L" at ₱75.50 | As expected | ✅ |
+| TC-7.16 | Receipt for Coke at ₱75.50 exists | Change Coke's price, then delete Coke; reopen receipt | Receipt still shows "Coke 1.5L" at ₱75.50 | As expected *(since v0.10.2 a sold product can no longer be deleted; the receipt keeps the name and price from the time of sale after a rename or price change)* | ✅ |
 | TC-7.17 | Items in basket | Logout → log in as another user → New Sale | Basket empty | Empty | ✅ (DEF-09) |
 | TC-7.18 | Two browsers logged in | Add items in one | Other browser's basket unaffected | Unaffected | ✅ |
 | TC-7.19 | Basket ₱151.00 (browser) | Type cash 100, then 200 | Change box: "Not enough cash", then ₱49.00 | As expected; no script errors *(by hand: ₱3.10 total, cash 2 → "Not enough cash", cash 10 → ₱6.90, screenshots S6–S7)* | ✅ |
@@ -377,7 +409,68 @@ cash in the drawer.
 > Still to capture: **TC-7.21 (v0.8.1)**, an old receipt (`/sales/1`) showing "Cash and change not recorded…"
 > (file name `v0.8.1_TC-7.21_not_recorded.png`).
 
-### Test summary (v0.7.0 → v0.8.1)
+### Patches v0.8.2–v0.8.6 — robustness of the sale flow and forms
+
+> Found by the v0.8.x stabilization phase (design review, exploratory and fuzz testing). Run on 2026-10-09 with the
+> Flask test client, a real threaded server for the stress test, and the previous version for the "before" column.
+
+| ID | Steps / input | Expected result | Before the fix | After the fix | Pass? |
+|---|---|---|---|---|---|
+| TC-7.24 | 1 left; another sale takes it between this sale's check and save; this sale continues | Refused; stock 0 | Both sales saved; DB stock 0 but really −1 (**oversold**) | Refused with message; stock 0 | ❌→✅ v0.8.2 |
+| TC-7.25 | 10 left; another sale of 3 lands mid-sale; this sale buys 5 | Both saved; stock 2 | DB says 5, really 2 (**lost update**) | Stock 2 | ❌→✅ v0.8.2 |
+| TC-7.26 | **20 cashiers** press Complete Sale at the same moment; 5 in stock | Exactly 5 sold | **20 sold**, DB showed 2 left | 5 sold, 15 refused, stock 0, no errors | ❌→✅ v0.8.2 |
+| TC-7.27 | Basket Bread × 2 + Milk × 1; Milk sells out mid-sale | Whole sale refused; Bread stock unchanged | Bread deducted, Milk oversold | Refused; Bread still 5; basket kept | ❌→✅ v0.8.2 |
+| TC-7.28 | Cash `nan`, `inf`, `-inf`, `1e308`, `1000000.01` | Refused with message | `nan` crashed (500); `inf`/`1e308` saved | All refused; `1000000` accepted | ❌→✅ v0.8.3 |
+| TC-2.7 | Price `nan`, `inf`, `1e400`, `1000000.01`; quantity `1000001` or `99999999999999999999` | Refused with message | `nan` and huge quantity crashed; `inf` saved | All refused; exactly 1,000,000 accepted | ❌→✅ v0.8.3 |
+| TC-7.29 | `/sales/99999999999999999999`, `/products/edit/…`, delete, add to basket with that id | 404 / "Please choose a product" | Server crash (500) | 404 / message; cashier still gets 403 first | ❌→✅ v0.8.4 |
+| TC-7.30 | Admin deletes a product that is in a cashier's basket; cashier refreshes or clicks Complete Sale | Product taken out, sale can finish | Basket stuck: hidden line, Complete Sale always failed | Removed with a note; total updated; sale completes | ❌→✅ v0.8.5 |
+| TC-2.8 | Name of 101 characters; SKU or category of 51 | Refused with message | 5,000-character name saved | Refused; exactly 100/50/50 accepted | ❌→✅ v0.8.6 |
+| TC-7.31 | Fuzz: 14 odd inputs (empty, spaces, `abc`, `nan`, huge, full-width digits, `<script>`, SQL text, 5,000 characters) on every form and address | No crash; nothing invalid stored | — | 0 crashes; `<script>` shown as text; SQL text stored as plain text (no **SQL injection**) | ✅ |
+
+### F8 — Low-stock warning *(v0.9.0, v0.9.1, v0.9.2)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-8.1 | Product with 0 | Open Products | Red "Out of stock" badge; listed first in the box | As expected | ✅ |
+| TC-8.2 | Product with exactly 5 | Open Products | Yellow "Low" badge; in the box (5 counts as low) | As expected | ✅ |
+| TC-8.3 | Product with 6 | Open Products | No badge; not in the box | As expected | ✅ |
+| TC-8.4 | Logged in as cashier | Open Products | Same box and badges | As expected | ✅ |
+| TC-8.5 | Product with 6 | Sell 1 through New Sale | It appears in the box ("5 left") | As expected | ✅ |
+| TC-8.6 | All low products restocked above 5 | Open Products | No box at all | As expected | ✅ |
+| TC-8.7 | Empty product list; product added with 3; low product deleted | Open Products | No crash; new product flagged; deleted one gone | As expected | ✅ |
+| TC-8.8 | 40 products, 35 of them low, long names | Open Products | Box stays readable; table visible | **v0.9.0:** ~4,500-character box filled the screen · **v0.9.1:** 5 names (shortened) + "and 30 more" | ❌→✅ DEF-18 |
+| TC-8.9 | Product without category | Open Products | Empty cell or dash | **v0.9.0:** word "None" · **v0.9.2:** dash | ❌→✅ DEF-19 |
+
+### F9 — Sales report *(v0.10.0, v0.10.1, v0.10.2)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-9.1 | Cashier / visitor | Open `/reports/sales` | 403 / login page; cashier has no navbar link | As expected | ✅ |
+| TC-9.2 | Sales today at 00:01 and now; one at 23:59 yesterday | Report for today | Only today's two counted (revenue, sales, items) | ₱231.00, 2 sales, 10 items | ✅ |
+| TC-9.3 | Same data | Report for yesterday only; 4-day range | Correct totals | ₱755.00 / 1 sale; ₱1,061.50 / 4 sales | ✅ |
+| TC-9.4 | Same data | To date before From date | Dates swapped automatically | Same result as correct order | ✅ |
+| TC-9.5 | — | Dates `2026-13-45`, `2026-02-30`, `1999-12-31`, `2101-01-01`, `9999-12-31` | Message; today's report | Message + today *(the 9999 date crashed before release: DEF-24)* | ✅ |
+| TC-9.6 | No sales in period | Report for 2020 | ₱0.00, 0 sales, "No sales in this period." | As expected | ✅ |
+| TC-9.7 | Bread sold 4; Cola sold 3, renamed "Cola 1.5L", sold 2 more | Top products | Cola 1.5L first with 5 units | **v0.10.0:** "Cola" 3 and "Cola 1.5L" 2 separately; Bread wrongly #1 · **v0.10.1:** one row, 5 units, #1 | ❌→✅ DEF-20 |
+| TC-9.8 | Product with sales history | Admin clicks Delete | Refused with message; product kept | **v0.10.0:** deleted; its id could be reused by a new product that "inherits" the sales · **v0.10.2:** refused, message shown once | ❌→✅ DEF-21 |
+| TC-9.9 | Product never sold | Admin clicks Delete | Deleted | Deleted | ✅ |
+| TC-9.10 | Bread's sales exist; Bread deleted *(before v0.10.2)* | Report | Its sales still counted | ₱120.00 kept | ✅ |
+
+### Demo data *(v0.11.0, v0.11.1, v0.11.2)*
+
+| ID | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|
+| TC-10.1 | Fresh database → `python seed_demo_data.py` | 15 products, 2 users, past sales; 4 low products | 15 products, 27 sales over 7 days (₱6,904.50), 4 low | ✅ |
+| TC-10.2 | Run it a second time | Nothing added twice | "(sales already exist…)" | ✅ |
+| TC-10.3 | Sales report for the demo week | Receipt numbers increase with time | **v0.11.0:** #25 at 9:27 AM after #23 at 6:13 PM · **v0.11.1:** in time order | ❌→✅ DEF-22 |
+| TC-10.4 | Any amount ≥ ₱1,000 (report, receipt, products, change preview, messages) | Thousands separator | **v0.11.1:** ₱6904.50 · **v0.11.2:** ₱6,904.50 | ❌→✅ DEF-23 |
+
+> **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
+> for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
+> change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
+> screenshots by Yesha are still to do for the report.
+
+### Test summary (v0.7.0 → v0.11.2)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -388,7 +481,11 @@ cash in the drawer.
 | F5 Login/out | 8 | 7 | 0 | 1 |
 | F6 Roles | 6 | 6 | 0 | 0 |
 | F7 Process sale | 23 | 20 → **23** | 2 → **0** | 1 → **0** |
-| **Total** | **54** | **44 → 52** | **7 → 0** | **3 → 2** |
+| Patches v0.8.2–v0.8.6 | 10 | 1 → **10** | 9 → **0** | 0 |
+| F8 Low-stock | 9 | 7 → **9** | 2 → **0** | 0 |
+| F9 Sales report | 10 | 8 → **10** | 2 → **0** | 0 |
+| Demo data | 4 | 2 → **4** | 2 → **0** | 0 |
+| **Total** | **87** | **62 → 85** | **22 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -414,7 +511,18 @@ cash in the drawer.
 | DEF-10 | Medium (usability) | The New Sale dropdown showed database stock, ignoring items already in the basket, so it looked like more could be sold | Hand testing by Yesha (TC-7.4) | Dropdown shows **available = stock − basket**; products fully in the basket are hidden; message says how many *more* can be added | ✅ Fixed before v0.8.0 merge |
 | DEF-11 | **High** (deployment) | After upgrading the code, **Complete Sale** crashed: "table sale has no column named cash_received". `db.create_all()` creates missing *tables* but never adds *columns* to existing ones | Hand testing by Yesha (TC-7.23) | One-time **migration** script `add_cash_columns_once.py` (SQL `ALTER TABLE … ADD COLUMN`), database backed up first. The crashed sale saved nothing, because the save is one transaction | ✅ Fixed 2026-10-08 (database change, no code change) |
 | DEF-12 | Low | Receipts for sales made before cash tracking showed "Cash ₱0.00 / Change ₱0.00", which looks like a real but impossible payment | Hand testing (TC-7.21) | `receipt.html` shows "Cash and change not recorded…" when cash is 0; no data invented | ✅ Fixed v0.8.1 (PR #3) |
-| DEF-13 | Medium (reliability) | **Race condition:** two cashiers completing a sale for the last item at the same moment could both pass the stock check, leaving stock at −1 | Design review | **Atomic update**: subtract stock only *if enough is left*, in one database step; cancel the sale otherwise | Planned v0.8.2 |
+| DEF-13 | Medium (reliability) | **Race condition:** two cashiers completing a sale for the last item at the same moment could both pass the stock check, leaving stock at −1 | Design review; reproduced by tests (TC-7.24–7.27) | **Atomic update**: subtract stock only *if enough is left*, in one database step; roll back the sale otherwise | ✅ Fixed v0.8.2 |
+| DEF-14 | **High** | `nan`, `inf` and huge numbers in cash, price or quantity crashed the server or were saved as "infinite" | Exploratory testing (TC-7.28, TC-2.7) | Limits of 1,000,000 + `math.isfinite()` | ✅ Fixed v0.8.3 |
+| DEF-15 | Medium | Ids too big for SQLite in an address or form crashed the server | v0.8.x exit check (TC-7.29) | `find_by_id()` treats them as "not found" (404) | ✅ Fixed v0.8.4 |
+| DEF-16 | **High** (usability) | A product deleted while in a basket left the basket stuck: hidden line, sale could never complete | v0.8.x exit check (TC-7.30) | Deleted products are taken out of the basket with a note | ✅ Fixed v0.8.5 |
+| DEF-17 | Low | Text longer than the database columns (e.g. 5,000-character name) was accepted | Fuzz testing (TC-2.8) | Length check + `maxlength` (100 / 50 / 50) | ✅ Fixed v0.8.6 |
+| DEF-18 | Medium (usability) | With many low products the low-stock box filled the screen | v0.9.x stabilization (TC-8.8) | 5 most urgent + "and N more" | ✅ Fixed v0.9.1 |
+| DEF-19 | Low | Empty category displayed as the word "None" (since v0.3.0) | v0.9.x stabilization (TC-8.9) | Dash for empty categories | ✅ Fixed v0.9.2 |
+| DEF-20 | Medium | A product renamed after being sold appeared twice in Top products, giving a wrong ranking | v0.10.x stabilization (TC-9.7) | Group by product id; show the latest name | ✅ Fixed v0.10.1 |
+| DEF-21 | Medium (data integrity) | Deleting a sold product: SQLite may give its id to the next new product, which then "inherits" its sales | v0.10.x stabilization (TC-9.8) | Products with sales history can't be deleted (set quantity to 0 instead) | ✅ Fixed v0.10.2 |
+| DEF-22 | Low | Demo data: receipt numbers not in time order | v0.11.x stabilization (TC-10.3) | Sort each day's sale times before creating them | ✅ Fixed v0.11.1 |
+| DEF-23 | Low | Amounts ≥ ₱1,000 shown without thousands separator | v0.11.x stabilization (TC-10.4) | `peso` template filter used everywhere | ✅ Fixed v0.11.2 |
+| DEF-24 | Medium | Sales report with end date 9999-12-31 crashed (no next day exists) | Pre-release testing of v0.10.0 (TC-9.5) | Dates limited to 2000–2100 | ✅ Fixed before v0.10.0 release |
 
 > **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
 > both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
@@ -425,10 +533,14 @@ cash in the drawer.
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.8.1** (future increments): **cash only**, so GCash/card would need a payment-method choice,
-> recorded but not connected to GCash itself, which needs a merchant account; **no refunds or voids**, to be handled by
-> a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state
-> diagram; and **DEF-13**, the race condition.
+> **Known limitations after v0.11.2** (future increments):
+> - **Cash only.** GCash/card would need a payment-method choice, recorded but not connected to GCash itself, which needs a merchant account.
+> - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
+> - **Editing a product's stock overwrites it with the number typed in.** If a sale happens while the edit form is open, that sale's deduction is overwritten. Fix: "restock by amount" plus a **stock ledger** (a record of every stock change).
+> - **Sold products can't be deleted, only set to 0**, so they stay in the list with an "Out of stock" badge. Fix: an "archive" option.
+> - **One low-stock threshold (5) for every product.** Fix: a per-product threshold (needs a database column, i.e. a migration).
+> - **Money stored as `Float`**, rounded to centavos. Real POS systems store whole centavos or `Decimal`.
+> - **SQLite allows one writer at a time.** Fine for a small shop; many tills would need a server database.
 
 > DEF-07 and DEF-08 are also good material for the professor's Lecture 11 items (*security terminology*
 > and *vulnerability avoidance techniques*).
@@ -453,8 +565,8 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | UC-06 | Edit product | Admin | Built (v0.5.0) |
 | UC-07 | Delete product | Admin | Built (v0.5.0) |
 | UC-08 | Process sale | Cashier and Admin | Built (v0.8.0, fixed v0.8.1) |
-| UC-09 | View low-stock warning | Admin | Planned (v0.9.0) |
-| UC-10 | View sales report | Admin | Planned (v0.10.0) |
+| UC-09 | View low-stock warning | Admin and Cashier | Built (v0.9.0, fixed v0.9.1–v0.9.2) |
+| UC-10 | View sales report | Admin | Built (v0.10.0, fixed v0.10.1–v0.10.2) |
 
 **Relationships between use cases** (needed for the diagram):
 - UC-05, UC-06, UC-07 and UC-08 all **«include»** a hidden step, *Check permission (role)*. «include» means
@@ -527,8 +639,8 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Description** | Permanently removes a product |
 | **Data** | Product ID |
 | **Stimulus** | The admin clicks Delete and confirms the pop-up |
-| **Response** | The product is removed and the list is shown without it |
-| **Comments** | Includes *Check permission*. Only works as a POST (form submission), not a link, for safety |
+| **Response** | The product is removed and the list is shown without it. **Since v0.10.2:** a product with sales history is kept and a message suggests setting its quantity to 0 |
+| **Comments** | Includes *Check permission*. Only works as a POST (form submission), not a link, for safety. Keeping sold products protects receipts and reports (DEF-21) |
 
 **UC-08 Process sale** *(built v0.8.0)*
 
@@ -541,21 +653,29 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Response** | Stock and cash are checked; the sale and its items are saved and stock reduced in **one transaction**; the basket is emptied; a printable receipt is shown. Invalid input → message, nothing saved |
 | **Comments** | Includes *Check permission* (must be logged in). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct |
 
-**UC-09 View low-stock warning** *(planned)*
+**UC-09 View low-stock warning** *(built v0.9.0)*
+
+| | |
+|---|---|
+| **Actors** | Admin, Cashier |
+| **Description** | Highlights products whose quantity is at or below the threshold |
+| **Data** | Product quantities; `LOW_STOCK_THRESHOLD = 5` (one value for all products) |
+| **Stimulus** | Opening the product list when at least one product is low |
+| **Response** | Yellow box listing the 5 most urgent (lowest first) plus "and N more"; red "Out of stock" badge at 0, yellow "Low" badge at 1–5 |
+| **Comments** | «extend»s UC-04 View product list. Updates automatically after sales and restocking |
+
+**UC-10 View sales report** *(built v0.10.0)*
 
 | | |
 |---|---|
 | **Actors** | Admin |
-| **Description** | Highlights products whose quantity is at or below a threshold |
-| **Data** | Product quantities; the threshold value (to decide: fixed, e.g. 5, or set per product?) |
-| **Stimulus** | Opening the product list when at least one product is low |
-| **Response** | Low products are highlighted and listed in a warning message |
-| **Comments** | «extend»s UC-04 View product list |
+| **Description** | Summarizes sales over a chosen period |
+| **Data** | Sale and SaleItem records; From and To dates (default today; allowed 2000–2100) |
+| **Stimulus** | The admin opens Sales Report and optionally chooses a date range |
+| **Response** | Revenue, number of sales, items sold, top 5 products by units (grouped per product), and every sale with a link to its receipt |
+| **Comments** | Includes *Check permission* (admin only, 403 for cashiers). Depends on UC-08. Uses the price snapshot in each SaleItem, so later price changes don't alter past revenue |
 
-**UC-10 View sales report** *(planned)*
-
-| | |
-|---|---|
+---|---|
 | **Actors** | Admin |
 | **Description** | Summarizes sales over a chosen period |
 | **Data** | Sale records; start and end dates |

@@ -18,7 +18,7 @@
             <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by category">
                 <button type="button" class="chip active" data-filter="all">All</button>
                 {% for category in categories %}
-                <button type="button" class="chip" data-filter="{{ category }}">{{ category }}</button>
+                <button type="button" class="chip" data-filter="{{ category }}" title="{{ category }}">{{ category }}</button>
                 {% endfor %}
             </div>
             <div class="row row-cols-2 row-cols-sm-3 g-2">
@@ -33,7 +33,7 @@
                             {{ product_thumb(choice.product, 56) }}
                             <span class="menu-tile-name">{{ choice.product.name }}</span>
                             <span class="menu-tile-price">{{ choice.product.price|peso }}</span>
-                            <span class="menu-tile-left{% if choice.available <= 5 %} low{% endif %}">{{ choice.available }} left</span>
+                            <span class="menu-tile-left{% if choice.available <= 5 %} low{% endif %}">{{ '{:,}'.format(choice.available) }} left</span>
                         </button>
                     </form>
                 </div>

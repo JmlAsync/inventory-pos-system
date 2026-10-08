@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.14.3** (2026-10-09). Versions v0.8.2–v0.14.3 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.17.3** (2026-10-09). Versions v0.8.2–v0.17.3 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -33,7 +33,7 @@
 | Project name | Inventory & POS (Point-of-Sale) System |
 | Type | Web application |
 | Developer | Solo project |
-| Business purpose | Help a small store keep track of its products and stock and record sales at the counter. From v0.14.0 the demo shop is a **café** (coffee and pastries), because a café owner is interested in the project |
+| Business purpose | Help a small store keep track of its products and stock and record sales at the counter. From v0.14.0 the demo shop is a **café** (coffee and pastries), because a café owner is interested in the project. From v0.15.0–v0.17.0 it handles what that café needs: **GCash payments, Hot / Iced and add-ons, and ingredient stock with recipes**. The café's real menu and photos are loaded only on the student's computer (`local_demo/`, not on GitHub) |
 | Language / framework | Python 3.11.9, Flask 3.1.3 |
 | Database | SQLite, accessed through Flask-SQLAlchemy 3.1.1 |
 | Login and security | Flask-Login 0.6.3; passwords hashed with Werkzeug (scrypt); CSRF tokens, login attempt limit, secret key outside the code (v0.13.1–v0.13.5) |
@@ -87,7 +87,10 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.13.0 | Modern theme: left sidebar, light/dark switch, dashboard home | Yes: same features, new look |
 | v0.13.1–v0.13.5 | Security patches: secret key, CSRF, login limit, debug off + headers, change password | Yes: each attack re-run and now blocked |
 | v0.14.0 | Product pictures, tap-to-add menu on New Sale, café demo menu | Yes |
-| v0.14.1–v0.14.3 | Stabilization patches: long names, menu order + remembered category, phone basket bar | Yes |
+| v0.14.1–v0.14.4 | Stabilization patches: long names, menu order + remembered category, phone basket bar, basket Remove button | Yes |
+| v0.15.0 | Payment method: Cash or GCash (reference number) | Yes |
+| v0.16.0–v0.16.1 | Servings (sizes) and add-ons for drinks (+ edge-case patch) | Yes |
+| v0.17.0–v0.17.3 | Ingredients, recipes and ingredient history (+ deleted-product recipe patch, Hot / Iced wording, demo sales fix) | Yes: drinks are limited by milk and beans on hand |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -158,6 +161,15 @@ The tag message summarizes what the increment added.
 | v0.14.1 | 2026-10-09 | `2795482` | Very long names wrap on the menu and in tables *(pull request #28)* |
 | v0.14.2 | 2026-10-09 | `afea681` | Menu in category order; chosen category kept after each tap *(pull request #29)* |
 | v0.14.3 | 2026-10-09 | `e598e88` | Phone basket bar; table columns stay readable *(pull request #30)* |
+| — | 2026-10-09 | — | Documentation update for v0.13.1–v0.14.3 *(pull request #31, no tag)* |
+| v0.14.4 | 2026-10-09 | `8a34326` | Basket Remove button always visible; menu and basket side by side from 1200 px *(pull request #32)* |
+| v0.15.0 | 2026-10-09 | `aa44988` | Cash or GCash payment with a 13-digit reference; receipt and report show the method *(pull request #33)* |
+| v0.16.0 | 2026-10-09 | `40555c0` | Sizes and add-ons: admin page, drink window on New Sale, options on receipts *(pull request #34)* |
+| v0.16.1 | 2026-10-09 | `2f97c8d` | Sizes/add-ons edge cases: unticked product, very long add-on list *(pull request #35)* |
+| v0.17.0 | 2026-10-09 | `4492d92` | Ingredients, recipes, can-make counts, ingredient history; sales use ingredients up *(pull request #36)* |
+| v0.17.1 | 2026-10-09 | `63f9d53` | A deleted product's recipe is deleted too (no inherited recipes) *(pull request #37)* |
+| v0.17.2 | 2026-10-09 | `da4a932` | The one-of choice is called a *serving*, so the café's Hot / Iced reads naturally (sizes still possible) *(pull request #38)* |
+| v0.17.3 | 2026-10-09 | `a7cd2e5` | Demo sales include products whose stock comes from ingredients (no more ₱0 demo receipts) *(pull request #39)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -298,6 +310,30 @@ At the counter, Juan opens **New Sale** and sees the menu as picture tiles group
 *(v0.14.2)*. Each tile shows what is left ("3 left" in amber when low). The basket sits beside the menu on the
 laptop; on his phone a bar at the bottom shows *"2 items · ₱190.00 — Pay"* and jumps to the basket *(v0.14.3)*.
 For an exact quantity he can still use the product list and the Quantity box below the menu.
+
+### Story F14 — Paying by GCash *(v0.15.0)*
+A customer orders a Sea Salt and a croffle (₱340.00) and wants to pay by GCash. Juan taps **GCash** in the payment box:
+the cash fields disappear and a box asks for the **reference number**. The customer pays in the GCash app and shows the
+receipt; Juan types its 13-digit reference (`1023 456 789012`) and checks that the amount is ₱340.00, then clicks
+**Complete Sale**. The receipt says *Paid by GCash* with the reference and no change. If he types a reference that was
+already used, the system names the earlier receipt. At closing, the Sales Report shows revenue split into cash (what
+should be in the drawer) and GCash.
+
+### Story F15 — Hot / Iced and add-ons *(v0.16.0–v0.16.1, wording v0.17.2)*
+Maria sets up the servings (**Hot** and **Iced**, same price; v0.16.0 called them sizes, and a shop can still use
+12oz / 16oz +₱20) and the café's upgrades (Espresso +₱30, Sub Oat +₱40, Cold Foam +₱30…) on the **Servings & Add-ons**
+page, and ticks "Drink" on each latte. The Iced serving has its own recipe: 150 g of ice and an iced cup. When Juan
+taps **Sea Salt**, a small window opens: he picks **Iced** and **Sub Oat**, and the button shows *Add 1 · ₱220.00*.
+The basket shows the line as *Sea Salt — Iced, Sub Oat*, separate from a Hot Sea Salt, and the receipt keeps the
+options and the price paid, even if the add-on price changes later.
+
+### Story F16 — Ingredients and recipes *(v0.17.0–v0.17.1)*
+Maria enters what is in the stock room on the **Ingredients** page (espresso beans 3,000 g, fresh milk 10,000 ml, oat milk
+2,000 ml, croissant dough 24 pcs…) and a **recipe** for each product: one Sea Salt uses 18 g of beans, 160 ml of milk and
+40 ml of cream; Sub Oat replaces the fresh milk with oat milk; a 16oz uses 1.33 times as much. The menu now shows how
+many of each drink can still be made. When the oat milk runs low, Home warns her; when a delivery arrives she clicks
+**Restock** (+2,000 ml), and after counting the shelf at night she uses **Count**. Every change (each sale, delivery
+and count) appears in the ingredient history with who did it and which receipt it belongs to.
 
 ---
 
@@ -590,13 +626,67 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-14.16 | Phone, basket table | Read the names | Normal names on one line | **v0.14.1–v0.14.2:** "Ensaymada" one letter per line · **v0.14.3:** fixed | ❌→✅ DEF-36 |
 | TC-14.17 | `seed_demo_data.py --fresh` at 3:30 PM | Run it | Old database renamed as a backup; 22 café items; sales for 7 days + today until 3:30 PM only; receipt numbers in time order | As expected (today: 4 sales, 7:09 AM–2:32 PM) | ✅ |
 | TC-14.18 | All earlier tests | Full regression (10 suites + avatar + security + pictures) | Everything passes | As expected | ✅ |
+| TC-14.19 | Window 992–1360 px wide, 3 items in the basket | Look at the basket | Remove (×) button visible on every line | **v0.14.3:** cut off at the right edge · **v0.14.4:** visible at 390, 768, 992, 1100, 1199, 1200 and 1360 px | ❌→✅ DEF-37 |
+
+### F14 — Payment method *(v0.15.0)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-15.1 | Database from v0.14 | Start the app | `payment_method`, `payment_reference` and a unique index added; old sales count as cash | As expected | ✅ |
+| TC-15.2 | Basket ₱360 | Pay cash ₱400 (old form, no method sent) | Cash, change ₱40 | As expected | ✅ |
+| TC-15.3 | Basket ₱360 | GCash, reference `1234 567 890123` | Saved as 13 digits, cash = total, change 0, stock deducted | As expected | ✅ |
+| TC-15.4 | GCash sale | Open the receipt | "Paid by GCash" + reference, no Change line | As expected | ✅ |
+| TC-15.5 | Basket | GCash references: 12 digits, 14 digits, letters, Arabic digits, empty | Refused, nothing saved, stock unchanged | As expected (5 cases) | ✅ |
+| TC-15.6 | Reference already used | GCash with the same reference | Refused, names the earlier receipt | As expected | ✅ |
+| TC-15.7 | Two sales with the same reference at the same moment | Save both | Database refuses the second (unique index) | As expected | ✅ |
+| TC-15.8 | Basket | Method `card` (not offered) | Refused | As expected | ✅ |
+| TC-15.9 | Sales of both kinds | Sales Report | Revenue split "Cash ₱… · GCash ₱…"; Paid by column | As expected | ✅ |
+| TC-15.10 | Browser | Tap GCash, then Cash | Cash boxes hide/show; empty reference blocked by the browser; change preview still works | As expected | ✅ |
+
+### F15 — Sizes and add-ons *(v0.16.0, v0.16.1)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-16.1 | Database from v0.15 | Start the app | `menu_option` table, `has_options`, `options` columns added | As expected | ✅ |
+| TC-16.2 | Admin | Add sizes and add-ons; duplicate name, negative/nan price, 51-char name, unknown kind | Saved / each refused with a message | As expected | ✅ |
+| TC-16.3 | Cashier | Open or post to Sizes & Add-ons | 403 | 403 | ✅ |
+| TC-16.4 | Sea Salt ₱180 | 2 × 16oz + Sub Oat + Espresso | One line, ₱270.00 each, ₱540.00 | As expected | ✅ |
+| TC-16.5 | Same choice ticked in another order | Add | Joins the same line | As expected | ✅ |
+| TC-16.6 | 3 in stock, 2 in basket (any sizes) | Add 2 more | Refused: only 1 more | As expected | ✅ |
+| TC-16.7 | — | Size id of an add-on, unknown size, size as add-on, non-number add-on | Refused | As expected | ✅ |
+| TC-16.8 | List form (no size sent) / croffle with options sent | Add | Default size at base price / options ignored | As expected | ✅ |
+| TC-16.9 | Two lines of one product | Remove one line | Only that line removed | As expected | ✅ |
+| TC-16.10 | Basket with options | Complete; then raise the add-on price | Receipt keeps options + price paid; stock reduced by all lines; report counts the product once | As expected | ✅ |
+| TC-16.11 | Line in basket | Admin unticks "sizes and add-ons" on that product | Line taken out with a message | **v0.16.0:** sold as "16oz" at the size price · **v0.16.1:** taken out | ❌→✅ DEF-38 |
+| TC-16.13 | Servings Hot and Iced (₱0); Iced recipe: 150 g ice + 1 iced cup | Iced Sea Salt + Sub Oat, and a Hot Campfire Latte; complete | ₱220.00 and ₱190.00; ice −150 g, iced cups −1, hot cups −1, oat milk −180 ml, fresh milk unchanged | As expected (v0.17.2) | ✅ |
+| TC-16.14 | Café menu | Look at the tiles and the drink window | Tiles say "Hot / Iced · add-ons"; window says "Serving"; admin page "Servings & Add-ons" | **v0.16.0–v0.17.1:** "Size" · **v0.17.2:** as expected | ❌→✅ DEF-41 |
+| TC-16.12 | 6 add-ons with 50-character names | Complete the sale | Options text fits the 200-character column | **v0.16.0:** 316 characters saved · **v0.16.1:** shortened with "…" | ❌→✅ DEF-39 |
+
+### F16 — Ingredients and recipes *(v0.17.0, v0.17.1)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-17.1 | Admin | Add ingredients; duplicate name, unit `kg`, negative warn-at | Saved / refused | As expected | ✅ |
+| TC-17.2 | Ingredient | Restock +1000; restock 0, -5, nan, abc, 1e12 | Added and written in the history / refused | As expected | ✅ |
+| TC-17.3 | Cream 400 ml | Count = 380 | Set to 380, history shows -20 | As expected | ✅ |
+| TC-17.4 | Recipes | Product: negative amount, same ingredient twice / add-on: negative amount | Refused, refused / allowed (replaces milk) | As expected | ✅ |
+| TC-17.5 | Milk 1,000 ml; Sea Salt uses 180 ml | Products list and New Sale | "5 can make", Low badge; tile "5 left" | As expected | ✅ |
+| TC-17.6 | 2 × 16oz (scale 1.5) in the basket | New Sale | "2 left" (460 ml ÷ 180) | As expected | ✅ |
+| TC-17.7 | Not enough milk for 2 more | Add | Message names the ingredient and amounts | "Not enough Fresh milk … 1,080 ml, only 1,000 ml on hand" | ✅ |
+| TC-17.8 | Basket: 2 × 16oz, 1 × Sub Oat, 1 croffle | Complete | Milk 460, oat 1,820, beans 928, cream 220; croffle 3 → 2; history lines linked to the receipt | As expected | ✅ |
+| TC-17.9 | Milk drops to 100 ml before checkout | Complete | Refused, nothing saved | As expected | ✅ |
+| TC-17.10 | Another till uses up every ingredient between the check and the save | Complete | Whole sale cancelled, croffle stock restored | As expected | ✅ |
+| TC-17.11 | 20 cashiers sell a latte at the same moment, milk for 5 | Complete all | Exactly 5 sold, milk 0, never negative, history adds up | 5 completed, 15 refused, 0 errors | ✅ |
+| TC-17.12 | Cashier | Ingredients / recipe pages; another recipe's line; unknown kind | 403 / 404 / 404 | As expected | ✅ |
+| TC-17.13 | Product with a recipe, never sold | Delete it, then add a new product (SQLite reuses the id) | New product has no recipe | **v0.17.0:** new cookie inherited the recipe (could sell 4 instead of 20) · **v0.17.1:** no recipe | ❌→✅ DEF-40 |
+| TC-17.14 | Café menu in `local_demo/` (every product has a recipe, quantity 0) | `python seed_demo_data.py --fresh` | Real demo sales with items and totals | **v0.17.2:** 56 receipts of ₱0.00 with no items (Home showed 8 sales but only the newest one's revenue) · **v0.17.3:** 52 real sales | ❌→✅ DEF-42 |
 
 > **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
 > for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### Test summary (v0.7.0 → v0.14.3)
+### Test summary (v0.7.0 → v0.17.3)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -614,8 +704,11 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | F10 Profile picture | 11 | 11 | 0 | 0 |
 | F11 Modern theme | 9 | 7 → **9** | 2 → **0** | 0 |
 | F12 Security | 14 | 8 → **14** | 6 → **0** | 0 |
-| F13 Pictures + café | 18 | 13 → **18** | 5 → **0** | 0 |
-| **Total** | **139** | **101 → 137** | **35 → 0** | **3 → 2** |
+| F13 Pictures + café | 19 | 13 → **19** | 6 → **0** | 0 |
+| F14 Payment method | 10 | 10 | 0 | 0 |
+| F15 Servings + add-ons | 14 | 11 → **14** | 3 → **0** | 0 |
+| F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
+| **Total** | **178** | **134 → 176** | **41 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -665,6 +758,17 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | DEF-34 | Medium (usability) | Each tap reloaded the menu back to "All", so the cashier had to choose the category again for every item | v0.14.x stabilization (TC-14.14) | Chosen category remembered for the browser tab | ✅ Fixed v0.14.2 |
 | DEF-35 | Medium (usability) | On phones the basket and Pay button were below the whole menu | v0.14.x stabilization (TC-14.15) | Bottom bar with item count and total that jumps to the basket | ✅ Fixed v0.14.3 |
 | DEF-36 | Medium (regression from v0.14.1) | On phones, basket names were squeezed to one letter per line | v0.14.x stabilization (TC-14.16) | Table cells wrap only long words; names kept 8–22rem wide | ✅ Fixed v0.14.3 |
+| DEF-37 | Medium (usability) | Between about 990 and 1360 px wide, the basket's Remove (×) button was cut off | Screenshot review while testing v0.15.0 (TC-14.19) | Quantity under the name, tighter cells, side-by-side only from 1200 px | ✅ Fixed v0.14.4 |
+| DEF-38 | Medium | Unticking "sizes and add-ons" on a product left basket lines that were then sold with the size price | v0.16.x stabilization (TC-16.11) | Such lines are taken out with a message | ✅ Fixed v0.16.1 |
+| DEF-39 | Low | Many long add-on names gave options text longer than the 200-character column | v0.16.x stabilization (TC-16.12) | Shortened with "…" | ✅ Fixed v0.16.1 |
+| DEF-40 | **High** (data integrity) | Deleting a never-sold product left its recipe; SQLite gave the id to the next product, which inherited the recipe | v0.17.x stabilization (TC-17.13) | Recipe deleted with the product; start-up removes leftovers | ✅ Fixed v0.17.1 |
+| DEF-41 | Low (usability) | The café sells drinks Hot or Iced, but the screens said "Size", so "Size: Iced" read wrongly | Choice made with Yesha for the café (TC-16.14) | The choose-one group is called a *serving* on every screen; tiles list the servings ("Hot / Iced") | ✅ Fixed v0.17.2 |
+| DEF-42 | Medium (demo data) | With the café's menu every product gets its stock from ingredients (quantity 0), so the demo sales found no product to sell and created only empty ₱0.00 receipts | Screenshot review of v0.17.2 (Home: 8 sales, ₱570.00) (TC-17.14) | Demo sales pick products that can be made (`stock_levels()`); no sales are created if nothing can be sold; new `test_seed.py` checks both menus | ✅ Fixed v0.17.3 |
+
+> **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
+> database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
+> step in right before the stock update itself, and pass on both the old and the new code. Lesson: a test should
+> depend on *what* the code does, not on *how* it is written.
 
 > **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
 > both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
@@ -675,18 +779,19 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.14.3** (future increments):
-> - **Drinks are counted as cups, not ingredients.** A real café runs out of milk or beans, not "lattes". Fix: recipes (each drink uses grams of beans and ml of milk) and ingredient stock.
-> - **Sizes are separate products** (Latte 12oz and 16oz). Fix: product *variants* (one product, several sizes and prices).
+> **Known limitations after v0.17.3** (future increments):
+> - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
+> - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.
+> - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
+> - **The shop name on receipts is fixed** ("Inventory & POS").
 > - **Sold-out items are hidden from the menu** instead of shown greyed out.
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
 > - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts and CDN files.
 > - **Styling comes from the internet** (Bootstrap, icons and font from CDNs, i.e. content delivery networks). Without internet the system still works but looks unstyled. Fix: save those files in `static/` so it runs fully offline.
 > - **The light/dark choice is saved per browser**, not per user account.
-> - **Cash only.** GCash/card would need a payment-method choice, recorded but not connected to GCash itself, which needs a merchant account.
 > - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
-> - **Editing a product's stock overwrites it with the number typed in.** If a sale happens while the edit form is open, that sale's deduction is overwritten. Fix: "restock by amount" plus a **stock ledger** (a record of every stock change).
+> - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
 > - **Sold products can't be deleted, only set to 0**, so they stay in the list with an "Out of stock" badge. Fix: an "archive" option.
 > - **One low-stock threshold (5) for every product.** Fix: a per-product threshold (needs a database column, i.e. a migration).
 > - **Money stored as `Float`**, rounded to centavos. Real POS systems store whole centavos or `Decimal`.
@@ -710,6 +815,9 @@ Good material for the professor's Lecture 11 (security terminology, vulnerabilit
 | Cashier uses admin pages | Products, reports | `@admin_required` → 403 | TC-6.x | ✅ since v0.7.0 |
 | Upload a harmful file as a "picture" | Server, other users | Content check (PNG/JPG/WebP bytes), 2 MB limit, random names, `nosniff` | TC-11.5–11.7, TC-14.3, TC-14.9 | ✅ |
 | Two sales take the last item at once | Stock accuracy | Atomic conditional update | TC-7.24–7.26 | ✅ since v0.8.2 |
+| Two tills use the same milk at once | Ingredient stock | Same atomic update for every ingredient; whole sale cancelled otherwise | TC-17.10, 17.11 | ✅ v0.17.0 |
+| Reuse one GCash payment for two purchases | Café's money | Reference number must be unique (checked + unique index) | TC-15.6, 15.7 | ✅ v0.15.0 |
+| Untraceable stock changes | Ingredient stock | Ingredient history: every sale, restock and count with user and time | TC-17.2, 17.3, 17.8 | ✅ v0.17.0 |
 
 Words used: **threat** (something that could cause harm), **vulnerability** (a weakness it can use), **control**
 (the protection), **attack** (an attempt to exploit a vulnerability).
@@ -739,6 +847,8 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | UC-11 | Change profile picture | User (Admin and Cashier) | Built (v0.12.0) |
 | UC-12 | Switch light/dark theme | Visitor and User | Built (v0.13.0) |
 | UC-13 | Change password | User (Admin and Cashier) | Built (v0.13.5) |
+| UC-14 | Manage servings and add-ons | Admin | Built (v0.16.0) |
+| UC-15 | Manage ingredients and recipes | Admin | Built (v0.17.0) |
 
 **Relationships between use cases** (needed for the diagram):
 - UC-05, UC-06, UC-07, UC-08 and UC-10 all **«include»** a hidden step, *Check permission (role)*. «include» means
@@ -879,6 +989,28 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Stimulus** | Avatar menu → Change password, fill in the form, click Change password |
 | **Response** | Password changed with a success message; or a message if the current password is wrong, the two don't match, it equals the username or is shorter than 8 characters |
 | **Comments** | Includes *Check permission* (must be logged in) and the CSRF token check |
+
+**UC-14 Manage servings and add-ons** *(built v0.16.0, renamed v0.17.2)*
+
+| | |
+|---|---|
+| **Actors** | Admin |
+| **Description** | Keeps the list of servings (Hot / Iced, or sizes; exactly one per drink) and add-ons (any number) with their extra prices |
+| **Data** | `menu_option`: kind (size/add-on), name, extra price, offered or hidden, order, recipe scale (sizes) |
+| **Stimulus** | Admin opens Servings & Add-ons, edits a row or adds one |
+| **Response** | Saved; hidden options disappear from the drink window; baskets holding them lose that line with a message |
+| **Comments** | Includes *Check permission* (admin only). Options are hidden, never deleted, because receipts and recipes refer to them |
+
+**UC-15 Manage ingredients and recipes** *(built v0.17.0)*
+
+| | |
+|---|---|
+| **Actors** | Admin |
+| **Description** | Records ingredient stock (restock, count) and what each product, size and add-on uses |
+| **Data** | `ingredient` (name, unit, on hand, warn at), `recipe_item` (ingredient, amount, product or option), `ingredient_movement` (history) |
+| **Stimulus** | Admin opens Ingredients or a product's / option's Recipe page |
+| **Response** | Stock and recipes saved; the menu's "left" counts follow; low ingredients are flagged on Home |
+| **Comments** | Includes *Check permission*. UC-08 *Process sale* now uses ingredients up, so UC-08 depends on this use case |
 
 ---
 

@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User
+from models import db, Product, User, Sale, SaleItem
 from functools import wraps
 from flask import abort
 
@@ -122,6 +122,122 @@ def login():
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
 
+# ---------------- Sale processing (v0.8.0) ----------------
+# The basket is kept in the session (a small storage area Flask keeps for each
+# logged-in browser) as a dictionary: {"product_id": quantity}.
+# Nothing is saved to the database until the sale is completed.
+
+def get_basket():
+    return session.get('basket', {})
+
+def save_basket(basket):
+    session['basket'] = basket
+
+def show_sale_page(error=None):
+    """Build the basket lines and total, then show the New Sale page."""
+    lines = []
+    total = 0
+    for key, quantity in get_basket().items():
+        product = db.session.get(Product, int(key))
+        if product is None:
+            continue  # product was deleted after being added; skip it
+        subtotal = round(product.price * quantity, 2)
+        total += subtotal
+        lines.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+    # Products that can still be added: stock minus what is already in the basket.
+    # (The real stock in the database only goes down when the sale is completed.)
+    basket = get_basket()
+    choices = []
+    for product in Product.query.filter(Product.quantity > 0).order_by(Product.name).all():
+        available = product.quantity - basket.get(str(product.id), 0)
+        if available > 0:
+            choices.append({'product': product, 'available': available})
+    return render_template('new_sale.html', choices=choices, lines=lines,
+                           total=round(total, 2), error=error)
+
+
+@app.route('/sales/new', methods=['GET', 'POST'])
+@login_required
+def new_sale():
+    if request.method == 'POST':
+        # The "Add to basket" form was submitted
+        product = db.session.get(Product, request.form.get('product_id', type=int) or 0)
+        quantity = request.form.get('quantity', type=int)  # None if not a whole number
+
+        if product is None:
+            return show_sale_page('Please choose a product.')
+        if quantity is None or quantity < 1:
+            return show_sale_page('Quantity must be a whole number of at least 1.')
+
+        basket = get_basket()
+        key = str(product.id)  # session data is stored as text, so keys are strings
+        in_basket = basket.get(key, 0)
+        available = product.quantity - in_basket   # what can still be added
+        if quantity > available:
+            return show_sale_page(f'Not enough stock for {product.name}: only {available} more can be added.')
+
+        basket[key] = in_basket + quantity
+        save_basket(basket)
+        return redirect(url_for('new_sale'))
+
+    return show_sale_page()
+
+
+@app.route('/sales/remove/<int:product_id>', methods=['POST'])
+@login_required
+def remove_from_basket(product_id):
+    basket = get_basket()
+    basket.pop(str(product_id), None)  # remove it if it is there
+    save_basket(basket)
+    return redirect(url_for('new_sale'))
+
+
+@app.route('/sales/complete', methods=['POST'])
+@login_required
+def complete_sale():
+    basket = get_basket()
+    if not basket:
+        return show_sale_page('The basket is empty.')
+
+    # Step 1: check EVERY item first and work out the total. Stock may have changed
+    # since it was added (for example, another cashier sold the last one).
+    total = 0
+    for key, quantity in basket.items():
+        product = db.session.get(Product, int(key))
+        if product is None or quantity > product.quantity:
+            name = product.name if product else 'A product in the basket'
+            return show_sale_page(f'{name} no longer has enough stock. Please remove it or lower the quantity.')
+        total += round(product.price * quantity, 2)
+    total = round(total, 2)
+
+    # Step 2: check the cash the customer paid
+    cash = request.form.get('cash_received', type=float)  # None if not a number
+    if cash is None or cash < total:
+        return show_sale_page(f'Cash received must be a number of at least ₱{total:.2f}.')
+
+    # Step 3: everything is fine, so create the sale and deduct stock
+    sale = Sale(user_id=current_user.id, total=total,
+                cash_received=round(cash, 2), change_due=round(cash - total, 2))
+    for key, quantity in basket.items():
+        product = db.session.get(Product, int(key))
+        item = SaleItem(product_id=product.id, product_name=product.name,
+                        unit_price=product.price, quantity=quantity)
+        sale.items.append(item)
+        product.quantity -= quantity   # deduct stock
+
+    db.session.add(sale)
+    db.session.commit()   # saves the sale, its items and the new stock levels together
+    save_basket({})       # empty the basket for the next customer
+    return redirect(url_for('receipt', sale_id=sale.id))
+
+
+@app.route('/sales/<int:sale_id>')
+@login_required
+def receipt(sale_id):
+    sale = Sale.query.get_or_404(sale_id)
+    return render_template('receipt.html', sale=sale)
+
+
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
@@ -129,6 +245,7 @@ def forbidden(e):
 @app.route('/logout')
 @login_required
 def logout():
+    session.pop('basket', None)  # empty the basket so the next user starts fresh
     logout_user()
     return redirect(url_for('home'))
 

@@ -32,7 +32,7 @@
         <tr>
             <td>{{ product.name }}</td>
             <td>{{ product.sku }}</td>
-            <td>₱{{ "%.2f"|format(product.price) }}</td>
+            <td>{{ product.price|peso }}</td>
             <td>
                 {{ product.quantity }}
                 {% if product.quantity == 0 %}

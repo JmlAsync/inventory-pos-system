@@ -83,6 +83,13 @@ def validate_product_form(form, current_product_id=None):
     return {'name': name, 'sku': sku, 'price': price,
             'quantity': quantity, 'category': category}, None
 
+@app.template_filter('peso')
+def peso(amount):
+    """Show money the Philippine way, e.g. 6079.5 -> '₱6,079.50' (v0.11.2).
+    Used in templates as {{ sale.total|peso }}."""
+    return f'₱{amount:,.2f}'
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -265,7 +272,7 @@ def complete_sale():
     # Step 2: check the cash the customer paid
     cash = request.form.get('cash_received', type=float)  # None if not a number
     if cash is None or not math.isfinite(cash) or cash < total or cash > MAX_CASH:
-        return show_sale_page(f'Cash received must be a number of at least ₱{total:.2f} '
+        return show_sale_page(f'Cash received must be a number of at least ₱{total:,.2f} '
                               f'(and at most ₱{MAX_CASH:,}).')
 
     # Step 3: everything is fine, so create the sale and deduct stock

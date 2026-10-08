@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Form expired{% endblock %}
+{% block content %}
+{# Shown when a form arrives without the right CSRF token (v0.13.2) #}
+<div class="text-center py-5">
+    <i class="bi bi-hourglass-split fs-1 text-body-secondary d-block mb-2" aria-hidden="true"></i>
+    <h1>This form has expired</h1>
+    <p class="lead">For your safety the form was not sent. Go back, reload the page and try again.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Back to Home</a>
+</div>
+{% endblock %}

@@ -220,10 +220,21 @@ def complete_sale():
                 cash_received=round(cash, 2), change_due=round(cash - total, 2))
     for key, quantity in basket.items():
         product = db.session.get(Product, int(key))
-        item = SaleItem(product_id=product.id, product_name=product.name,
+        name = product.name
+        # Deduct stock in ONE database step that only succeeds if enough is still left
+        # (an "atomic update"). This is safe even if another cashier sold some of it
+        # a moment ago, after our check in Step 1. It returns how many rows it changed.
+        updated = (Product.query
+                   .filter(Product.id == product.id, Product.quantity >= quantity)
+                   .update({Product.quantity: Product.quantity - quantity},
+                           synchronize_session=False))
+        if updated == 0:
+            db.session.rollback()   # cancel the whole sale: nothing is saved
+            return show_sale_page(f'{name} was just sold by another sale and there is no longer '
+                                  f'enough stock. Please check the basket again.')
+        item = SaleItem(product_id=product.id, product_name=name,
                         unit_price=product.price, quantity=quantity)
         sale.items.append(item)
-        product.quantity -= quantity   # deduct stock
 
     db.session.add(sale)
     db.session.commit()   # saves the sale, its items and the new stock levels together

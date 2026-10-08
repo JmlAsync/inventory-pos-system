@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.11.2** (2026-10-09). Versions v0.8.2–v0.11.2 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.13.0** (2026-10-09). Versions v0.8.2–v0.13.0 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -83,6 +83,8 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.10.1–v0.10.2 | Stabilization patches: renamed products, keep sold products | Yes |
 | v0.11.0 | Demo data seed script | Yes: realistic shop for the presentation |
 | v0.11.1–v0.11.2 | Stabilization patches: receipt order, ₱ thousands separators | Yes |
+| v0.12.0 | Profile picture: round avatar with initials, upload/change/remove; automatic database upgrade | Yes |
+| v0.13.0 | Modern theme: left sidebar, light/dark switch, dashboard home | Yes: same features, new look |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -140,6 +142,9 @@ The tag message summarizes what the increment added.
 | v0.11.0 | 2026-10-09 | `9c0bbac` | Demo data: seed script with shop products and a week of sales *(pull request #15)* |
 | v0.11.1 | 2026-10-09 | `e02353c` | Demo data: receipt numbers follow the clock *(pull request #16)* |
 | v0.11.2 | 2026-10-09 | `16c6c7a` | Money shown with thousands separators (₱6,904.50) *(pull request #17)* |
+| — | 2026-10-09 | — | Documentation update for v0.8.2–v0.11.2 *(pull request #18, no tag)* |
+| v0.12.0 | 2026-10-09 | `5f3648e` | Profile pictures: round avatar (initials until a picture is uploaded), avatar menu, automatic database upgrade *(pull request #19)* |
+| v0.13.0 | 2026-10-09 | `ea368ff` | Modern theme: left sidebar with icons, light "Clean counter" / dark "Night shift" switch, dashboard home, card layout *(pull request #20)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -160,8 +165,8 @@ An **actor** is anyone (or anything) outside the system that interacts with it.
 |---|---|---|
 | **Visitor** | Anyone who opens the website but has not logged in | See the home page; go to the login page |
 | **User** *(general)* | Any logged-in person. This is a "parent" actor: Admin and Cashier are both kinds of User | Log in, log out, view the product list |
-| **Admin** | Store owner or manager. *Is a* User | Everything a User can do, **plus** add, edit and delete products |
-| **Cashier** | Counter staff. *Is a* User | Everything a User can do (view only). Will process sales in v0.8.0 |
+| **Admin** | Store owner or manager. *Is a* User | Everything a User can do, **plus** add, edit and delete products and view the sales report |
+| **Cashier** | Counter staff. *Is a* User | Everything a User can do: view products, process sales, change their picture (cannot change products or see the sales report) |
 
 > **Why "User" as a parent?** Admin and Cashier share some abilities (log in, log out, view products).
 > Instead of drawing the same lines twice, UML lets you draw them once on a general *User* actor and
@@ -246,6 +251,23 @@ a link to its receipt. To compare the week, she picks From = last Friday and To 
 She renamed "Cola" to "Cola 1.5L" on Wednesday; the report still counts it as one product *(v0.10.1)*. When she
 tries to delete a product that has been sold, the system refuses and suggests setting its quantity to 0, so old
 reports and receipts stay correct *(v0.10.2)*.
+
+### Story F10 — Profile picture *(v0.12.0)*
+Juan, a cashier, logs in for the first time. At the bottom of the sidebar he sees a green circle with his initials,
+**JU**, next to his name and role. He clicks it; a small menu says *Signed in as Cashier* and offers **Change picture**
+and **Log out**. He chooses Change picture, picks a JPG photo from his phone gallery (under 2 MB) and clicks
+**Upload picture**. The circle now shows his photo, cropped to a circle, on every page. A week later he uploads a
+new photo; the old file is deleted from the server. When he tries a GIF, the system says it only accepts PNG,
+JPG or WebP. When he uploads a 5 MB photo, it says *"That picture is too big. The limit is 2 MB."* and nothing
+breaks. Clicking **Remove picture** brings back his initials.
+
+### Story F11 — Modern theme with light and dark mode *(v0.13.0)*
+Maria opens the system in the morning. A sidebar on the left lists **Home, Products, New Sale** and, because she
+is the admin, **Sales Report**; the page she is on is highlighted. Home shows today's numbers (products, low
+stock, sales today, revenue today) and shortcut tiles. In the evening the store lights are dim, so she clicks
+**Dark mode** at the bottom of the sidebar: the system turns charcoal with amber highlights. Tomorrow it opens in
+dark mode again because her browser remembers the choice. When she prints a receipt from dark mode, the
+printout is still black on white. On her phone, the sidebar hides behind a ☰ menu button at the top.
 
 ---
 
@@ -465,12 +487,42 @@ reports and receipts stay correct *(v0.10.2)*.
 | TC-10.3 | Sales report for the demo week | Receipt numbers increase with time | **v0.11.0:** #25 at 9:27 AM after #23 at 6:13 PM · **v0.11.1:** in time order | ❌→✅ DEF-22 |
 | TC-10.4 | Any amount ≥ ₱1,000 (report, receipt, products, change preview, messages) | Thousands separator | **v0.11.1:** ₱6904.50 · **v0.11.2:** ₱6,904.50 | ❌→✅ DEF-23 |
 
+### F10 — Profile picture *(v0.12.0)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-11.1 | User without a picture | Open any page | Circle with initials (admin → AD) and the avatar menu | As expected | ✅ |
+| TC-11.2 | Logged in | Upload a PNG | Circle shows the picture; file saved under a random name | `user1_<random>.png` saved and shown | ✅ |
+| TC-11.3 | Picture already set | Upload a JPG | New picture shown; old file deleted | As expected | ✅ |
+| TC-11.4 | Picture set | Click Remove picture | Initials again; file deleted | As expected | ✅ |
+| TC-11.5 | Logged in | Upload a text file renamed to `.png` | Refused: "isn't a PNG, JPG or WebP picture" | Refused (the file's first bytes are checked, not its name) | ✅ |
+| TC-11.6 | Logged in | Upload a GIF | Refused with the same message | Refused | ✅ |
+| TC-11.7 | Logged in | Upload a 3 MB file | "That picture is too big. The limit is 2 MB."; no crash | As expected | ✅ |
+| TC-11.8 | Database from v0.11.2 (no `avatar` column) | Start the app | Column added automatically; old sales still work | Added by `upgrade_database()`; cash sale OK | ✅ |
+| TC-11.9 | Picture file deleted from the server by hand | Open any page | Initials instead of a broken image | As expected | ✅ |
+| TC-11.10 | Logged in | Open `/profile/remove` in the address bar (GET) | 405, picture kept | 405 | ✅ |
+| TC-11.11 | Visitor | Open `/profile` | Login page | As expected | ✅ |
+
+### F11 — Modern theme *(v0.13.0)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-12.1 | Admin | Open Products, then Add Product | Sidebar highlights **Products** on both pages | As expected | ✅ |
+| TC-12.2 | Cashier | Look at the sidebar | No Sales Report link | As expected | ✅ |
+| TC-12.3 | Any page | Click **Dark mode**, then reload | Dark theme with amber accent; still dark after reload | As expected | ✅ |
+| TC-12.4 | Dark mode | Print a receipt | Printout in light colours, no sidebar; dark again after printing | As expected | ✅ |
+| TC-12.5 | Window 390 px wide (phone) | Open Home, tap ☰ | Top bar with menu button; sidebar slides in | As expected | ✅ |
+| TC-12.6 | Font server slow or unreachable | New Sale: type the cash received | Change preview updates | **v0.13.0 draft:** stuck at ₱0.00 · **released v0.13.0:** updates | ❌→✅ DEF-25 |
+| TC-12.7 | Demo data | Admin opens Home | Products 15, Low stock 4, today's sales and revenue match the report for today | As expected | ✅ |
+| TC-12.8 | Visitor | Open `/products` | Login page with a styled "Please log in" message | **v0.11.2:** message shown as plain text · **v0.13.0:** blue info box | ❌→✅ DEF-26 |
+| TC-12.9 | All earlier tests | Run the full regression suite | Everything still passes | All 10 suites + 17 avatar checks pass | ✅ |
+
 > **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
 > for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### Test summary (v0.7.0 → v0.11.2)
+### Test summary (v0.7.0 → v0.13.0)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -485,7 +537,9 @@ reports and receipts stay correct *(v0.10.2)*.
 | F8 Low-stock | 9 | 7 → **9** | 2 → **0** | 0 |
 | F9 Sales report | 10 | 8 → **10** | 2 → **0** | 0 |
 | Demo data | 4 | 2 → **4** | 2 → **0** | 0 |
-| **Total** | **87** | **62 → 85** | **22 → 0** | **3 → 2** |
+| F10 Profile picture | 11 | 11 | 0 | 0 |
+| F11 Modern theme | 9 | 7 → **9** | 2 → **0** | 0 |
+| **Total** | **107** | **80 → 105** | **24 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -523,6 +577,8 @@ reports and receipts stay correct *(v0.10.2)*.
 | DEF-22 | Low | Demo data: receipt numbers not in time order | v0.11.x stabilization (TC-10.3) | Sort each day's sale times before creating them | ✅ Fixed v0.11.1 |
 | DEF-23 | Low | Amounts ≥ ₱1,000 shown without thousands separator | v0.11.x stabilization (TC-10.4) | `peso` template filter used everywhere | ✅ Fixed v0.11.2 |
 | DEF-24 | Medium | Sales report with end date 9999-12-31 crashed (no next day exists) | Pre-release testing of v0.10.0 (TC-9.5) | Dates limited to 2000–2100 | ✅ Fixed before v0.10.0 release |
+| DEF-25 | Medium | With the web font loading normally, a slow or blocked font server held up the New Sale script, so the change preview stayed at ₱0.00 (browsers wait for stylesheets before running scripts) | Pre-release testing of v0.13.0 (TC-12.6) | Font stylesheet loads in the background (`media="print"` switched to `all` when loaded) | ✅ Fixed before v0.13.0 release |
+| DEF-26 | Low | "Please log in to access this page." (from Flask-Login) shown as unstyled text, because its category `message` has no Bootstrap colour | v0.13.0 restyle (TC-12.8) | Category `message` shown as `info` | ✅ Fixed v0.13.0 |
 
 > **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
 > both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
@@ -533,7 +589,9 @@ reports and receipts stay correct *(v0.10.2)*.
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.11.2** (future increments):
+> **Known limitations after v0.13.0** (future increments):
+> - **Styling comes from the internet** (Bootstrap, icons and font from CDNs, i.e. content delivery networks). Without internet the system still works but looks unstyled. Fix: save those files in `static/` so it runs fully offline.
+> - **The light/dark choice is saved per browser**, not per user account.
 > - **Cash only.** GCash/card would need a payment-method choice, recorded but not connected to GCash itself, which needs a merchant account.
 > - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
 > - **Editing a product's stock overwrites it with the number typed in.** If a sale happens while the edit form is open, that sale's deduction is overwritten. Fix: "restock by amount" plus a **stock ledger** (a record of every stock change).
@@ -567,9 +625,11 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | UC-08 | Process sale | Cashier and Admin | Built (v0.8.0, fixed v0.8.1) |
 | UC-09 | View low-stock warning | Admin and Cashier | Built (v0.9.0, fixed v0.9.1–v0.9.2) |
 | UC-10 | View sales report | Admin | Built (v0.10.0, fixed v0.10.1–v0.10.2) |
+| UC-11 | Change profile picture | User (Admin and Cashier) | Built (v0.12.0) |
+| UC-12 | Switch light/dark theme | Visitor and User | Built (v0.13.0) |
 
 **Relationships between use cases** (needed for the diagram):
-- UC-05, UC-06, UC-07 and UC-08 all **«include»** a hidden step, *Check permission (role)*. «include» means
+- UC-05, UC-06, UC-07, UC-08 and UC-10 all **«include»** a hidden step, *Check permission (role)*. «include» means
   "always happens as part of". The `@admin_required` decorator in `app.py` is exactly this.
 - UC-09 **«extend»s** UC-04: the low-stock warning appears on the product list *only when* some stock is low.
   «extend» means "sometimes adds extra behaviour, under a condition".
@@ -675,13 +735,27 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Response** | Revenue, number of sales, items sold, top 5 products by units (grouped per product), and every sale with a link to its receipt |
 | **Comments** | Includes *Check permission* (admin only, 403 for cashiers). Depends on UC-08. Uses the price snapshot in each SaleItem, so later price changes don't alter past revenue |
 
----|---|
-| **Actors** | Admin |
-| **Description** | Summarizes sales over a chosen period |
-| **Data** | Sale records; start and end dates |
-| **Stimulus** | The admin opens Sales Report and chooses a date range |
-| **Response** | A list of sales with the items sold and total revenue |
-| **Comments** | Depends on UC-08 existing first |
+**UC-11 Change profile picture** *(built v0.12.0)*
+
+| | |
+|---|---|
+| **Actors** | Admin, Cashier |
+| **Description** | Lets a user replace the initials circle with a round photo, or remove it |
+| **Data** | An image file (PNG, JPG or WebP, at most 2 MB); stored in `static/avatars/` under a random name; the file name is saved in the user's `avatar` column |
+| **Stimulus** | The user clicks their avatar in the sidebar and chooses Change picture |
+| **Response** | The new picture appears on every page; the previous file is deleted. Wrong type or size gives a message instead |
+| **Comments** | The file's content (first bytes) is checked, not just its name. Random file names stop users from overwriting each other's pictures |
+
+**UC-12 Switch light/dark theme** *(built v0.13.0)*
+
+| | |
+|---|---|
+| **Actors** | Visitor, Admin, Cashier |
+| **Description** | Switches the look between "Clean counter" (light, teal) and "Night shift" (dark, amber) |
+| **Data** | The choice, saved in the browser's `localStorage` |
+| **Stimulus** | Clicking Dark mode / Light mode in the sidebar (or the moon/sun button on the login page) |
+| **Response** | Every page changes colour at once; the choice is kept after reloading. Printing always uses light |
+| **Comments** | Runs entirely in the browser; the server and database are not involved |
 
 ---
 
@@ -780,7 +854,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | # | Item | Status |
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
-| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F7–F9 to finish after building) |
+| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F11) |
 | 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F6 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ⬜ |
 | 5 | Nonfunctional requirements (L4 p. 18) | ⬜ |
@@ -812,7 +886,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 31 | Reliability terminology (L11 p. 25) | ⬜ |
 | 32 | Safety terminology (L11 p. 35) | ⬜ |
 | 33 | Security terminology (L11 p. 42) | ⬜ (use DEF-07, DEF-08, password hashing) |
-| 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks already exist |
+| 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks, upload checks (file content, 2 MB limit, random names) already exist |
 | 35 | Risk classification table (L12 p. 15) | ⬜ |
 | 36 | Software fault tree (L12 p. 18) | ⬜ |
 | 37 | Safety requirements (L12 p. 23) | ⬜ |

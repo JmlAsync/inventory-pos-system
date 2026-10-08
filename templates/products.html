@@ -41,7 +41,7 @@
                     <span class="badge bg-warning text-dark">Low</span>
                 {% endif %}
             </td>
-            <td>{{ product.category }}</td>
+            <td>{{ product.category or "—" }}</td>  {# empty category shows a dash, not "None" (v0.9.2) #}
         <td>
                 {% if current_user.role == 'admin' %}
                 <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>

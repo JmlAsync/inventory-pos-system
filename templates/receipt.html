@@ -25,7 +25,11 @@
             </tbody>
             <tfoot>
                 <tr><th colspan="3">TOTAL</th><th class="text-end">{{ sale.total|peso }}</th></tr>
-                {% if sale.cash_received > 0 %}
+                {% if sale.payment_method == 'gcash' %}
+                {# GCash (v0.15.0): paid exactly, so no change; the reference proves the payment #}
+                <tr><td colspan="3">Paid by GCash</td><td class="text-end">{{ sale.total|peso }}</td></tr>
+                <tr><td colspan="2">Reference no.</td><td colspan="2" class="text-end">{{ sale.payment_reference }}</td></tr>
+                {% elif sale.cash_received > 0 %}
                 <tr><td colspan="3">Cash</td><td class="text-end">{{ sale.cash_received|peso }}</td></tr>
                 <tr><td colspan="3">Change</td><td class="text-end">{{ sale.change_due|peso }}</td></tr>
                 {% else %}

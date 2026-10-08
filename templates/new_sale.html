@@ -108,14 +108,29 @@
         <div class="card"><div class="card-body">
         <form method="POST" action="{{ url_for('complete_sale') }}" class="row g-2 align-items-end">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-sm-6">
+            {# How the customer pays (v0.15.0). "btn-check" turns radio buttons into toggle buttons #}
+            <div class="col-12">
+                <div class="btn-group w-100" role="group" aria-label="Payment method">
+                    <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" checked>
+                    <label class="btn btn-outline-primary" for="pay_cash"><i class="bi bi-cash me-1" aria-hidden="true"></i>Cash</label>
+                    <input type="radio" class="btn-check" name="payment_method" id="pay_gcash" value="gcash">
+                    <label class="btn btn-outline-primary" for="pay_gcash"><i class="bi bi-phone me-1" aria-hidden="true"></i>GCash</label>
+                </div>
+            </div>
+            <div class="col-sm-6 cash-only">
                 <label class="form-label">Cash received (₱)</label>
                 <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
                        class="form-control" required>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-6 cash-only">
                 <label class="form-label">Change</label>
                 <input type="text" id="change_preview" class="form-control" value="₱0.00" readonly>
+            </div>
+            <div class="col-12 gcash-only" hidden>
+                <label class="form-label" for="gcash_reference">GCash reference no.</label>
+                <input type="text" inputmode="numeric" name="gcash_reference" id="gcash_reference" class="form-control"
+                       placeholder="13 digits from the customer's GCash receipt" maxlength="20" autocomplete="off">
+                <div class="form-text">Check that the amount on the customer's screen is {{ total|peso }}.</div>
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-success w-100 btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Complete Sale</button>
@@ -133,6 +148,18 @@
                 changeBox.value = change >= 0
                     ? '₱' + change.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})
                     : 'Not enough cash';
+            });
+            // Cash or GCash (v0.15.0): show only the matching boxes, and only require those
+            const referenceInput = document.getElementById('gcash_reference');
+            document.querySelectorAll('input[name="payment_method"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    const gcash = document.getElementById('pay_gcash').checked;
+                    document.querySelectorAll('.cash-only').forEach(function (el) { el.hidden = gcash; });
+                    document.querySelectorAll('.gcash-only').forEach(function (el) { el.hidden = !gcash; });
+                    cashInput.required = !gcash;
+                    referenceInput.required = gcash;
+                    (gcash ? referenceInput : cashInput).focus();
+                });
             });
         </script>
         {% else %}

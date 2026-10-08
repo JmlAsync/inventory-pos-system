@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Sizes & Add-ons{% endblock %}
+{% block content %}
+{# Admin page for sizes and add-ons (v0.16.0) #}
+<h1>Sizes &amp; Add-ons</h1>
+<p class="page-subtitle">Prices here are added on top of a drink's own price. Hidden options are no longer offered,
+    but old receipts keep them.</p>
+
+{% macro option_list(title, kind, options, icon, hint) %}
+<div class="card mb-4"><div class="card-body">
+    <h2 class="h5 fw-bold mb-1"><i class="bi {{ icon }} me-2" aria-hidden="true"></i>{{ title }}</h2>
+    <p class="text-body-secondary small mb-3">{{ hint }}</p>
+    {% for option in options %}
+    <form method="POST" action="{{ url_for('manage_options') }}" class="row g-2 align-items-center option-row{% if not option.active %} is-hidden{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="option_id" value="{{ option.id }}">
+        <div class="col-sm-5"><input type="text" class="form-control" name="name" value="{{ option.name }}" maxlength="50" required aria-label="Name"></div>
+        <div class="col-6 col-sm-3">
+            <div class="input-group"><span class="input-group-text">+₱</span>
+            <input type="number" class="form-control" name="price" value="{{ '%.2f'|format(option.price) }}" min="0" max="1000000" step="0.01" required aria-label="Extra price"></div>
+        </div>
+        <div class="col-3 col-sm-2">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="active" value="1" id="active{{ option.id }}"{% if option.active %} checked{% endif %}>
+                <label class="form-check-label" for="active{{ option.id }}">Offered</label>
+            </div>
+        </div>
+        <div class="col-3 col-sm-2 text-end"><button type="submit" class="btn btn-sm btn-outline-primary">Save</button></div>
+    </form>
+    {% else %}
+    <p class="text-body-secondary">None yet.</p>
+    {% endfor %}
+    <form method="POST" action="{{ url_for('manage_options') }}" class="row g-2 align-items-center mt-2 pt-3 border-top">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <div class="col-sm-5"><input type="text" class="form-control" name="name" maxlength="50" required placeholder="New {{ 'size' if kind == 'size' else 'add-on' }} name" aria-label="Name"></div>
+        <div class="col-6 col-sm-3">
+            <div class="input-group"><span class="input-group-text">+₱</span>
+            <input type="number" class="form-control" name="price" value="0" min="0" max="1000000" step="0.01" required aria-label="Extra price"></div>
+        </div>
+        <div class="col-6 col-sm-4 text-end"><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add {{ 'size' if kind == 'size' else 'add-on' }}</button></div>
+    </form>
+</div></div>
+{% endmacro %}
+
+<div style="max-width: 48rem;">
+{{ option_list('Sizes', 'size', sizes, 'bi-cup', 'The customer picks exactly one. The first offered size is the default.') }}
+{{ option_list('Add-ons', 'addon', addons, 'bi-plus-circle', 'The customer may pick any number of these.') }}
+</div>
+{% endblock %}

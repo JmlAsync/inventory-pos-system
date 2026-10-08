@@ -16,7 +16,7 @@
             <tbody>
                 {% for item in sale.items %}
                 <tr>
-                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.product_name }}{% if item.options %}<div class="small text-body-secondary">{{ item.options }}</div>{% endif %}</td>
                     <td>{{ item.quantity }}</td>
                     <td>{{ item.unit_price|peso }}</td>
                     <td class="text-end">{{ item.subtotal|peso }}</td>

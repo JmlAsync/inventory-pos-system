@@ -3,12 +3,19 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User, Sale, SaleItem
 from functools import wraps
+import math
 from flask import abort
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
 app.config['SECRET_KEY'] = 'dev-secret-change-this-later'
 db.init_app(app)
+
+# Upper limits for numbers typed into forms (v0.8.3). Generous for a mini-store,
+# café or market, but they stop "nan", "inf" and absurdly large values.
+MAX_PRICE = 1_000_000      # pesos
+MAX_QUANTITY = 1_000_000   # units
+MAX_CASH = 1_000_000       # pesos
 
 def admin_required(f):
     @wraps(f)
@@ -41,7 +48,11 @@ def validate_product_form(form, current_product_id=None):
     if price < 0 or quantity < 0:
         return None, 'Price and quantity cannot be negative.'
 
-    # 4. SKU must be unique. Look for ANOTHER product that already uses this SKU
+    # 4. Realistic numbers only: math.isfinite() is False for "nan" and "inf"
+    if not math.isfinite(price) or price > MAX_PRICE or quantity > MAX_QUANTITY:
+        return None, f'Price must be at most ₱{MAX_PRICE:,} and quantity at most {MAX_QUANTITY:,}.'
+
+    # 5. SKU must be unique. Look for ANOTHER product that already uses this SKU
     #    (when editing, the product being edited is allowed to keep its own SKU)
     existing = Product.query.filter_by(sku=sku).first()
     if existing and existing.id != current_product_id:
@@ -212,8 +223,9 @@ def complete_sale():
 
     # Step 2: check the cash the customer paid
     cash = request.form.get('cash_received', type=float)  # None if not a number
-    if cash is None or cash < total:
-        return show_sale_page(f'Cash received must be a number of at least ₱{total:.2f}.')
+    if cash is None or not math.isfinite(cash) or cash < total or cash > MAX_CASH:
+        return show_sale_page(f'Cash received must be a number of at least ₱{total:.2f} '
+                              f'(and at most ₱{MAX_CASH:,}).')
 
     # Step 3: everything is fine, so create the sale and deduct stock
     sale = Sale(user_id=current_user.id, total=total,

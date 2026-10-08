@@ -56,7 +56,7 @@
 <form method="POST" action="{{ url_for('complete_sale') }}" class="row g-2 align-items-end">
     <div class="col-md-4">
         <label class="form-label">Cash received (₱)</label>
-        <input type="number" step="0.01" min="{{ total }}" name="cash_received" id="cash_received"
+        <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
                class="form-control" required>
     </div>
     <div class="col-md-4">

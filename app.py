@@ -347,7 +347,9 @@ def show_sale_page(error=None):
     # Products that can still be added: stock minus what is already in the basket.
     # (The real stock in the database only goes down when the sale is completed.)
     choices = []
-    for product in Product.query.filter(Product.quantity > 0).order_by(Product.name).all():
+    # Menu order (v0.14.2): grouped by category (products without one last), then by name
+    in_menu_order = (Product.category.is_(None), Product.category, Product.name)
+    for product in Product.query.filter(Product.quantity > 0).order_by(*in_menu_order).all():
         available = product.quantity - basket.get(str(product.id), 0)
         if available > 0:
             choices.append({'product': product, 'available': available})

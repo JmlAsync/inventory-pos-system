@@ -66,7 +66,7 @@
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
                 {{ side_link(request.endpoint, 'sales_report', 'bi-bar-chart-line', 'Sales Report') }}
-                {{ side_link(request.endpoint, 'manage_options', 'bi-sliders', 'Sizes & Add-ons', ('edit_recipe',) if recipe_kind == 'option' else ()) }}
+                {{ side_link(request.endpoint, 'manage_options', 'bi-sliders', 'Servings & Add-ons', ('edit_recipe',) if recipe_kind == 'option' else ()) }}
                 {{ side_link(request.endpoint, 'ingredients', 'bi-droplet-half', 'Ingredients') }}
             </nav>
             {% endif %}

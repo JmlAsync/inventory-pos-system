@@ -310,7 +310,7 @@ def delete_product(product_id):
     return redirect(url_for('products'))
 
 # ---------------- Sizes and add-ons (v0.16.0) ----------------
-OPTION_KINDS = {'size': 'size', 'addon': 'add-on'}
+OPTION_KINDS = {'size': 'serving', 'addon': 'add-on'}   # 'size' = a serving: Hot / Iced or 12oz / 16oz (v0.17.2)
 
 
 @app.route('/options', methods=['GET', 'POST'])
@@ -657,11 +657,11 @@ def read_line(key, quantity):
     addons = [db.session.get(MenuOption, i) for i in addon_ids]
     if ((size_id and (size is None or not size.active or size.kind != 'size'))
             or any(a is None or not a.active or a.kind != 'addon' for a in addons)):
-        return None, (f'A size or add-on chosen for {product.name} is no longer offered, '
+        return None, (f'A serving or add-on chosen for {product.name} is no longer offered, '
                       f'so that line was taken out of the basket.')
     if (size or addons) and not product.has_options:
         # The admin unticked "sizes and add-ons" for this product after it was added (v0.16.1)
-        return None, (f'{product.name} no longer has sizes or add-ons, so that line was taken out '
+        return None, (f'{product.name} no longer has servings or add-ons, so that line was taken out '
                       f'of the basket. Please add it again.')
     unit_price = round(product.price + (size.price if size else 0) + sum(a.price for a in addons), 2)
     options_text = ', '.join(([size.name] if size else []) + [a.name for a in addons])   # e.g. "16oz, Sub Oat"
@@ -748,7 +748,7 @@ def new_sale():
                 if size_id is None:
                     size_id = sizes[0].id          # the smallest size if none was chosen (e.g. the list form)
                 if size_id not in [s.id for s in sizes]:
-                    return show_sale_page('Please choose one of the sizes offered.')
+                    return show_sale_page('Please choose one of the servings offered (e.g. Hot or Iced).')
             else:
                 size_id = None
             active_addons = {a.id for a in MenuOption.query.filter_by(kind='addon', active=True)}

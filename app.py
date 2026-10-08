@@ -12,7 +12,25 @@ from flask import abort
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
-app.config['SECRET_KEY'] = 'dev-secret-change-this-later'
+
+
+def load_secret_key():
+    """The secret key signs the login cookie, so it must never be in the code on GitHub (v0.13.1).
+    It comes from the SECRET_KEY environment variable if set; otherwise a random key is created
+    once and kept in instance/secret_key.txt (the instance folder is not uploaded to GitHub)."""
+    from_environment = os.environ.get('SECRET_KEY')
+    if from_environment:
+        return from_environment
+    os.makedirs(app.instance_path, exist_ok=True)
+    key_file = os.path.join(app.instance_path, 'secret_key.txt')
+    if not os.path.exists(key_file):
+        with open(key_file, 'w') as f:
+            f.write(secrets.token_hex(32))   # 64 random characters
+    with open(key_file) as f:
+        return f.read().strip()
+
+
+app.config['SECRET_KEY'] = load_secret_key()
 # Largest upload allowed (v0.12.0): bigger requests are refused with error 413
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024   # 2 MB
 db.init_app(app)

@@ -569,6 +569,34 @@ def remove_avatar():
     return redirect(url_for('profile'))
 
 
+# ---------------- Change password (v0.13.5) ----------------
+MIN_PASSWORD_LENGTH = 8
+
+
+@app.route('/profile/password', methods=['POST'])
+@login_required
+def change_password():
+    """Lets a user replace a default password like admin123 with their own."""
+    current = request.form.get('current_password', '')
+    new = request.form.get('new_password', '')
+    confirm = request.form.get('confirm_password', '')
+    if not check_password_hash(current_user.password_hash, current):
+        flash('Current password is wrong. Nothing was changed.', 'danger')
+    elif new != confirm:
+        flash('The new passwords do not match.', 'danger')
+    elif new.lower() == current_user.username.lower():
+        flash("Your password can't be the same as your username.", 'danger')
+    elif len(new) < MIN_PASSWORD_LENGTH:
+        flash(f'The new password must be at least {MIN_PASSWORD_LENGTH} characters long.', 'danger')
+    elif new == current:
+        flash('The new password is the same as the current one.', 'danger')
+    else:
+        current_user.password_hash = generate_password_hash(new)   # stored scrambled, never as plain text
+        db.session.commit()
+        flash('Password changed. Use the new one next time you log in.', 'success')
+    return redirect(url_for('profile'))
+
+
 @app.errorhandler(413)
 def too_large(e):
     flash('That picture is too big. The limit is 2 MB.', 'danger')

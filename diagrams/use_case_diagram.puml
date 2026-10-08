@@ -1,5 +1,5 @@
 @startuml
-' Use case diagram - Inventory & POS System (v0.14.3: all use cases built)
+' Use case diagram - Inventory & POS System (v0.17.2: all use cases built)
 ' Paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 ' Lines starting with an apostrophe are comments and are not drawn.
 
@@ -34,6 +34,8 @@ rectangle "Inventory & POS System" {
   usecase "Change profile picture" as UC11
   usecase "Switch light/dark theme" as UC12
   usecase "Change password" as UC13
+  usecase "Manage servings\n(hot/iced) and add-ons" as UC14
+  usecase "Manage ingredients\nand recipes" as UC15
 }
 
 Visitor -- UC01
@@ -51,12 +53,16 @@ Admin -- UC05
 Admin -- UC06
 Admin -- UC07
 Admin -- UC10
+Admin -- UC14
+Admin -- UC15
 
 UC05 ..> CHK : <<include>>
 UC06 ..> CHK : <<include>>
 UC07 ..> CHK : <<include>>
 UC08 ..> CHK : <<include>>
 UC10 ..> CHK : <<include>>
+UC14 ..> CHK : <<include>>
+UC15 ..> CHK : <<include>>
 
 UC09 ..> UC04 : <<extend>>
 @enduml

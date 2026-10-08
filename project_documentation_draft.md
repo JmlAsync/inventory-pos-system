@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.7.1** (tagged 2026-10-04).
+> This draft covers the system up to **v0.8.1** (tagged 2026-10-08).
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
 > This is a *draft*, not the final report. The final report will be written in LibreOffice Writer and must
@@ -73,7 +73,9 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.6.0 | Log in / log out | Yes |
 | v0.7.0 | Admin vs. Cashier permissions | Yes |
 | v0.7.1 | Bug fixes found by testing (patch) | Yes: invalid input now rejected with a message |
-| v0.8.0 → | Sale processing, low-stock warning, sales report (planned) | — |
+| v0.8.0 | Sale processing: basket, cash & change, stock deduction, printable receipt | Yes: a full checkout works end to end |
+| v0.8.1 | Receipt fix found by hand testing (patch) | Yes: old receipts say "not recorded" |
+| v0.9.0 → | Low-stock warning, sales report, demo data (planned) | — |
 
 **Why incremental, and not the other two?**
 
@@ -112,6 +114,9 @@ The tag message summarizes what the increment added.
 | v0.7.0 | 2026-08-13 | `6f552f9` | Role-based access: Admin can manage products, Cashier is view-only |
 | — | 2026-10-03 | `e76f4a1` | *(no tag)* Add documentation draft, test results and use case diagram |
 | v0.7.1 | 2026-10-04 | `6043cdb` | Product validation fixes: duplicate SKU, negative values, peso sign *(first feature branch + pull request #1)* |
+| — | 2026-10-04 | `1d1dd0e` | *(no tag)* Update documentation for v0.7.1: test results and fixed defects |
+| v0.8.0 | 2026-10-08 | `1343236` | Sale processing: basket checkout, cash and change, stock deduction, printable receipt *(pull request #2)* |
+| v0.8.1 | 2026-10-08 | `538ce09` | Receipt fix: show 'not recorded' for sales made before cash tracking *(pull request #3)* |
 
 **How the version numbers work (semantic versioning):** `MAJOR.MINOR.PATCH`.
 - **MINOR** goes up when a new feature is added (v0.6.0 → v0.7.0).
@@ -186,13 +191,21 @@ the browser. The system refuses and shows a "403 – Access Denied" page with a 
 check happens on the server, so hiding the buttons is not the only protection. When Maria logs in as admin,
 all buttons are available to her.
 
-### Planned stories (to be confirmed before building)
+### Story F7 — Processing a sale *(v0.8.0, fixed in v0.8.1)*
+A customer at the counter brings two Cokes and three packs of noodles. Jun (or Maria, since the owner often covers the
+counter) clicks **New Sale** in the navigation bar. He picks "Coke 1.5L" from a dropdown that shows each product's price
+and how many are **available**, types 2, and clicks **Add to basket**; then does the same for the noodles. The basket shows
+each line's subtotal and the total, ₱271.50, and the dropdown now shows fewer Cokes and noodles **available**, because
+the ones in the basket are spoken for. (Adding a product that's already in the basket makes its line grow instead of
+appearing twice; a wrong line can be taken out with **Remove**.) The customer hands over ₱500; as Jun types it into **Cash received**,
+the page already shows the change, ₱228.50. He clicks **Complete Sale**. The system checks once more that every item
+is still in stock, saves the sale, lowers the stock of each product, empties the basket and shows a **receipt** with the
+receipt number, date and time, "Served by: cashier", every item, the total, the cash and the change. Jun clicks
+**Print Receipt**; only the receipt is printed, without the menu or buttons. Had he typed ₱200, or tried to sell more
+noodles than the shop has, the system would have refused with a clear message and saved nothing. Receipts from before
+cash was recorded state "Cash and change not recorded" instead of showing a misleading ₱0.00 *(v0.8.1)*.
 
-**F7 — Processing a sale *(planned v0.8.0)*.** A customer brings two Cokes and one pack of noodles to the
-counter. Jun opens the **New Sale** page, picks each product and enters its quantity. The system shows each line's
-subtotal and the overall total. Jun takes the payment and clicks **Complete Sale**. The system records the sale
-with the date, time and cashier name, and lowers the stock of each product by the amount sold. If Jun tries to
-sell more than is in stock, the system warns him and does not complete the sale.
+### Planned stories (to be confirmed before building)
 
 **F8 — Low-stock warning *(planned v0.9.0)*.** When Maria opens the product list, products whose quantity has
 fallen to or below a set threshold (for example 5) are highlighted, and a message at the top lists them, so she
@@ -311,7 +324,60 @@ cash in the drawer.
 | TC-6.5 | Cashier | Send a POST to `/products/delete/1` | 403; product still exists | 403; product still exists | ✅ |
 | TC-6.6 | Logged in as admin | Add / edit / delete | All allowed | Allowed *(also checked by hand)* | ✅ |
 
-### Test summary (v0.7.0)
+### F7 — Process sale *(v0.8.0, v0.8.1)*
+
+**Input:** products and quantities added to a basket; cash received from the customer.
+**Tests:** 1. Building the basket (adding, merging, removing). 2. Stock limits, including what is already in the basket. 3. Invalid quantities and products. 4. Cash checks. 5. Completing a sale and its effect on stock. 6. Receipts, including old ones. 7. Who can sell, and basket privacy.
+**Output:** valid sale → saved, stock reduced, receipt shown; anything invalid → clear message and **nothing saved**.
+
+> **How these were run.** On 2026-10-08 against the code tagged **v0.8.0** (`1343236`) using the Flask test client, plus a real
+> browser (Chromium) for the JavaScript change preview; v0.8.1 (`538ce09`) was re-tested the same day, including on a
+> **copy of the real database**. Cases marked *(by hand)* were also confirmed by Yesha in the running app.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-7.1 | Not logged in | Open `/sales/new` | Redirect to login | 302 → `/login` | ✅ |
+| TC-7.2 | Cashier; Coke ₱75.50, Noodles ₱15 | Add Coke × 2, Noodles × 3 | Two lines; total ₱271.50 | As expected *(by hand: Sample Item × 1 + A × 2 = ₱26.19, screenshot S2)* | ✅ |
+| TC-7.3 | Coke × 2 in basket | Add Coke × 1 again | One line, × 3 (not two lines) | One line, × 3 | ✅ |
+| TC-7.4 | Noodles: 10 in stock | Add 3 → look at dropdown; add the other 7 | "7 available"; then Noodles leaves the dropdown; database stock stays 10 until the sale is completed | As expected *(by hand: A 39 / Sample Item 38 before; 37 / 37 available with A × 2 and Sample Item × 1 in the basket, screenshots S3–S4)* | ✅ (DEF-10) |
+| TC-7.5 | Coke: 5 in stock, 3 in basket | Add Coke × 3 | "only 2 more can be added"; basket unchanged | As expected *(by hand: "Not enough stock for A: only 39 more can be added.", screenshot S5)* | ✅ |
+| TC-7.6 | Cashier | Quantity 0, −2, `abc` | "Quantity must be a whole number of at least 1." | As expected | ✅ |
+| TC-7.7 | Cashier | No product chosen; product ID 999 | "Please choose a product." | As expected | ✅ |
+| TC-7.8 | Soap: 0 in stock | Look at dropdown; send a hand-made request for Soap × 1 | Not listed; request refused | Not listed; "only 0 more can be added" | ✅ |
+| TC-7.9 | Two lines in basket | **Remove** one | Line gone; total updates | As expected | ✅ |
+| TC-7.10 | Empty basket | **Complete Sale** | "The basket is empty." | As expected | ✅ |
+| TC-7.11 | Basket total ₱226.50 | Cash ₱200; `abc`; nothing | "Cash received must be a number of at least ₱226.50."; no sale saved | As expected; 0 sales saved | ✅ |
+| TC-7.12 | Noodles × 3 in basket; stock then lowered to 2 elsewhere | **Complete Sale** | "…no longer has enough stock"; nothing saved, no stock changed | As expected | ✅ |
+| TC-7.13 | Basket Coke × 3 (₱226.50), Coke stock 5 | Cash ₱500 → **Complete Sale** | Receipt: number, date, "Served by", items, total ₱226.50, cash ₱500.00, change ₱273.50; Coke stock 5 → 2; basket emptied | As expected *(by hand: receipt #4 ₱12.40, ₱500 cash → ₱487.60 change; receipt #6 ₱3.10, ₱10 cash → ₱6.90 change; A's stock 39 → 37 after receipts #6 and #7, screenshots S8, S1)* | ✅ |
+| TC-7.14 | Basket ₱15.00 | Cash exactly ₱15 | Change ₱0.00 | Change ₱0.00 | ✅ |
+| TC-7.15 | Logged in as **admin** | Complete a sale | Allowed; "Served by: admin" | As expected | ✅ |
+| TC-7.16 | Receipt for Coke at ₱75.50 exists | Change Coke's price, then delete Coke; reopen receipt | Receipt still shows "Coke 1.5L" at ₱75.50 | As expected | ✅ |
+| TC-7.17 | Items in basket | Logout → log in as another user → New Sale | Basket empty | Empty | ✅ (DEF-09) |
+| TC-7.18 | Two browsers logged in | Add items in one | Other browser's basket unaffected | Unaffected | ✅ |
+| TC-7.19 | Basket ₱151.00 (browser) | Type cash 100, then 200 | Change box: "Not enough cash", then ₱49.00 | As expected; no script errors *(by hand: ₱3.10 total, cash 2 → "Not enough cash", cash 10 → ₱6.90, screenshots S6–S7)* | ✅ |
+| TC-7.20 | Receipt open | **Print Receipt** → print preview | Only the receipt; no navbar or buttons | *(by hand, 2026-10-08)* Print preview of receipt #7 shows only the receipt card: no navigation bar, no Print/New Sale buttons (screenshot S9) | ✅ |
+| TC-7.21 | Receipt #1–#3, made before cash was recorded | Open the receipt | No misleading cash amount | **v0.8.0:** "Cash ₱0.00 / Change ₱0.00" · **v0.8.1:** "Cash and change not recorded…"; #4 unchanged *(checked on a copy of the real database)* | ❌→✅ DEF-12 |
+| TC-7.22 | Logged in | `/sales/999`; visit `/sales/complete` as a link (GET) | 404; 405 | 404; 405 | ✅ |
+| TC-7.23 | Database from before v0.8.0's cash columns | **Complete Sale** | Sale saved | **Crash** "table sale has no column named cash_received" *(by hand)* → fixed by adding the columns; sale then saved | ❌→✅ DEF-11 |
+
+#### Hand-test screenshots (v0.8.0, 2026-10-08, logged in as cashier)
+
+| # | Test | Screenshot |
+|---|---|---|
+| S1 | TC-7.13: Products page after receipts #6 and #7, stock of A reduced to 37 | ![Products page with reduced stock](screenshots/v0.8.0_TC-7.13_stock_reduced.png) |
+| S2 | TC-7.2: basket with two lines and total ₱26.19 | ![Basket with two lines](screenshots/v0.8.0_TC-7.2_basket.png) |
+| S3 | TC-7.4: dropdown before adding to the basket (A 39, Sample Item 38 available) | ![Dropdown before basket](screenshots/v0.8.0_TC-7.4_before_basket.png) |
+| S4 | TC-7.4: dropdown with items in the basket (both 37 available) | ![Dropdown showing available stock](screenshots/v0.8.0_TC-7.4_available.png) |
+| S5 | TC-7.5: adding more than is available is refused | ![Not enough stock message](screenshots/v0.8.0_TC-7.5_stock_error.png) |
+| S6 | TC-7.19: live change preview, ₱10 cash → ₱6.90 change | ![Change preview](screenshots/v0.8.0_TC-7.19_change_preview.png) |
+| S7 | TC-7.19: cash lower than the total → "Not enough cash" | ![Not enough cash](screenshots/v0.8.0_TC-7.19_not_enough_cash.png) |
+| S8 | TC-7.13: receipt #6 with cash and change | ![Receipt with cash and change](screenshots/v0.8.0_TC-7.13_receipt.png) |
+| S9 | TC-7.20: print preview shows only the receipt | ![Print preview](screenshots/v0.8.0_TC-7.20_print_preview.png) |
+
+> Still to capture: **TC-7.21 (v0.8.1)**, an old receipt (`/sales/1`) showing "Cash and change not recorded…"
+> (file name `v0.8.1_TC-7.21_not_recorded.png`).
+
+### Test summary (v0.7.0 → v0.8.1)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -321,9 +387,10 @@ cash in the drawer.
 | F4 Delete | 4 | 3 | 0 | 1 |
 | F5 Login/out | 8 | 7 | 0 | 1 |
 | F6 Roles | 6 | 6 | 0 | 0 |
-| **Total** | **31** | **24 → 29** | **5 → 0** | **2** |
+| F7 Process sale | 23 | 20 → **23** | 2 → **0** | 1 → **0** |
+| **Total** | **54** | **44 → 52** | **7 → 0** | **3 → 2** |
 
-*Numbers shown as v0.7.0 → v0.7.1. On 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**.*
+*F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
 > Failing tests are **not** a bad thing to show in a report. Finding defects is the *purpose* of testing
 > (Sommerville calls this **defect testing**). Showing a defect, its fix, and the test passing afterwards
@@ -343,11 +410,25 @@ cash in the drawer.
 | DEF-06 | Low | After logging in, the user is always sent to Products instead of the page they first asked for | TC-5.8 | Read `request.args.get('next')` and redirect there (only if it is a page within this site) | later |
 | DEF-07 | Security, before submission | `SECRET_KEY` is written directly in `app.py` and pushed to a public GitHub repository | Code review | Read it from an environment variable; keep a development fallback | v1.0.0 |
 | DEF-08 | Security, before submission | Forms have no **CSRF protection** (CSRF = Cross-Site Request Forgery: another website tricking a logged-in user's browser into submitting a form) | Code review | Use Flask-WTF's `CSRFProtect` | v1.0.0 |
+| DEF-09 | **High** | Logging out did not empty the basket, so on a shared counter computer the next user saw the previous cashier's items | Testing during development (TC-7.17) | `session.pop('basket', None)` in `logout()` | ✅ Fixed before v0.8.0 release |
+| DEF-10 | Medium (usability) | The New Sale dropdown showed database stock, ignoring items already in the basket, so it looked like more could be sold | Hand testing by Yesha (TC-7.4) | Dropdown shows **available = stock − basket**; products fully in the basket are hidden; message says how many *more* can be added | ✅ Fixed before v0.8.0 merge |
+| DEF-11 | **High** (deployment) | After upgrading the code, **Complete Sale** crashed: "table sale has no column named cash_received". `db.create_all()` creates missing *tables* but never adds *columns* to existing ones | Hand testing by Yesha (TC-7.23) | One-time **migration** script `add_cash_columns_once.py` (SQL `ALTER TABLE … ADD COLUMN`), database backed up first. The crashed sale saved nothing, because the save is one transaction | ✅ Fixed 2026-10-08 (database change, no code change) |
+| DEF-12 | Low | Receipts for sales made before cash tracking showed "Cash ₱0.00 / Change ₱0.00", which looks like a real but impossible payment | Hand testing (TC-7.21) | `receipt.html` shows "Cash and change not recorded…" when cash is 0; no data invented | ✅ Fixed v0.8.1 (PR #3) |
+| DEF-13 | Medium (reliability) | **Race condition:** two cashiers completing a sale for the last item at the same moment could both pass the stock check, leaving stock at −1 | Design review | **Atomic update**: subtract stock only *if enough is left*, in one database step; cancel the sale otherwise | Planned v0.8.2 |
 
 > **How the v0.7.1 fix works.** All checks live in one function, `validate_product_form()` in `app.py`, used by
 > both Add and Edit (the **DRY** principle: Don't Repeat Yourself). It returns either clean data or an error
 > message; on error the form is shown again with a red Bootstrap alert and nothing touches the database.
 > The browser checks (`required`, `min="0"`) are a convenience; the server check is the real protection.
+
+> **Lesson from DEF-11 (worth a sentence in the report):** changing the *shape* of an existing database (adding a
+> column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
+> tool (e.g. Flask-Migrate) to keep these in order.
+
+> **Known limitations after v0.8.1** (future increments): **cash only**, so GCash/card would need a payment-method choice,
+> recorded but not connected to GCash itself, which needs a merchant account; **no refunds or voids**, to be handled by
+> a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state
+> diagram; and **DEF-13**, the race condition.
 
 > DEF-07 and DEF-08 are also good material for the professor's Lecture 11 items (*security terminology*
 > and *vulnerability avoidance techniques*).
@@ -371,7 +452,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | UC-05 | Add product | Admin | Built (v0.4.0) |
 | UC-06 | Edit product | Admin | Built (v0.5.0) |
 | UC-07 | Delete product | Admin | Built (v0.5.0) |
-| UC-08 | Process sale | Cashier *(Admin too? to confirm)* | Planned (v0.8.0) |
+| UC-08 | Process sale | Cashier and Admin | Built (v0.8.0, fixed v0.8.1) |
 | UC-09 | View low-stock warning | Admin | Planned (v0.9.0) |
 | UC-10 | View sales report | Admin | Planned (v0.10.0) |
 
@@ -449,16 +530,16 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Response** | The product is removed and the list is shown without it |
 | **Comments** | Includes *Check permission*. Only works as a POST (form submission), not a link, for safety |
 
-**UC-08 Process sale** *(planned — details to confirm)*
+**UC-08 Process sale** *(built v0.8.0)*
 
 | | |
 |---|---|
-| **Actors** | Cashier |
-| **Description** | Records a customer purchase of one or more products and lowers their stock |
-| **Data** | Products and quantities sold; date and time; the cashier's user ID; total amount |
-| **Stimulus** | The cashier adds items to a new sale and clicks Complete Sale |
-| **Response** | The sale is saved, stock quantities are reduced, and a summary/receipt is shown. Selling more than is in stock is refused |
-| **Comments** | Needs new database tables (likely `Sale` and `SaleItem`). Stock must never become negative |
+| **Actors** | Cashier, Admin |
+| **Description** | Records a customer purchase of one or more products, takes cash, gives change and lowers stock |
+| **Data** | Basket (in the session): product IDs and quantities. Saved: **Sale** (date and time, user, total, cash received, change due) and one **SaleItem** per line (product, name and unit price *at the time of sale*, quantity) |
+| **Stimulus** | The user adds items to the basket, enters the cash received and clicks Complete Sale |
+| **Response** | Stock and cash are checked; the sale and its items are saved and stock reduced in **one transaction**; the basket is emptied; a printable receipt is shown. Invalid input → message, nothing saved |
+| **Comments** | Includes *Check permission* (must be logged in). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct |
 
 **UC-09 View low-stock warning** *(planned)*
 

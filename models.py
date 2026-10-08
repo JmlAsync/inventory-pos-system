@@ -11,6 +11,8 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, default=0)
     category = db.Column(db.String(50))
+    # File name of the product's picture in static/products/, or None (v0.14.0)
+    image = db.Column(db.String(100))
 
     def __repr__(self):
         return f"<Product {self.name}>"

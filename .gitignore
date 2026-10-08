@@ -5,3 +5,5 @@ __pycache__/
 static/avatars/
 # Secret key and database live here; never upload them (v0.13.1)
 instance/
+# Uploaded product pictures (v0.14.0)
+static/products/

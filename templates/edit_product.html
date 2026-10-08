@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_product_image.html" import product_thumb %}
 {% block title %}Edit Product{% endblock %}
 {% block content %}
 <div style="max-width: 40rem;">
@@ -8,7 +9,7 @@
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 <div class="card"><div class="card-body p-4">
-<form method="POST" action="{{ url_for('edit_product', product_id=product.id) }}">
+<form method="POST" action="{{ url_for('edit_product', product_id=product.id) }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <label class="form-label">Name</label>
@@ -29,6 +30,22 @@
     <div class="mb-3">
         <label class="form-label">Category</label>
         <input type="text" class="form-control" name="category" maxlength="50" value="{{ product.category or '' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="picture">Picture</label>
+        <div class="d-flex align-items-center gap-3">
+            {{ product_thumb(product, 64) }}
+            <div class="flex-grow-1">
+                <input class="form-control" type="file" id="picture" name="picture" accept="image/png, image/jpeg, image/webp">
+                <div class="form-text">Choose a file to replace the picture (PNG, JPG or WebP, up to 2 MB).</div>
+            </div>
+        </div>
+        {% if product.image %}
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="remove_picture" name="remove_picture" value="1">
+            <label class="form-check-label" for="remove_picture">Remove the picture (show the icon instead)</label>
+        </div>
+        {% endif %}
     </div>
     <button type="submit" class="btn btn-primary">Save Changes</button>
     <a href="{{ url_for('products') }}" class="btn btn-light-subtle">Cancel</a>

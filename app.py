@@ -123,6 +123,7 @@ NEW_COLUMNS = [
     ('sale', 'cash_received', 'FLOAT NOT NULL DEFAULT 0'),   # v0.8.0
     ('sale', 'change_due', 'FLOAT NOT NULL DEFAULT 0'),      # v0.8.0
     ('user', 'avatar', 'VARCHAR(100)'),                      # v0.12.0
+    ('product', 'image', 'VARCHAR(100)'),                    # v0.14.0
 ]
 
 
@@ -221,10 +222,13 @@ def products():
 def add_product():
     if request.method == 'POST':
         data, error = validate_product_form(request.form)
-        if error:
+        picture, picture_error = read_uploaded_picture(request.files.get('picture'))
+        if error or picture_error:
             # Show the form again with the error message; nothing is saved
-            return render_template('add_product.html', error=error)
+            return render_template('add_product.html', error=error or picture_error)
         new_product = Product(**data)
+        if picture:
+            new_product.image = save_picture(picture, PRODUCT_IMAGE_FOLDER, 'product')
         db.session.add(new_product)
         db.session.commit()
         return redirect(url_for('products'))
@@ -237,13 +241,18 @@ def edit_product(product_id):
     product = find_by_id(Product, product_id) or abort(404)
     if request.method == 'POST':
         data, error = validate_product_form(request.form, current_product_id=product.id)
-        if error:
-            return render_template('edit_product.html', product=product, error=error)
+        picture, picture_error = read_uploaded_picture(request.files.get('picture'))
+        if error or picture_error:
+            return render_template('edit_product.html', product=product, error=error or picture_error)
         product.name = data['name']
         product.sku = data['sku']
         product.price = data['price']
         product.quantity = data['quantity']
         product.category = data['category']
+        # Picture (v0.14.0): a new upload replaces the old one; the tick box removes it
+        if picture or request.form.get('remove_picture'):
+            delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)
+            product.image = save_picture(picture, PRODUCT_IMAGE_FOLDER, 'product') if picture else None
         db.session.commit()
         return redirect(url_for('products'))
     return render_template('edit_product.html', product=product)
@@ -260,6 +269,7 @@ def delete_product(product_id):
         flash(f'"{product.name}" has sales history, so it can\'t be deleted. '
               f'Set its quantity to 0 instead to stop selling it.', 'danger')
         return redirect(url_for('products'))
+    delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)   # its picture goes too (v0.14.0)
     db.session.delete(product)
     db.session.commit()
     return redirect(url_for('products'))
@@ -516,12 +526,40 @@ def detect_image_type(data):
     return None
 
 
-def delete_avatar_file(user):
-    """Remove the user's current picture file, if any."""
-    if user.avatar:
-        path = os.path.join(AVATAR_FOLDER, os.path.basename(user.avatar))
+def read_uploaded_picture(file):
+    """Read an optional picture from a form (v0.14.0).
+    Returns (picture, error): picture is (bytes, 'png'/'jpg'/'webp') or None if no file was chosen."""
+    if file is None or not file.filename:   # the file box was left empty
+        return None, None
+    data = file.read()
+    kind = detect_image_type(data)
+    if kind is None:
+        return None, "The picture must be a PNG, JPG or WebP file."
+    return (data, kind), None
+
+
+def save_picture(picture, folder, prefix):
+    """Save picture = (bytes, kind) under a random name in folder; return the file name.
+    Random names mean nobody can guess or overwrite another file."""
+    data, kind = picture
+    os.makedirs(folder, exist_ok=True)
+    filename = f'{prefix}_{secrets.token_hex(8)}.{kind}'
+    with open(os.path.join(folder, filename), 'wb') as f:
+        f.write(data)
+    return filename
+
+
+def delete_picture_file(folder, filename):
+    """Remove a picture file if it exists. basename() keeps it inside the folder."""
+    if filename:
+        path = os.path.join(folder, os.path.basename(filename))
         if os.path.exists(path):
             os.remove(path)
+
+
+def delete_avatar_file(user):
+    """Remove the user's current picture file, if any."""
+    delete_picture_file(AVATAR_FOLDER, user.avatar)
 
 
 @app.template_global()
@@ -597,9 +635,47 @@ def change_password():
     return redirect(url_for('profile'))
 
 
+# ---------------- Product pictures (v0.14.0) ----------------
+PRODUCT_IMAGE_FOLDER = os.path.join(app.static_folder, 'products')
+
+# Products without a picture get a coloured tile with an icon. The first rule whose
+# words appear in the product's name (or else its category) decides the icon and colour.
+PRODUCT_ICON_RULES = [
+    (('iced', 'cold', 'frappe', 'shake', 'smoothie'), 'bi-cup-straw', 3),
+    (('cake', 'cheesecake'), 'bi-cake2', 4),
+    (('pastr', 'bread', 'croissant', 'cookie', 'roll', 'ensaymada', 'muffin', 'donut', 'bakery'), 'bi-cookie', 2),
+    (('non-coffee', 'tea', 'matcha', 'chocolate', 'milk'), 'bi-cup', 0),
+    (('coffee', 'espresso', 'latte', 'americano', 'cappuccino', 'macchiato', 'brewed'), 'bi-cup-hot', 1),
+    (('meal', 'sandwich', 'pasta', 'food', 'snack'), 'bi-egg-fried', 1),
+]
+
+
+@app.template_global()
+def product_image_url(product):
+    """Web address of the product's picture, or None to show the icon tile instead."""
+    if product.image and os.path.exists(os.path.join(PRODUCT_IMAGE_FOLDER, os.path.basename(product.image))):
+        return url_for('static', filename='products/' + product.image)
+    return None
+
+
+@app.template_global()
+def product_icon(product):
+    """(icon, colour number 0-4) for a product without a picture."""
+    for text in (product.name or '', product.category or ''):
+        text = text.lower()
+        for words, icon, hue in PRODUCT_ICON_RULES:
+            if any(word in text for word in words):
+                return icon, hue
+    return 'bi-box-seam', 0
+
+
 @app.errorhandler(413)
 def too_large(e):
     flash('That picture is too big. The limit is 2 MB.', 'danger')
+    # Send the user back to the form they came from (v0.14.0: product forms too).
+    # request.path is our own address, so this can't send anyone to another website.
+    if request.path == url_for('add_product') or request.path.startswith('/products/edit/'):
+        return redirect(request.path)
     return redirect(url_for('profile'))
 
 

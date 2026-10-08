@@ -1,99 +1,160 @@
 {% extends "base.html" %}
+{% from "_product_image.html" import product_thumb %}
 {% block title %}New Sale{% endblock %}
 {% block content %}
 <h1>New Sale</h1>
-<p class="page-subtitle">Add products to the basket, then take the customer's cash.</p>
+<p class="page-subtitle">Tap a product to add one to the basket, then take the customer's cash.</p>
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 
-<!-- Form to add one product to the basket -->
-<div class="card mb-4"><div class="card-body">
-<form method="POST" action="{{ url_for('new_sale') }}" class="row g-2 align-items-end">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="col-md-6">
-        <label class="form-label">Product</label>
-        <select name="product_id" class="form-select" required>
-            <option value="">-- Choose a product --</option>
-            {% for choice in choices %}
-            <option value="{{ choice.product.id }}">{{ choice.product.name }} ({{ choice.product.price|peso }}, {{ choice.available }} available)</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label">Quantity</label>
-        <input type="number" name="quantity" class="form-control" min="1" value="1" required>
-    </div>
-    <div class="col-md-3">
-        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to basket</button>
-    </div>
-</form>
-</div></div>
+<div class="row g-4">
+    {# ---------- Left: the menu (v0.14.0) ---------- #}
+    <div class="col-lg-7">
+        <div class="card"><div class="card-body">
+            {% if choices %}
+            {# Category buttons: show only that category's tiles (done in the browser, see the script below) #}
+            {% set categories = choices|map(attribute='product.category')|map('default', 'Other', true)|unique|sort %}
+            <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by category">
+                <button type="button" class="chip active" data-filter="all">All</button>
+                {% for category in categories %}
+                <button type="button" class="chip" data-filter="{{ category }}">{{ category }}</button>
+                {% endfor %}
+            </div>
+            <div class="row row-cols-2 row-cols-sm-3 g-2">
+                {% for choice in choices %}
+                <div class="col" data-category="{{ choice.product.category or 'Other' }}">
+                    {# Each tile is a tiny form that adds 1 of this product #}
+                    <form method="POST" action="{{ url_for('new_sale') }}" class="h-100">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="product_id" value="{{ choice.product.id }}">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="menu-tile w-100 h-100" title="Add 1 {{ choice.product.name }}">
+                            {{ product_thumb(choice.product, 56) }}
+                            <span class="menu-tile-name">{{ choice.product.name }}</span>
+                            <span class="menu-tile-price">{{ choice.product.price|peso }}</span>
+                            <span class="menu-tile-left{% if choice.available <= 5 %} low{% endif %}">{{ choice.available }} left</span>
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-body-secondary mb-0">No products in stock right now.</p>
+            {% endif %}
+        </div></div>
 
-<!-- The basket -->
-<h2 class="section-title"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
-{% if lines %}
-<div class="card app-card mb-4"><div class="table-responsive">
-<table class="table">
-    <thead>
-        <tr><th>Product</th><th>Unit price</th><th>Quantity</th><th>Subtotal</th><th></th></tr>
-    </thead>
-    <tbody>
-        {% for line in lines %}
-        <tr>
-            <td>{{ line.product.name }}</td>
-            <td>{{ line.product.price|peso }}</td>
-            <td>{{ line.quantity }}</td>
-            <td>{{ line.subtotal|peso }}</td>
-            <td>
-                <form method="POST" action="{{ url_for('remove_from_basket', product_id=line.product.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Remove</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-    <tfoot>
-        <tr><th colspan="3" class="text-end">Total</th><th class="fs-5">{{ total|peso }}</th><th></th></tr>
-    </tfoot>
-</table>
-</div></div>
-<!-- Payment: the cashier types how much cash the customer handed over -->
-<div class="card"><div class="card-body">
-<form method="POST" action="{{ url_for('complete_sale') }}" class="row g-2 align-items-end">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="col-md-4">
-        <label class="form-label">Cash received (₱)</label>
-        <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
-               class="form-control" required>
+        <!-- Or pick from the list and type a quantity (the original v0.8.0 form) -->
+        <div class="card mt-3"><div class="card-body">
+        <form method="POST" action="{{ url_for('new_sale') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-6">
+                <label class="form-label">Product</label>
+                <select name="product_id" class="form-select" required>
+                    <option value="">-- Choose a product --</option>
+                    {% for choice in choices %}
+                    <option value="{{ choice.product.id }}">{{ choice.product.name }} ({{ choice.product.price|peso }}, {{ choice.available }} available)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Quantity</label>
+                <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to basket</button>
+            </div>
+        </form>
+        </div></div>
     </div>
-    <div class="col-md-4">
-        <label class="form-label">Change</label>
-        <input type="text" id="change_preview" class="form-control" value="₱0.00" readonly>
+
+    {# ---------- Right: the basket and payment ---------- #}
+    <div class="col-lg-5">
+        <div class="basket-column">
+        <h2 class="section-title mt-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
+        {% if lines %}
+        <div class="card app-card mb-3"><div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Product</th><th>Qty</th><th class="text-end">Subtotal</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for line in lines %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            {{ product_thumb(line.product, 32) }}
+                            <span><span class="d-block fw-medium">{{ line.product.name }}</span>
+                            <span class="small text-body-secondary">{{ line.product.price|peso }} each</span></span>
+                        </div>
+                    </td>
+                    <td>{{ line.quantity }}</td>
+                    <td class="text-end">{{ line.subtotal|peso }}</td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('remove_from_basket', product_id=line.product.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove {{ line.product.name }}"><i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove</span></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr><th colspan="2" class="text-end">Total</th><th class="fs-5 text-end">{{ total|peso }}</th><th></th></tr>
+            </tfoot>
+        </table>
+        </div></div>
+        <!-- Payment: the cashier types how much cash the customer handed over -->
+        <div class="card"><div class="card-body">
+        <form method="POST" action="{{ url_for('complete_sale') }}" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-sm-6">
+                <label class="form-label">Cash received (₱)</label>
+                <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
+                       class="form-control" required>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label">Change</label>
+                <input type="text" id="change_preview" class="form-control" value="₱0.00" readonly>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-success w-100 btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Complete Sale</button>
+            </div>
+        </form>
+        </div></div>
+        <script>
+            // Shows the change while the cashier types. The server calculates it again
+            // when the sale is saved, so this is only a convenience for the cashier.
+            const total = {{ total }};
+            const cashInput = document.getElementById('cash_received');
+            const changeBox = document.getElementById('change_preview');
+            cashInput.addEventListener('input', function () {
+                const change = parseFloat(cashInput.value) - total;
+                changeBox.value = change >= 0
+                    ? '₱' + change.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                    : 'Not enough cash';
+            });
+        </script>
+        {% else %}
+        <div class="card"><div class="card-body text-center text-body-secondary py-5">
+            <i class="bi bi-basket fs-1 d-block mb-2" aria-hidden="true"></i>
+            The basket is empty. Tap a product to add it.
+        </div></div>
+        {% endif %}
+        </div>
     </div>
-    <div class="col-md-4">
-        <button type="submit" class="btn btn-success w-100"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Complete Sale</button>
-    </div>
-</form>
-</div></div>
+</div>
+
 <script>
-    // Shows the change while the cashier types. The server calculates it again
-    // when the sale is saved, so this is only a convenience for the cashier.
-    const total = {{ total }};
-    const cashInput = document.getElementById('cash_received');
-    const changeBox = document.getElementById('change_preview');
-    cashInput.addEventListener('input', function () {
-        const change = parseFloat(cashInput.value) - total;
-        changeBox.value = change >= 0
-            ? '₱' + change.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-            : 'Not enough cash';
+    // Category buttons (v0.14.0): hide the tiles of other categories. Nothing is sent to the server.
+    document.querySelectorAll('.chip[data-filter]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('.chip[data-filter]').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            document.querySelectorAll('[data-category]').forEach(function (tile) {
+                tile.hidden = chip.dataset.filter !== 'all' && tile.dataset.category !== chip.dataset.filter;
+            });
+        });
     });
 </script>
-{% else %}
-<div class="card"><div class="card-body text-center text-body-secondary py-5">
-    <i class="bi bi-basket fs-1 d-block mb-2" aria-hidden="true"></i>
-    The basket is empty. Add a product above.
-</div></div>
-{% endif %}
 {% endblock %}

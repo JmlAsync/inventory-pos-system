@@ -8,7 +8,7 @@
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 <div class="card"><div class="card-body p-4">
-<form method="POST" action="{{ url_for('add_product') }}">
+<form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <label class="form-label">Name</label>
@@ -29,6 +29,11 @@
     <div class="mb-3">
         <label class="form-label">Category</label>
         <input type="text" class="form-control" name="category" maxlength="50" value="{{ request.form.get('category', '') }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="picture">Picture <span class="text-body-secondary fw-normal">(optional)</span></label>
+        <input class="form-control" type="file" id="picture" name="picture" accept="image/png, image/jpeg, image/webp">
+        <div class="form-text">PNG, JPG or WebP, up to 2 MB. Without a picture, an icon is shown. If the form shows an error, choose the picture again.</div>
     </div>
     <button type="submit" class="btn btn-primary">Add Product</button>
     <a href="{{ url_for('products') }}" class="btn btn-light-subtle">Cancel</a>

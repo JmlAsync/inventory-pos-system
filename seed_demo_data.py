@@ -86,6 +86,7 @@ def add_past_sales(days=7):
     products = Product.query.filter(Product.quantity > 0).all()
     users = User.query.all()
     now = datetime.now()
+    used_references = set()
     for days_ago in range(days, -1, -1):   # ... 2 days ago, yesterday, today (0)
         opening = now.replace(hour=OPENING_HOUR, minute=0, second=0, microsecond=0) - timedelta(days=days_ago)
         open_minutes = (CLOSING_HOUR - OPENING_HOUR) * 60
@@ -104,9 +105,18 @@ def add_past_sales(days=7):
                                            unit_price=product.price, quantity=quantity))
                 total += round(product.price * quantity, 2)
             sale.total = round(total, 2)
-            # Pretend the customer paid with the next ₱100 up (math.ceil rounds up: 2.4 -> 3)
-            sale.cash_received = math.ceil(sale.total / 100) * 100
-            sale.change_due = round(sale.cash_received - sale.total, 2)
+            if random.random() < 0.35:
+                # About a third pay by GCash (v0.15.0): exact amount, a made-up 13-digit reference
+                sale.payment_method = 'gcash'
+                sale.payment_reference = str(random.randint(10**12, 10**13 - 1))
+                while sale.payment_reference in used_references:
+                    sale.payment_reference = str(random.randint(10**12, 10**13 - 1))
+                used_references.add(sale.payment_reference)
+                sale.cash_received, sale.change_due = sale.total, 0
+            else:
+                # Pretend the customer paid with the next ₱100 up (math.ceil rounds up: 2.4 -> 3)
+                sale.cash_received = math.ceil(sale.total / 100) * 100
+                sale.change_due = round(sale.cash_received - sale.total, 2)
             db.session.add(sale)
     print(f"  + demo sales for the last {days} days and today")
 

@@ -45,6 +45,10 @@ class Sale(db.Model):
     total = db.Column(db.Float, nullable=False, default=0)
     cash_received = db.Column(db.Float, nullable=False, default=0)  # money the customer handed over
     change_due = db.Column(db.Float, nullable=False, default=0)     # cash_received - total
+    # How the customer paid (v0.15.0): 'cash' or 'gcash'. For GCash, the 13-digit reference
+    # number from the customer's GCash receipt; unique, so one payment can't be used twice.
+    payment_method = db.Column(db.String(10), nullable=False, default='cash')
+    payment_reference = db.Column(db.String(20), unique=True)
 
     # Relationships: let us write sale.items and sale.user in Python
     items = db.relationship('SaleItem', backref='sale', lazy=True)

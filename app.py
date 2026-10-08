@@ -8,6 +8,8 @@ import os
 import secrets
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+import re
 from flask import abort
 
 app = Flask(__name__)
@@ -44,6 +46,12 @@ db.init_app(app)
 MAX_PRICE = 1_000_000      # pesos
 MAX_QUANTITY = 1_000_000   # units
 MAX_CASH = 1_000_000       # pesos
+
+# Ways to pay (v0.15.0). GCash is only recorded here (the customer pays in their GCash
+# app and shows the receipt); connecting to GCash itself needs a merchant account.
+PAYMENT_METHODS = {'cash': 'Cash', 'gcash': 'GCash'}
+GCASH_REFERENCE_LENGTH = 13
+app.jinja_env.globals['PAYMENT_METHODS'] = PAYMENT_METHODS   # labels for templates
 
 # Products with this many units or fewer are flagged as "low stock" (v0.9.0).
 # One number for every product keeps the database unchanged; change it here if needed.
@@ -124,6 +132,13 @@ NEW_COLUMNS = [
     ('sale', 'change_due', 'FLOAT NOT NULL DEFAULT 0'),      # v0.8.0
     ('user', 'avatar', 'VARCHAR(100)'),                      # v0.12.0
     ('product', 'image', 'VARCHAR(100)'),                    # v0.14.0
+    ('sale', 'payment_method', "VARCHAR(10) NOT NULL DEFAULT 'cash'"),   # v0.15.0
+    ('sale', 'payment_reference', 'VARCHAR(20)'),            # v0.15.0
+]
+# ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
+# (Empty values don't count as duplicates, so cash sales without a reference are fine.)
+NEW_INDEXES = [
+    'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_payment_reference ON sale (payment_reference)',
 ]
 
 
@@ -136,6 +151,8 @@ def upgrade_database():
             existing = [c['name'] for c in inspector.get_columns(table)]
             if column not in existing:
                 connection.execute(db.text(f'ALTER TABLE "{table}" ADD COLUMN {column} {column_type}'))
+        for statement in NEW_INDEXES:
+            connection.execute(db.text(statement))
 
 
 # ---------------- CSRF protection (v0.13.2) ----------------
@@ -413,15 +430,33 @@ def complete_sale():
         total += round(product.price * quantity, 2)
     total = round(total, 2)
 
-    # Step 2: check the cash the customer paid
-    cash = request.form.get('cash_received', type=float)  # None if not a number
-    if cash is None or not math.isfinite(cash) or cash < total or cash > MAX_CASH:
-        return show_sale_page(f'Cash received must be a number of at least ₱{total:,.2f} '
-                              f'(and at most ₱{MAX_CASH:,}).')
+    # Step 2: check the payment (v0.15.0: cash or GCash)
+    method = request.form.get('payment_method', 'cash')
+    reference = None
+    if method == 'gcash':
+        # The cashier types the reference number shown on the customer's GCash receipt.
+        # Spaces are allowed while typing ("1234 567 890123") and removed here.
+        reference = ''.join(request.form.get('gcash_reference', '').split())
+        if not re.fullmatch(r'[0-9]{%d}' % GCASH_REFERENCE_LENGTH, reference):
+            return show_sale_page(f'The GCash reference number must be the {GCASH_REFERENCE_LENGTH} digits '
+                                  f'shown on the customer\'s GCash receipt.')
+        used = Sale.query.filter_by(payment_reference=reference).first()
+        if used:
+            return show_sale_page(f'GCash reference {reference} was already used on receipt #{used.id}. '
+                                  f'Check the number on the customer\'s screen.')
+        cash = total   # GCash pays the exact amount: no change
+    elif method == 'cash':
+        cash = request.form.get('cash_received', type=float)  # None if not a number
+        if cash is None or not math.isfinite(cash) or cash < total or cash > MAX_CASH:
+            return show_sale_page(f'Cash received must be a number of at least ₱{total:,.2f} '
+                                  f'(and at most ₱{MAX_CASH:,}).')
+    else:
+        return show_sale_page('Please choose how the customer pays: Cash or GCash.')
 
     # Step 3: everything is fine, so create the sale and deduct stock
     sale = Sale(user_id=current_user.id, total=total,
-                cash_received=round(cash, 2), change_due=round(cash - total, 2))
+                cash_received=round(cash, 2), change_due=round(cash - total, 2),
+                payment_method=method, payment_reference=reference)
     for key, quantity in basket.items():
         product = db.session.get(Product, int(key))
         name = product.name
@@ -441,7 +476,14 @@ def complete_sale():
         sale.items.append(item)
 
     db.session.add(sale)
-    db.session.commit()   # saves the sale, its items and the new stock levels together
+    try:
+        db.session.commit()   # saves the sale, its items and the new stock levels together
+    except IntegrityError:
+        # Two sales with the same GCash reference at the same moment: the unique rule
+        # in the database stops the second one; nothing of it is saved (v0.15.0)
+        db.session.rollback()
+        return show_sale_page(f'GCash reference {reference} was just used by another sale. '
+                              f'Check the number on the customer\'s screen.')
     save_basket({})       # empty the basket for the next customer
     return redirect(url_for('receipt', sale_id=sale.id))
 
@@ -506,9 +548,13 @@ def sales_report():
     items_sold = (db.session.query(func.coalesce(func.sum(SaleItem.quantity), 0))
                   .join(Sale).filter(in_period).scalar())
 
+    # Money in by payment method (v0.15.0): what should be in the drawer vs. in GCash
+    by_method = {key: round(sum(s.total for s in sales if s.payment_method == key), 2)
+                 for key in PAYMENT_METHODS}
+
     return render_template('sales_report.html', sales=sales, revenue=revenue,
                            items_sold=items_sold, top_products=top_products,
-                           start=start, end=end, error=error)
+                           by_method=by_method, start=start, end=end, error=error)
 
 
 # ---------------- Profile picture (v0.12.0) ----------------

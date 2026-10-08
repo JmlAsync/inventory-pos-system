@@ -64,8 +64,11 @@ def add_past_sales(days=7):
     users = User.query.all()
     for days_ago in range(days, 0, -1):
         day = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0) - timedelta(days=days_ago)
-        for _ in range(random.randint(3, 6)):                  # 3 to 6 sales per day
-            when = day + timedelta(minutes=random.randint(0, 11 * 60))   # between 8 AM and 7 PM
+        # 3 to 6 sales per day between 8 AM and 7 PM, created in time order so that
+        # receipt numbers go up with time, like in a real shop (v0.11.1)
+        times = sorted(day + timedelta(minutes=random.randint(0, 11 * 60))
+                       for _ in range(random.randint(3, 6)))
+        for when in times:
             sale = Sale(user_id=random.choice(users).id, created_at=when)
             total = 0
             for product in random.sample(products, random.randint(1, 3)):  # 1 to 3 different items

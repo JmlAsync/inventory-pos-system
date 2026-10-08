@@ -34,8 +34,8 @@
     </div>
     <div class="form-check mb-3">
         <input class="form-check-input" type="checkbox" id="has_options" name="has_options" value="1"{% if product.has_options %} checked{% endif %}>
-        <label class="form-check-label" for="has_options">Drink: the customer chooses a size and may add add-ons</label>
-        <div class="form-text">Sizes and add-ons are set on the <a href="{{ url_for('manage_options') }}">Sizes &amp; Add-ons</a> page.</div>
+        <label class="form-check-label" for="has_options">Drink: the customer chooses a serving (e.g. Hot / Iced) and may add add-ons</label>
+        <div class="form-text">Servings and add-ons are set on the <a href="{{ url_for('manage_options') }}">Servings &amp; Add-ons</a> page.</div>
     </div>
     <div class="mb-3">
         <label class="form-label" for="picture">Picture</label>

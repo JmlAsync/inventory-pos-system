@@ -8,10 +8,10 @@
 <h1>Recipe: {{ owner.name }}</h1>
 <p class="page-subtitle">
 {% if kind == 'product' %}
-    What <strong>one</strong> {{ owner.name }} uses{% if owner.has_options %} at the default size (other sizes multiply it){% endif %}.
+    What <strong>one</strong> {{ owner.name }} uses{% if owner.has_options %} as the default serving (other servings multiply it by their scale){% endif %}.
     With a recipe, the menu shows how many can still be made from the ingredients on hand.
 {% elif owner.kind == 'size' %}
-    Extra ingredients for the {{ owner.name }} size (usually none: a size multiplies the drink's recipe by its scale on the Sizes &amp; Add-ons page).
+    Extra ingredients for the {{ owner.name }} serving, e.g. ice and an iced cup for Iced, or a hot cup for Hot (a 16oz size usually needs none: its scale on the Servings &amp; Add-ons page multiplies the recipe).
 {% else %}
     What the add-on <strong>{{ owner.name }}</strong> adds to one drink. Use a negative amount to replace an ingredient,
     e.g. Sub Oat: fresh milk <code>-180</code> ml and oat milk <code>180</code> ml.

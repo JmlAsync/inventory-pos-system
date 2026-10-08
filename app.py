@@ -158,18 +158,24 @@ def save_basket(basket):
 
 def show_sale_page(error=None):
     """Build the basket lines and total, then show the New Sale page."""
+    basket = get_basket()
     lines = []
     total = 0
-    for key, quantity in get_basket().items():
+    for key, quantity in list(basket.items()):   # list(): we may remove items while looping
         product = db.session.get(Product, int(key))
         if product is None:
-            continue  # product was deleted after being added; skip it
+            # The product was deleted after it was added: take it out of the basket,
+            # otherwise the sale could never be completed (v0.8.5)
+            basket.pop(key)
+            error = error or ('A product in the basket was deleted from the product list, '
+                              'so it was taken out of the basket. Please check the total.')
+            continue
         subtotal = round(product.price * quantity, 2)
         total += subtotal
         lines.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+    save_basket(basket)
     # Products that can still be added: stock minus what is already in the basket.
     # (The real stock in the database only goes down when the sale is completed.)
-    basket = get_basket()
     choices = []
     for product in Product.query.filter(Product.quantity > 0).order_by(Product.name).all():
         available = product.quantity - basket.get(str(product.id), 0)
@@ -227,9 +233,11 @@ def complete_sale():
     total = 0
     for key, quantity in basket.items():
         product = db.session.get(Product, int(key))
-        if product is None or quantity > product.quantity:
-            name = product.name if product else 'A product in the basket'
-            return show_sale_page(f'{name} no longer has enough stock. Please remove it or lower the quantity.')
+        if product is None:
+            return show_sale_page()   # takes the deleted product out and explains why
+        if quantity > product.quantity:
+            return show_sale_page(f'{product.name} no longer has enough stock. '
+                                  f'Please remove it and add it again with a smaller quantity.')
         total += round(product.price * quantity, 2)
     total = round(total, 2)
 

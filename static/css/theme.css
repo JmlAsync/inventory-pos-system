@@ -236,6 +236,7 @@ body {
 .app-card .table tbody tr:last-child > * { border-bottom: 0; }
 .app-card .table tfoot > tr > * { background: var(--app-surface-2); }
 .table { --bs-table-color: var(--app-text); vertical-align: middle; }
+.table td { overflow-wrap: anywhere; }             /* very long names wrap instead of stretching the table (v0.14.1) */
 .card .table { --bs-table-bg: transparent; }       /* tables inside cards take the card's colour */
 
 /* Summary numbers (home page and sales report) */
@@ -374,7 +375,14 @@ img.product-thumb { border: 1px solid var(--app-border); }
 }
 .menu-tile:hover { border-color: var(--app-accent); box-shadow: 0 0 0 3px var(--app-accent-soft); }
 .menu-tile:active { transform: scale(0.97); }
-.menu-tile-name { font-weight: 600; font-size: 0.9rem; line-height: 1.25; }
+.menu-tile { min-width: 0; }
+/* Long names wrap even without spaces, and stop after 3 lines (v0.14.1); the full name is in the tooltip */
+.menu-tile-name {
+    font-weight: 600; font-size: 0.9rem; line-height: 1.25;
+    overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.chip { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-tile-price { font-weight: 700; color: var(--app-accent); }
 .menu-tile-left { font-size: 0.75rem; color: var(--app-muted); margin-top: auto; }
 .menu-tile-left.low { color: #B86E00; font-weight: 600; }

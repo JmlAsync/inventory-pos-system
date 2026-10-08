@@ -3,3 +3,5 @@ __pycache__/
 *.db
 # Uploaded profile pictures (v0.12.0)
 static/avatars/
+# Secret key and database live here; never upload them (v0.13.1)
+instance/

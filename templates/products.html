@@ -12,9 +12,13 @@
 <!-- Low-stock warning (v0.9.0): lists every product at or below the threshold -->
 <div class="alert alert-warning">
     <strong>Low stock ({{ low_stock|length }}):</strong>
-    {% for product in low_stock %}
-        {{ product.name }} ({{ product.quantity }} left){% if not loop.last %}, {% endif %}
+    {# Show only the 5 most urgent, with long names shortened, so the box stays readable (v0.9.1) #}
+    {% for product in low_stock[:5] %}
+        {{ product.name|truncate(40) }} ({{ product.quantity }} left){% if not loop.last %}, {% endif %}
     {% endfor %}
+    {% if low_stock|length > 5 %}
+        and {{ low_stock|length - 5 }} more (see the badges in the table below).
+    {% endif %}
     <div class="small">Products with {{ threshold }} or fewer units are flagged. Time to reorder.</div>
 </div>
 {% endif %}

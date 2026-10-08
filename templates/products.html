@@ -18,7 +18,7 @@
     <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i><strong>Low stock ({{ low_stock|length }}):</strong>
     {# Show only the 5 most urgent, with long names shortened, so the box stays readable (v0.9.1) #}
     {% for product in low_stock[:5] %}
-        {{ product.name|truncate(40) }} ({{ product.quantity }} left){% if not loop.last %}, {% endif %}
+        {{ product.name|truncate(40) }} ({{ stock[product.id] }} left){% if not loop.last %}, {% endif %}
     {% endfor %}
     {% if low_stock|length > 5 %}
         and {{ low_stock|length - 5 }} more (see the badges in the table below).
@@ -41,16 +41,18 @@
             <td class="text-body-secondary">{{ product.sku }}</td>
             <td>{{ product.price|peso }}</td>
             <td>
-                {{ product.quantity }}
-                {% if product.quantity == 0 %}
+                {{ stock[product.id] }}
+                {% if product.id in made_to_order %}<span class="small text-body-secondary" title="Worked out from the ingredients on hand">can make</span>{% endif %}
+                {% if stock[product.id] == 0 %}
                     <span class="badge rounded-pill text-bg-danger">Out of stock</span>
-                {% elif product.quantity <= threshold %}
+                {% elif stock[product.id] <= threshold %}
                     <span class="badge rounded-pill text-bg-warning">Low</span>
                 {% endif %}
             </td>
             <td><span class="long-text">{{ product.category or "—" }}</span></td>  {# empty category shows a dash, not "None" (v0.9.2) #}
         <td class="text-end text-nowrap">
                 {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('edit_recipe', kind='product', item_id=product.id) }}" class="btn btn-sm btn-light-subtle" title="Recipe"><i class="bi bi-journal-text" aria-hidden="true"></i><span class="visually-hidden">Recipe</span></a>
                 <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>
             <form method="POST" action="{{ url_for('delete_product', product_id=product.id) }}" style="display:inline;" onsubmit="return confirm('Delete this product?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

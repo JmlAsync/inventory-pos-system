@@ -54,7 +54,8 @@
             <nav class="d-flex flex-column gap-1">
                 {{ side_link(request.endpoint, 'home', 'bi-house-door', 'Home') }}
                 {% if current_user.is_authenticated %}
-                {{ side_link(request.endpoint, 'products', 'bi-box-seam', 'Products', ('add_product', 'edit_product')) }}
+                {% set recipe_kind = request.view_args.get('kind') if request.view_args else None %}
+                {{ side_link(request.endpoint, 'products', 'bi-box-seam', 'Products', ('add_product', 'edit_product') + (('edit_recipe',) if recipe_kind == 'product' else ())) }}
                 {{ side_link(request.endpoint, 'new_sale', 'bi-cart-plus', 'New Sale', ('receipt',)) }}
                 {% else %}
                 {{ side_link(request.endpoint, 'login', 'bi-box-arrow-in-right', 'Log in') }}
@@ -65,7 +66,8 @@
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
                 {{ side_link(request.endpoint, 'sales_report', 'bi-bar-chart-line', 'Sales Report') }}
-                {{ side_link(request.endpoint, 'manage_options', 'bi-sliders', 'Sizes & Add-ons') }}
+                {{ side_link(request.endpoint, 'manage_options', 'bi-sliders', 'Sizes & Add-ons', ('edit_recipe',) if recipe_kind == 'option' else ()) }}
+                {{ side_link(request.endpoint, 'ingredients', 'bi-droplet-half', 'Ingredients') }}
             </nav>
             {% endif %}
 

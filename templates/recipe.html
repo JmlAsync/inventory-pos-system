@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Recipe{% endblock %}
+{% block content %}
+{# Recipe of a product or of a size/add-on (v0.17.0) #}
+<div style="max-width: 44rem;">
+<a href="{{ url_for('products') if kind == 'product' else url_for('manage_options') }}" class="small text-decoration-none"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
+<div class="mt-2"></div>
+<h1>Recipe: {{ owner.name }}</h1>
+<p class="page-subtitle">
+{% if kind == 'product' %}
+    What <strong>one</strong> {{ owner.name }} uses{% if owner.has_options %} at the default size (other sizes multiply it){% endif %}.
+    With a recipe, the menu shows how many can still be made from the ingredients on hand.
+{% elif owner.kind == 'size' %}
+    Extra ingredients for the {{ owner.name }} size (usually none: a size multiplies the drink's recipe by its scale on the Sizes &amp; Add-ons page).
+{% else %}
+    What the add-on <strong>{{ owner.name }}</strong> adds to one drink. Use a negative amount to replace an ingredient,
+    e.g. Sub Oat: fresh milk <code>-180</code> ml and oat milk <code>180</code> ml.
+{% endif %}
+</p>
+
+<div class="card app-card mb-3"><div class="table-responsive">
+<table class="table align-middle">
+    <thead><tr><th>Ingredient</th><th>Amount</th><th></th></tr></thead>
+    <tbody>
+    {% for line in lines %}
+    <tr>
+        <td class="fw-medium">{{ line.ingredient.name }}</td>
+        <td>
+            <form method="POST" class="d-flex gap-1 align-items-center" style="max-width: 16rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="line_id" value="{{ line.id }}">
+                <input type="number" name="amount" class="form-control form-control-sm" value="{{ line.amount|amount }}" step="any" required aria-label="Amount">
+                <span class="text-body-secondary small">{{ line.ingredient.unit }}</span>
+                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+            </form>
+        </td>
+        <td class="text-end">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="line_id" value="{{ line.id }}"><input type="hidden" name="action" value="remove">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove {{ line.ingredient.name }}"><i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove</span></button>
+            </form>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-body-secondary">No ingredients yet{% if kind == 'product' %}, so this product uses its own quantity{% endif %}.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+
+{% if ingredients %}
+<div class="card"><div class="card-body">
+    <form method="POST" class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-sm-6"><label class="form-label small">Ingredient</label>
+            <select name="ingredient_id" class="form-select" required>
+                <option value="">-- Choose --</option>
+                {% for ingredient in ingredients %}<option value="{{ ingredient.id }}">{{ ingredient.name }} ({{ ingredient.unit }})</option>{% endfor %}
+            </select></div>
+        <div class="col-6 col-sm-3"><label class="form-label small">Amount</label><input type="number" name="amount" class="form-control" step="any" required></div>
+        <div class="col-6 col-sm-3"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add</button></div>
+    </form>
+</div></div>
+{% else %}
+<p>First add ingredients on the <a href="{{ url_for('ingredients') }}">Ingredients</a> page.</p>
+{% endif %}
+</div>
+{% endblock %}

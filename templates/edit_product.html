@@ -26,6 +26,7 @@
     <div class="mb-3">
         <label class="form-label">Quantity</label>
         <input type="number" min="0" max="1000000" class="form-control" name="quantity" value="{{ product.quantity }}" required>
+        {% if has_recipe %}<div class="form-text text-warning-emphasis"><i class="bi bi-info-circle" aria-hidden="true"></i> This product has a <a href="{{ url_for('edit_recipe', kind='product', item_id=product.id) }}">recipe</a>, so this number isn't used: how many can be sold comes from the ingredients on hand.</div>{% endif %}
     </div>
     <div class="mb-3">
         <label class="form-label">Category</label>

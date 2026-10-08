@@ -23,7 +23,7 @@ import sys
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type
-from models import db, Product, User, Sale, SaleItem, MenuOption
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem
 
 LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_demo', 'menu.json')
 
@@ -50,10 +50,35 @@ DEFAULT_MENU = {
         ["Chocolate Cake (slice)", "CK-002", 150.00,  3, "Cakes",       False, None],   # low stock
         ["Ube Cheesecake (slice)", "CK-003", 165.00,  0, "Cakes",       False, None],   # sold out
     ],
-    # [name, extra price]. The first size is the default (placeholder sizes: change them
-    # on the Sizes & Add-ons page once the owner confirms).
-    "sizes": [["12oz", 0], ["16oz", 20]],
+    # [name, extra price, recipe scale]. The first size is the default (placeholder sizes:
+    # change them on the Sizes & Add-ons page once the owner confirms). Recipes below are
+    # for a 12oz; a 16oz uses 1.33 times as much of everything.
+    "sizes": [["12oz", 0, 1.0], ["16oz", 20, 1.33]],
     "addons": [["Extra Shot", 30], ["Oat Milk", 40], ["Syrup", 20]],
+    # Ingredients (v0.17.0): [name, unit, on hand, warn at]. Estimated amounts.
+    "ingredients": [
+        ["Espresso beans", "g", 2000, 500], ["Fresh milk", "ml", 8000, 2000],
+        ["Oat milk", "ml", 2000, 500], ["Condensed milk", "ml", 1500, 300],
+        ["Caramel sauce", "ml", 1000, 200], ["Chocolate sauce", "ml", 1000, 200],
+        ["Vanilla syrup", "ml", 1000, 200], ["Matcha powder", "g", 50, 60],   # low on purpose
+    ],
+    # Recipes (v0.17.0): product SKU, or "size:<name>" / "addon:<name>" -> [[ingredient, amount]].
+    # Products without a recipe (the pastries) keep counting their own quantity.
+    "recipes": {
+        "HC-001": [["Espresso beans", 18]],
+        "HC-002": [["Espresso beans", 18], ["Fresh milk", 200]],
+        "HC-003": [["Espresso beans", 18], ["Fresh milk", 150]],
+        "HC-004": [["Espresso beans", 18], ["Fresh milk", 180], ["Condensed milk", 20]],
+        "IC-001": [["Espresso beans", 18]],
+        "IC-002": [["Espresso beans", 18], ["Fresh milk", 180]],
+        "IC-003": [["Espresso beans", 18], ["Fresh milk", 180], ["Caramel sauce", 20]],
+        "IC-004": [["Espresso beans", 18], ["Fresh milk", 160], ["Chocolate sauce", 30]],
+        "NC-001": [["Matcha powder", 6], ["Fresh milk", 200]],
+        "NC-002": [["Chocolate sauce", 40], ["Fresh milk", 200]],
+        "addon:Extra Shot": [["Espresso beans", 18]],
+        "addon:Oat Milk": [["Fresh milk", -200], ["Oat milk", 200]],   # replaces the fresh milk
+        "addon:Syrup": [["Vanilla syrup", 15]],
+    },
 }
 
 DEMO_USERS = [("admin", "admin123", "admin"), ("cashier", "cashier123", "cashier")]
@@ -105,12 +130,37 @@ def add_products(menu):
 
 
 def add_options(menu):
-    """Sizes and add-ons (v0.16.0)."""
+    """Sizes and add-ons (v0.16.0); sizes may have a recipe scale (v0.17.0)."""
     for kind, key in (("size", "sizes"), ("addon", "addons")):
-        for order, (name, price) in enumerate(menu.get(key, []), start=1):
+        for order, (name, price, *scale) in enumerate(menu.get(key, []), start=1):
             if MenuOption.query.filter_by(kind=kind, name=name).first() is None:
-                db.session.add(MenuOption(kind=kind, name=name, price=price, sort_order=order))
+                db.session.add(MenuOption(kind=kind, name=name, price=price, sort_order=order,
+                                          scale=scale[0] if scale else 1.0))
                 print(f"  + {kind} {name}")
+
+
+def add_ingredients_and_recipes(menu):
+    """Ingredients and recipes (v0.17.0). Recipes are only added to things that have none yet."""
+    for name, unit, on_hand, low_at in menu.get("ingredients", []):
+        if Ingredient.query.filter_by(name=name).first() is None:
+            db.session.add(Ingredient(name=name, unit=unit, quantity=on_hand, low_at=low_at))
+            print(f"  + ingredient {name}")
+    db.session.flush()   # give the new ingredients their ids
+    for owner, lines in menu.get("recipes", {}).items():
+        if owner.startswith(("size:", "addon:")):
+            kind, name = owner.split(":", 1)
+            option = MenuOption.query.filter_by(kind=kind, name=name).first()
+            target = {"option_id": option.id} if option else None
+        else:
+            product = Product.query.filter_by(sku=owner).first()
+            target = {"product_id": product.id} if product else None
+        if target is None or RecipeItem.query.filter_by(**target).first():
+            continue   # unknown, or it already has a recipe (maybe edited by the admin)
+        for ingredient_name, amount in lines:
+            ingredient = Ingredient.query.filter_by(name=ingredient_name).first()
+            if ingredient:
+                db.session.add(RecipeItem(ingredient_id=ingredient.id, amount=amount, **target))
+        print(f"  + recipe for {owner}")
 
 
 OPENING_HOUR = 7    # the café opens at 7 AM ...
@@ -195,6 +245,8 @@ with app.app_context():
     add_options(menu)
     add_products(menu)
     db.session.commit()    # save users, options and products first, so they have ids
+    add_ingredients_and_recipes(menu)
+    db.session.commit()
     add_past_sales()
     db.session.commit()
     print("Demo data ready.")

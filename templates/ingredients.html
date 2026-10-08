@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Ingredients{% endblock %}
+{% block content %}
+{# Ingredient stock (v0.17.0). Sales use ingredients up automatically through the recipes. #}
+<h1>Ingredients</h1>
+<p class="page-subtitle">What's on hand. Each sale uses ingredients up through the recipes; use
+    <strong>Restock</strong> for deliveries and <strong>Count</strong> after counting the shelf.</p>
+
+<div class="card app-card mb-4"><div class="table-responsive">
+<table class="table align-middle">
+    <thead><tr><th>Ingredient</th><th class="text-end">On hand</th><th class="text-end">Warn at</th><th>Restock (+)</th><th>Count (=)</th><th></th></tr></thead>
+    <tbody>
+    {% for ingredient in ingredients %}
+    <tr>
+        <td class="fw-medium"><span class="long-text">{{ ingredient.name }}</span>
+            {% if ingredient.quantity <= 0 %}<span class="badge rounded-pill text-bg-danger ms-1">Out</span>
+            {% elif ingredient.quantity <= ingredient.low_at %}<span class="badge rounded-pill text-bg-warning ms-1">Low</span>{% endif %}</td>
+        <td class="text-end text-nowrap">{{ ingredient.quantity|amount }} {{ ingredient.unit }}</td>
+        <td class="text-end text-nowrap text-body-secondary">{{ ingredient.low_at|amount }} {{ ingredient.unit }}</td>
+        <td>
+            <form method="POST" class="d-flex gap-1" style="min-width: 10rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="restock"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
+                <input type="number" name="amount" class="form-control form-control-sm" min="0.001" step="any" required placeholder="+ {{ ingredient.unit }}" aria-label="Amount received">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+            </form>
+        </td>
+        <td>
+            <form method="POST" class="d-flex gap-1" style="min-width: 10rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="count"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
+                <input type="number" name="counted" class="form-control form-control-sm" min="0" step="any" required placeholder="= {{ ingredient.unit }}" aria-label="Amount counted">
+                <button type="submit" class="btn btn-sm btn-light-subtle">Set</button>
+            </form>
+        </td>
+        <td>
+            <details>
+                <summary class="small text-body-secondary">Edit</summary>
+                <form method="POST" class="mt-2 d-flex flex-wrap gap-1" style="min-width: 16rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="edit"><input type="hidden" name="ingredient_id" value="{{ ingredient.id }}">
+                    <input type="text" name="name" class="form-control form-control-sm" value="{{ ingredient.name }}" maxlength="50" required aria-label="Name">
+                    <select name="unit" class="form-select form-select-sm" style="width: 5rem;" aria-label="Unit">
+                        {% for unit in units %}<option{% if unit == ingredient.unit %} selected{% endif %}>{{ unit }}</option>{% endfor %}
+                    </select>
+                    <input type="number" name="low_at" class="form-control form-control-sm" style="width: 7rem;" value="{{ ingredient.low_at|amount }}" min="0" step="any" required aria-label="Warn at">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </form>
+            </details>
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-body-secondary">No ingredients yet. Add the first one below.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+
+<div class="card mb-4" style="max-width: 48rem;"><div class="card-body">
+    <h2 class="h6 fw-bold mb-3"><i class="bi bi-plus-circle me-2" aria-hidden="true"></i>New ingredient</h2>
+    <form method="POST" class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add">
+        <div class="col-sm-5"><label class="form-label small">Name</label><input type="text" name="name" class="form-control" maxlength="50" required placeholder="e.g. Oat milk"></div>
+        <div class="col-4 col-sm-2"><label class="form-label small">Unit</label><select name="unit" class="form-select">{% for unit in units %}<option>{{ unit }}</option>{% endfor %}</select></div>
+        <div class="col-4 col-sm-3"><label class="form-label small">Warn at</label><input type="number" name="low_at" class="form-control" min="0" step="any" value="0" required></div>
+        <div class="col-4 col-sm-2"><button type="submit" class="btn btn-primary w-100">Add</button></div>
+    </form>
+</div></div>
+
+<h2 class="section-title">Recent changes</h2>
+{% if recent %}
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-sm">
+    <thead><tr><th>When</th><th>Ingredient</th><th class="text-end">Change</th><th>Why</th><th>By</th></tr></thead>
+    <tbody>
+    {% for move in recent %}
+    <tr>
+        <td class="text-nowrap">{{ move.created_at.strftime('%b %d, %I:%M %p') }}</td>
+        <td>{{ move.ingredient.name }}</td>
+        <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ move.ingredient.unit }}</td>
+        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
+        <td>{{ move.user.username if move.user else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+{% else %}
+<p class="text-body-secondary">No changes yet.</p>
+{% endif %}
+{% endblock %}

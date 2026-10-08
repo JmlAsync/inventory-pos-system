@@ -54,6 +54,7 @@ class Sale(db.Model):
 
     # Relationships: let us write sale.items and sale.user in Python
     items = db.relationship('SaleItem', backref='sale', lazy=True)
+    movements = db.relationship('IngredientMovement', backref='sale', lazy=True)   # v0.17.0
     user = db.relationship('User')
 
 
@@ -86,3 +87,41 @@ class MenuOption(db.Model):
     price = db.Column(db.Float, nullable=False, default=0)
     active = db.Column(db.Boolean, nullable=False, default=True)   # hidden options aren't offered
     sort_order = db.Column(db.Integer, nullable=False, default=0)  # smaller numbers first
+    # Sizes only (v0.17.0): how much of every ingredient this size uses compared with the
+    # recipe, e.g. 1.33 for a 16oz when recipes are written for a 12oz
+    scale = db.Column(db.Float, nullable=False, default=1.0)
+
+
+class Ingredient(db.Model):
+    """Something the café uses up to make products: beans, milk, croissant dough... (v0.17.0)"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    unit = db.Column(db.String(10), nullable=False, default='g')    # g, ml or pcs
+    quantity = db.Column(db.Float, nullable=False, default=0)       # how much is on hand
+    low_at = db.Column(db.Float, nullable=False, default=0)         # warn at or below this
+
+
+class RecipeItem(db.Model):
+    """How much of one ingredient ONE product (at the default size) or ONE option uses (v0.17.0).
+    Exactly one of product_id / option_id is set. Option amounts may be negative to
+    replace an ingredient, e.g. Sub Oat: fresh milk -180 ml, oat milk +180 ml."""
+    id = db.Column(db.Integer, primary_key=True)
+    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    option_id = db.Column(db.Integer, db.ForeignKey('menu_option.id'))
+    amount = db.Column(db.Float, nullable=False)
+    ingredient = db.relationship('Ingredient')
+
+
+class IngredientMovement(db.Model):
+    """One change to an ingredient's stock, so every change can be traced (v0.17.0):
+    'sale' (used up by a sale), 'restock' (delivery received) or 'count' (stock count)."""
+    id = db.Column(db.Integer, primary_key=True)
+    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
+    change = db.Column(db.Float, nullable=False)               # + added, - used
+    reason = db.Column(db.String(10), nullable=False)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    ingredient = db.relationship('Ingredient')
+    user = db.relationship('User')

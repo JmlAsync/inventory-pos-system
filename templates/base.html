@@ -1,3 +1,4 @@
+{% from "_avatar.html" import avatar %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,8 +18,20 @@
         {% if current_user.role == 'admin' %}
         <a class="nav-link" href="{{ url_for('sales_report') }}">Sales Report</a>
         {% endif %}
-        <span class="nav-link">{{ current_user.username }} ({{ current_user.role }})</span>
-        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+        {# Avatar menu (v0.12.0): click the circle for profile and logout #}
+        <div class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+                {{ avatar(current_user, 32) }}
+                <span>{{ current_user.username }}</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><span class="dropdown-item-text small text-muted">Signed in as {{ current_user.role|capitalize }}</span></li>
+                <li><a class="dropdown-item" href="{{ url_for('profile') }}">Change picture</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('logout') }}">Log out</a></li>
+            </ul>
+        </div>
     {% else %}
         <a class="nav-link" href="{{ url_for('login') }}">Login</a>
     {% endif %}
@@ -34,5 +47,7 @@
         {% endwith %}
         {% block content %}{% endblock %}
     </div>
+    <!-- Bootstrap's JavaScript, needed for the avatar dropdown menu (v0.12.0) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

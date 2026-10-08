@@ -1,3 +1,5 @@
 venv/
 __pycache__/
 *.db
+# Uploaded profile pictures (v0.12.0)
+static/avatars/

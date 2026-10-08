@@ -8,7 +8,7 @@ import math
 import random
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from app import app
+from app import app, upgrade_database
 from models import db, Product, User, Sale, SaleItem
 
 # (name, SKU, price in pesos, quantity in stock, category)
@@ -85,7 +85,7 @@ def add_past_sales(days=7):
 
 
 with app.app_context():
-    db.create_all()        # make sure every table exists
+    upgrade_database()     # make sure every table and column exists (v0.12.0)
     add_users()
     add_products()
     db.session.commit()    # save users and products first, so they have ids

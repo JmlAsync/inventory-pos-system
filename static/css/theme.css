@@ -391,6 +391,11 @@ img.product-thumb { border: 1px solid var(--app-border); }
 .menu-tile-left { font-size: 0.75rem; color: var(--app-muted); margin-top: auto; }
 .menu-tile-left.low { color: #B86E00; font-weight: 600; }
 [data-bs-theme="dark"] .menu-tile-left.low { color: #EF9F27; }
+/* Basket table (v0.14.4): two columns + Remove, tighter cells, names may shrink, so the Remove button always fits */
+.basket-column .table > :not(caption) > * > * { padding: 0.6rem 0.5rem; }
+.basket-column .table > :not(caption) > * > *:first-child { padding-left: 1rem; }
+.basket-column .product-name { min-width: 0; overflow-wrap: break-word; }
+
 /* Phone basket bar (v0.14.3) */
 .basket-bar {
     position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1030;
@@ -400,11 +405,11 @@ img.product-thumb { border: 1px solid var(--app-border); }
     text-decoration: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .basket-bar:hover { color: var(--app-accent-contrast); }
-@media (max-width: 991.98px) {
+@media (max-width: 1199.98px) {
     .app-content:has(.basket-bar) { padding-bottom: 6rem; }   /* room so the bar never hides the Pay button */
     #basket { scroll-margin-top: 5rem; }                       /* stop below the sticky top bar */
 }
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
     .basket-column { position: sticky; top: 1.5rem; }   /* the basket stays in view while scrolling the menu */
 }
 

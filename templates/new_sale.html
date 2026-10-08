@@ -10,7 +10,7 @@
 
 <div class="row g-4">
     {# ---------- Left: the menu (v0.14.0) ---------- #}
-    <div class="col-lg-7">
+    <div class="col-xl-7">
         <div class="card"><div class="card-body">
             {% if choices %}
             {# Category buttons: show only that category's tiles (done in the browser, see the script below) #}
@@ -69,14 +69,14 @@
     </div>
 
     {# ---------- Right: the basket and payment ---------- #}
-    <div class="col-lg-5">
+    <div class="col-xl-5">
         <div class="basket-column" id="basket">
         <h2 class="section-title mt-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
         {% if lines %}
         <div class="card app-card mb-3"><div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Product</th><th>Qty</th><th class="text-end">Subtotal</th><th></th></tr>
+                <tr><th>Product</th><th class="text-end">Subtotal</th><th><span class="visually-hidden">Remove</span></th></tr>
             </thead>
             <tbody>
                 {% for line in lines %}
@@ -85,11 +85,11 @@
                         <div class="d-flex align-items-center gap-2">
                             {{ product_thumb(line.product, 32) }}
                             <span><span class="d-block fw-medium product-name">{{ line.product.name }}</span>
-                            <span class="small text-body-secondary">{{ line.product.price|peso }} each</span></span>
+                            {# Quantity shown under the name (v0.14.4), so the row fits narrow screens #}
+                            <span class="small text-body-secondary">{{ line.quantity }} × {{ line.product.price|peso }}</span></span>
                         </div>
                     </td>
-                    <td>{{ line.quantity }}</td>
-                    <td class="text-end">{{ line.subtotal|peso }}</td>
+                    <td class="text-end text-nowrap">{{ line.subtotal|peso }}</td>
                     <td class="text-end">
                         <form method="POST" action="{{ url_for('remove_from_basket', product_id=line.product.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -100,7 +100,7 @@
                 {% endfor %}
             </tbody>
             <tfoot>
-                <tr><th colspan="2" class="text-end">Total</th><th class="fs-5 text-end">{{ total|peso }}</th><th></th></tr>
+                <tr><th class="text-end">Total</th><th class="fs-5 text-end text-nowrap">{{ total|peso }}</th><th></th></tr>
             </tfoot>
         </table>
         </div></div>
@@ -147,8 +147,8 @@
 
 {% if lines %}
 {# Phones (v0.14.3): the basket is below the long menu, so a bar at the bottom of the
-   screen shows the total and jumps to the basket. d-lg-none hides it on wide screens. #}
-<a href="#basket" class="basket-bar d-lg-none d-print-none">
+   screen shows the total and jumps to the basket. d-xl-none hides it on wide screens (v0.14.4: menu and basket side by side only from 1200px). #}
+<a href="#basket" class="basket-bar d-xl-none d-print-none">
     <span><i class="bi bi-basket me-2" aria-hidden="true"></i>{{ lines|sum(attribute='quantity') }} item{{ '' if lines|sum(attribute='quantity') == 1 else 's' }} · {{ total|peso }}</span>
     <span class="fw-semibold">Pay <i class="bi bi-arrow-down" aria-hidden="true"></i></span>
 </a>

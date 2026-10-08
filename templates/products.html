@@ -38,9 +38,9 @@
             <td class="fw-medium">
                 <div class="d-flex align-items-center gap-3">{{ product_thumb(product, 40) }}<span class="product-name">{{ product.name }}</span></div>
             </td>
-            <td class="text-body-secondary">{{ product.sku }}</td>
+            <td class="text-body-secondary text-nowrap">{{ product.sku }}</td>  {# no break after the dash in "HC-001" (v0.18.2) #}
             <td>{{ product.price|peso }}</td>
-            <td>
+            <td class="text-nowrap">
                 {{ stock[product.id] }}
                 {% if product.id in made_to_order %}<span class="small text-body-secondary" title="Worked out from the ingredients on hand">can make</span>{% endif %}
                 {% if stock[product.id] == 0 %}

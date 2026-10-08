@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.17.3** (2026-10-09). Versions v0.8.2–v0.17.3 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.18.1** (2026-10-09). Versions v0.8.2–v0.18.1 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -91,6 +91,8 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.15.0 | Payment method: Cash or GCash (reference number) | Yes |
 | v0.16.0–v0.16.1 | Servings (sizes) and add-ons for drinks (+ edge-case patch) | Yes |
 | v0.17.0–v0.17.3 | Ingredients, recipes and ingredient history (+ deleted-product recipe patch, Hot / Iced wording, demo sales fix) | Yes: drinks are limited by milk and beans on hand |
+| v0.17.4 | Patch: number boxes without thousands separators | Yes |
+| v0.18.0–v0.18.1 | Ingredients page redesign: groups, search, stock bars, Update window, History tab (+ keep-your-place patch) | Yes: easier to find and update an ingredient |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -170,6 +172,10 @@ The tag message summarizes what the increment added.
 | v0.17.1 | 2026-10-09 | `63f9d53` | A deleted product's recipe is deleted too (no inherited recipes) *(pull request #37)* |
 | v0.17.2 | 2026-10-09 | `da4a932` | The one-of choice is called a *serving*, so the café's Hot / Iced reads naturally (sizes still possible) *(pull request #38)* |
 | v0.17.3 | 2026-10-09 | `a7cd2e5` | Demo sales include products whose stock comes from ingredients (no more ₱0 demo receipts) *(pull request #39)* |
+| — | 2026-10-09 | — | Documentation update for v0.14.4–v0.17.3 *(pull request #40, no tag)* |
+| v0.17.4 | 2026-10-09 | `c985356` | Number boxes show `2000`, not `2,000` (which they can't read) *(pull request #41)* |
+| v0.18.0 | 2026-10-09 | `9689751` | Ingredients page: groups, Full level and stock bars, search and filters, Needs attention, Update window, ingredient page, History tab *(pull request #42)* |
+| v0.18.1 | 2026-10-09 | `11e33e7` | Ingredients page keeps the search, filter and row after an update *(pull request #43)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -334,6 +340,14 @@ Maria enters what is in the stock room on the **Ingredients** page (espresso bea
 many of each drink can still be made. When the oat milk runs low, Home warns her; when a delivery arrives she clicks
 **Restock** (+2,000 ml), and after counting the shelf at night she uses **Count**. Every change (each sale, delivery
 and count) appears in the ingredient history with who did it and which receipt it belongs to.
+
+### Story F17 — Finding and updating an ingredient quickly *(v0.18.0–v0.18.1)*
+On Saturday morning the milk delivery arrives. Maria opens **Ingredients**: the page starts with a **Needs attention**
+card (Lotus biscuits, Low, 5 of 30), then one card per group: Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery,
+Cups & packaging. Each row shows a bar of how full the shelf is, with a mark at the warn level. She types "oat" in
+the search box, clicks **Update** on Oat milk, and a small window opens on **Restock**; she taps *Fill up to full
+(+2,000)* and **Add to stock**. The page comes back to the Oat milk row with her search still there *(v0.18.1)*.
+Later she clicks **History** and filters to Cocoa powder to see last night's count.
 
 ---
 
@@ -681,12 +695,31 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-17.13 | Product with a recipe, never sold | Delete it, then add a new product (SQLite reuses the id) | New product has no recipe | **v0.17.0:** new cookie inherited the recipe (could sell 4 instead of 20) · **v0.17.1:** no recipe | ❌→✅ DEF-40 |
 | TC-17.14 | Café menu in `local_demo/` (every product has a recipe, quantity 0) | `python seed_demo_data.py --fresh` | Real demo sales with items and totals | **v0.17.2:** 56 receipts of ₱0.00 with no items (Home showed 8 sales but only the newest one's revenue) · **v0.17.3:** 52 real sales | ❌→✅ DEF-42 |
 
+### F17 — Ingredients page redesign *(v0.17.4, v0.18.0, v0.18.1)*
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-18.1 | Fresh milk warn at 2,000 ml; recipe line of 1,500 ml | Open Edit / the recipe | Number boxes show 2000 / 1500 | **v0.17.3:** boxes empty ("2,000" can't be read), so the Edit form could not be saved · **v0.17.4:** 2000 / 1500 | ❌→✅ DEF-43 |
+| TC-18.2 | Database from v0.17 (no group / full columns) | Start the app | Columns added; Oat milk → Milk & cream, Iced cups → Cups & packaging, Ice → Other…; full = on hand (0 if already low) | As expected | ✅ |
+| TC-18.3 | 8 ingredients | Open Ingredients | Groups in the fixed order; Needs attention lists Out first, then Low; buttons with counts | As expected | ✅ |
+| TC-18.4 | Oat milk 2,000 of 4,000 ml | Look at the row | Bar 50 %, mark at the warn level | As expected | ✅ |
+| TC-18.5 | Admin | Full ≤ warn at / unknown group / full 0 | Refused / refused / allowed with "No full level set" | As expected | ✅ |
+| TC-18.6 | Café menu (28 ingredients) | Search "milk"; filter Toppings; filter Low or out; search "zzz" | 3 milks; 9 toppings; 1; "No ingredient matches" | As expected | ✅ |
+| TC-18.7 | Café menu | Update on Oat milk → Fill up to full → Add to stock | Window shows Oat milk / ml; box gets 2000; "Added 500 ml" after typing 500 | As expected | ✅ |
+| TC-18.8 | Name `Joe's "special" <b>syrup</b>` | Open Update, save a count | Shown as plain text everywhere | As expected | ✅ |
+| TC-18.9 | Admin | Ingredient page: restock; `return_to` set to a web address | Back to that page; web address ignored | As expected | ✅ |
+| TC-18.10 | Cashier | Open Ingredients, an ingredient page, History | 403 each | As expected | ✅ |
+| TC-18.11 | Changes made | History filtered by Cocoa powder + Stock count; junk filter values | Only that count; junk values show everything, no crash | As expected | ✅ |
+| TC-18.12 | Filter "Milk & cream" | Restock Whipped cream | Back at the same row, filter still on, row in view | **v0.18.0:** back at the top, filter cleared · **v0.18.1:** as expected | ❌→✅ DEF-44 |
+| TC-18.13 | Phone (390 px) | Open Ingredients and Update | No sideways scrolling; window fits | As expected | ✅ |
+| TC-18.14 | All earlier tests | Full regression (19 suites) | Everything passes | As expected | ✅ |
+
 > **How these were run (F8–F10, patches):** on 2026-10-09 by Claude, using the Flask test client, a threaded server
 > for TC-7.26, and a real browser (Chromium with Bootstrap) for the screen checks (TC-8.8, TC-10.3, TC-10.4) and the
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### Test summary (v0.7.0 → v0.17.3)
+### Test summary (v0.7.0 → v0.18.1)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -708,7 +741,8 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | F14 Payment method | 10 | 10 | 0 | 0 |
 | F15 Servings + add-ons | 14 | 11 → **14** | 3 → **0** | 0 |
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
-| **Total** | **178** | **134 → 176** | **41 → 0** | **3 → 2** |
+| F17 Ingredients page | 14 | 12 → **14** | 2 → **0** | 0 |
+| **Total** | **192** | **146 → 190** | **43 → 0** | **3 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -764,6 +798,8 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | DEF-40 | **High** (data integrity) | Deleting a never-sold product left its recipe; SQLite gave the id to the next product, which inherited the recipe | v0.17.x stabilization (TC-17.13) | Recipe deleted with the product; start-up removes leftovers | ✅ Fixed v0.17.1 |
 | DEF-41 | Low (usability) | The café sells drinks Hot or Iced, but the screens said "Size", so "Size: Iced" read wrongly | Choice made with Yesha for the café (TC-16.14) | The choose-one group is called a *serving* on every screen; tiles list the servings ("Hot / Iced") | ✅ Fixed v0.17.2 |
 | DEF-42 | Medium (demo data) | With the café's menu every product gets its stock from ingredients (quantity 0), so the demo sales found no product to sell and created only empty ₱0.00 receipts | Screenshot review of v0.17.2 (Home: 8 sales, ₱570.00) (TC-17.14) | Demo sales pick products that can be made (`stock_levels()`); no sales are created if nothing can be sold; new `test_seed.py` checks both menus | ✅ Fixed v0.17.3 |
+| DEF-43 | Medium | Number boxes were filled with "2,000", which a number box can't read, so they showed up empty; the Edit form of Fresh milk (warn at 2,000 ml) could not be saved | Screenshot review while redesigning (TC-18.1) | `plain_amount` filter (no separator) for every number box | ✅ Fixed v0.17.4 |
+| DEF-44 | Low (usability) | After each Restock / Count / Edit the list reloaded at the top with the search and filter cleared | v0.18.x stabilization (TC-18.12) | Return to the row (`#ing-<id>`), remember search and filter for the tab | ✅ Fixed v0.18.1 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -779,7 +815,8 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.17.3** (future increments):
+> **Known limitations after v0.18.1** (future increments):
+> - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
 > - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.
 > - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
@@ -1007,9 +1044,9 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 |---|---|
 | **Actors** | Admin |
 | **Description** | Records ingredient stock (restock, count) and what each product, size and add-on uses |
-| **Data** | `ingredient` (name, unit, on hand, warn at), `recipe_item` (ingredient, amount, product or option), `ingredient_movement` (history) |
+| **Data** | `ingredient` (name, unit, on hand, warn at; group and full level since v0.18.0), `recipe_item` (ingredient, amount, product or option), `ingredient_movement` (history) |
 | **Stimulus** | Admin opens Ingredients or a product's / option's Recipe page |
-| **Response** | Stock and recipes saved; the menu's "left" counts follow; low ingredients are flagged on Home |
+| **Response** | Stock and recipes saved; the menu's "left" counts follow; low ingredients are flagged on Home. Since v0.18.0 the page is grouped and searchable, with stock bars, an Update window and a History tab |
 | **Comments** | Includes *Check permission*. UC-08 *Process sale* now uses ingredients up, so UC-08 depends on this use case |
 
 ---

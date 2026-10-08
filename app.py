@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User, Sale, SaleItem
@@ -143,6 +143,13 @@ def edit_product(product_id):
 @admin_required
 def delete_product(product_id):
     product = find_by_id(Product, product_id) or abort(404)
+    # A product that has been sold must stay (v0.10.2): reports group sales by product,
+    # and SQLite can give a deleted product's id to the next new product, which would
+    # then "inherit" the old sales. Setting its quantity to 0 stops it being sold.
+    if SaleItem.query.filter_by(product_id=product.id).first():
+        flash(f'"{product.name}" has sales history, so it can\'t be deleted. '
+              f'Set its quantity to 0 instead to stop selling it.', 'danger')
+        return redirect(url_for('products'))
     db.session.delete(product)
     db.session.commit()
     return redirect(url_for('products'))

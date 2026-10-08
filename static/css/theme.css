@@ -477,3 +477,7 @@ img.product-thumb { border: 1px solid var(--app-border); }
     .ing-bar { grid-area: bar; } .ing-amount { grid-area: amount; }
     .new-ingredient-panel { right: auto; left: 0; }
 }
+/* The row you just updated is briefly highlighted (v0.18.1) */
+.ing-row { scroll-margin-top: 5rem; }
+.ing-row.just-changed { animation: just-changed 2.5s ease-out; }
+@keyframes just-changed { from { background: var(--app-accent-soft); } to { background: transparent; } }

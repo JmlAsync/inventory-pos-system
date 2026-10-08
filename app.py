@@ -454,6 +454,9 @@ def ingredients():
         # Only an id is accepted, never a web address, so nobody can be sent to another site.
         if request.form.get('return_to') == 'detail' and ingredient is not None and ingredient.id:
             return redirect(url_for('ingredient_detail', ingredient_id=ingredient.id))
+        if ingredient is not None and ingredient.id:
+            # Come back to the same row (v0.18.1): "#ing-7" makes the browser scroll to it
+            return redirect(url_for('ingredients', _anchor=f'ing-{ingredient.id}'))
         return redirect(url_for('ingredients'))
 
     all_ingredients = Ingredient.query.order_by(Ingredient.name).all()

@@ -38,10 +38,10 @@
     </div>
 </div></div>
 
-{% macro row(ing) %}
+{% macro row(ing, anchor=False) %}
 {% set state = status(ing) %}
 {% set pct = percent(ing) %}
-<div class="ing-row" data-name="{{ ing.name|lower }}" data-category="{{ ing.category }}" data-state="{{ state }}">
+<div class="ing-row"{% if anchor %} id="ing-{{ ing.id }}"{% endif %} data-name="{{ ing.name|lower }}" data-category="{{ ing.category }}" data-state="{{ state }}">
     <div class="ing-name"><span class="product-name">{{ ing.name }}</span> {{ status_badge(state) }}</div>
     <div class="ing-bar">{{ stock_bar(ing, pct, state) }}</div>
     <div class="ing-amount" title="Warn at {{ ing.low_at|amount }} {{ ing.unit }}"><span class="fw-semibold">{{ ing.quantity|amount }} {{ ing.unit }}</span>{% if ing.full_at %}<span class="small text-body-secondary"> / {{ ing.full_at|amount }}</span>{% endif %}</div>
@@ -64,7 +64,7 @@
 {% for category, items in groups %}
 <section class="card ing-group mb-3" data-group="{{ category }}">
     <div class="ing-group-head">{{ category }} <span class="text-body-secondary fw-normal">· <span class="js-count">{{ items|length }}</span></span></div>
-    {% for ing in items %}{{ row(ing) }}{% endfor %}
+    {% for ing in items %}{{ row(ing, anchor=True) }}{% endfor %}
 </section>
 {% else %}
 <div class="card"><div class="card-body text-body-secondary">No ingredients yet. Use <strong>New ingredient</strong> above.</div></div>
@@ -117,19 +117,39 @@
         });
         document.getElementById('noMatch').hidden = shown > 0;
     }
-    search.addEventListener('input', apply);
+    // The search text and filter are remembered for this browser tab (v0.18.1), so they
+    // are still there after Restock / Count / Edit reloads the page
+    function remember() {
+        try { sessionStorage.setItem('pos-ingredients', JSON.stringify({text: search.value, filter: filter})); } catch (e) {}
+    }
+    function choose(name) {
+        const chip = document.querySelector('.chip[data-filter="' + CSS.escape(name) + '"]') || chips[0];
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        filter = chip.dataset.filter;
+    }
+    search.addEventListener('input', function () { apply(); remember(); });
     chips.forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            chips.forEach(function (c) { c.classList.remove('active'); });
-            chip.classList.add('active');
-            filter = chip.dataset.filter;
-            apply();
-        });
+        chip.addEventListener('click', function () { choose(chip.dataset.filter); apply(); remember(); });
     });
     if (new URLSearchParams(location.search).get('filter') === 'attention') {   // from the Home warning
-        const chip = document.querySelector('.chip[data-filter="attention"]');
-        if (chip) { chip.click(); }
+        choose('attention');
+    } else {
+        try {
+            const saved = JSON.parse(sessionStorage.getItem('pos-ingredients') || 'null');
+            if (saved) { search.value = saved.text || ''; choose(saved.filter || 'all'); }
+        } catch (e) {}
     }
+    apply();
+    // Back from an update: if the changed row is hidden by the search or filter, show everything
+    const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+    if (target && target.hidden) { search.value = ''; choose('all'); apply(); remember(); }
+    if (target) { target.scrollIntoView({block: 'center'}); target.classList.add('just-changed'); }
+
+    // "New ingredient" closes when you click elsewhere or press Escape
+    const newPanel = document.querySelector('.new-ingredient');
+    document.addEventListener('click', function (e) { if (newPanel.open && !newPanel.contains(e.target)) { newPanel.open = false; } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { newPanel.open = false; } });
 
     // ---- The Update window ----
     const dialog = document.getElementById('ingredientDialog');

@@ -31,6 +31,10 @@ def load_secret_key():
 
 
 app.config['SECRET_KEY'] = load_secret_key()
+# The login cookie is only sent with requests that start on this site (v0.13.2)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Check the CSRF token on every form (v0.13.2). Automated tests may switch this off.
+app.config['CSRF_ENABLED'] = True
 # Largest upload allowed (v0.12.0): bigger requests are refused with error 413
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024   # 2 MB
 db.init_app(app)
@@ -131,6 +135,38 @@ def upgrade_database():
             existing = [c['name'] for c in inspector.get_columns(table)]
             if column not in existing:
                 connection.execute(db.text(f'ALTER TABLE "{table}" ADD COLUMN {column} {column_type}'))
+
+
+# ---------------- CSRF protection (v0.13.2) ----------------
+# CSRF = Cross-Site Request Forgery: another website making your browser submit one of
+# our forms while you are logged in. Every form we show carries a secret random token
+# (a hidden field); a POST without the matching token is refused.
+
+@app.template_global()
+def csrf_token():
+    """The token for this browser session, created the first time it's needed.
+    Used in templates as  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">"""
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_hex(32)
+    return session['_csrf_token']
+
+
+@app.before_request
+def check_csrf_token():
+    """Runs before every request; stops POSTs that don't carry the right token."""
+    if request.method != 'POST' or not app.config['CSRF_ENABLED']:
+        return
+    expected = session.get('_csrf_token')
+    sent = request.form.get('csrf_token', '')
+    # compare_digest takes the same time whether the first or the last character differs,
+    # so the token can't be guessed by measuring response times
+    if not expected or not secrets.compare_digest(sent, expected):
+        abort(400)
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template('400.html'), 400
 
 
 login_manager = LoginManager()
@@ -501,7 +537,7 @@ def too_large(e):
 def forbidden(e):
     return render_template('403.html'), 403
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])   # a button, not a link, so other sites can't log you out (v0.13.2)
 @login_required
 def logout():
     session.pop('basket', None)  # empty the basket so the next user starts fresh

@@ -1,0 +1,13 @@
+{# Product picture, or a coloured tile with an icon when there's no picture (v0.14.0).
+   Use it with:  {% from "_product_image.html" import product_thumb %}  then  {{ product_thumb(product, 40) }} #}
+{% macro product_thumb(product, size=40) %}
+{% set url = product_image_url(product) %}
+{% if url %}
+<img src="{{ url }}" alt="{{ product.name }}" class="product-thumb"
+     style="width: {{ size }}px; height: {{ size }}px;">
+{% else %}
+{% set icon, hue = product_icon(product) %}
+<span class="product-thumb icon-tile hue-{{ hue }}" aria-hidden="true"
+      style="width: {{ size }}px; height: {{ size }}px; font-size: {{ (size * 0.45)|int }}px;"><i class="bi {{ icon }}"></i></span>
+{% endif %}
+{% endmacro %}

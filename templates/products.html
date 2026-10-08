@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_product_image.html" import product_thumb %}
 {% block title %}Products{% endblock %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
@@ -34,7 +35,9 @@
     <tbody>
         {% for product in products %}
         <tr>
-            <td class="fw-medium">{{ product.name }}</td>
+            <td class="fw-medium">
+                <div class="d-flex align-items-center gap-3">{{ product_thumb(product, 40) }}<span>{{ product.name }}</span></div>
+            </td>
             <td class="text-body-secondary">{{ product.sku }}</td>
             <td>{{ product.price|peso }}</td>
             <td>

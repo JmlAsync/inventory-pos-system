@@ -251,15 +251,44 @@ def delete_product(product_id):
     db.session.commit()
     return redirect(url_for('products'))
 
+# ---------------- Login attempt limit (v0.13.3) ----------------
+# Without a limit, a program can try thousands of passwords a minute. After
+# MAX_LOGIN_FAILURES wrong passwords for one username from one computer (IP address),
+# that computer must wait LOCKOUT_MINUTES before trying that username again.
+# Counting per username AND computer means a stranger can't lock the real owner out.
+# The counts live in memory, so restarting the app clears them.
+MAX_LOGIN_FAILURES = 5
+LOCKOUT_MINUTES = 5
+failed_logins = {}   # (username, IP address) -> times of recent wrong passwords
+
+
+def recent_failures(key):
+    """Wrong-password times for this key within the lockout window (older ones are forgotten)."""
+    cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    recent = [moment for moment in failed_logins.get(key, []) if moment > cutoff]
+    if recent:
+        failed_logins[key] = recent
+    else:
+        failed_logins.pop(key, None)
+    return recent
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        key = (username.strip().lower(), request.remote_addr)
+        if len(recent_failures(key)) >= MAX_LOGIN_FAILURES:
+            # 429 = "Too Many Requests"
+            return render_template('login.html', error=f'Too many failed attempts. Please wait '
+                                   f'{LOCKOUT_MINUTES} minutes and try again.'), 429
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
+            failed_logins.pop(key, None)   # a correct password resets the count
             login_user(user)
             return redirect(url_for('products'))
+        failed_logins.setdefault(key, []).append(datetime.now())
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
 

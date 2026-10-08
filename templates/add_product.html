@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Add Product{% endblock %}
 {% block content %}
+<div style="max-width: 40rem;">
 <h1>Add Product</h1>
+<p class="page-subtitle">Fill in the details of the new product.</p>
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
+<div class="card"><div class="card-body p-4">
 <form method="POST" action="{{ url_for('add_product') }}">
     <div class="mb-3">
         <label class="form-label">Name</label>
@@ -27,7 +30,8 @@
         <input type="text" class="form-control" name="category" maxlength="50" value="{{ request.form.get('category', '') }}">
     </div>
     <button type="submit" class="btn btn-primary">Add Product</button>
-    <a href="{{ url_for('products') }}" class="btn btn-secondary">Cancel</a>
-    
+    <a href="{{ url_for('products') }}" class="btn btn-light-subtle">Cancel</a>
 </form>
+</div></div>
+</div>
 {% endblock %}

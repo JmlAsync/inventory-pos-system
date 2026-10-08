@@ -1,0 +1,7 @@
+{# One-off messages from flash() in app.py, e.g. "can't delete" (v0.10.2).
+   Flask-Login uses the category "message", shown here as a blue "info" box (v0.13.0). #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="alert alert-{{ 'info' if category == 'message' else category }}">{{ message }}</div>
+{% endfor %}
+{% endwith %}

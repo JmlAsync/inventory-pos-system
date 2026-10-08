@@ -125,7 +125,18 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    return render_template('home.html')
+    """Home page. Logged-in users see today's numbers and shortcuts (v0.13.0)."""
+    stats = None
+    if current_user.is_authenticated:
+        start_of_today = datetime.combine(date.today(), datetime.min.time())
+        todays_sales = Sale.query.filter(Sale.created_at >= start_of_today).all()
+        stats = {
+            'products': Product.query.count(),
+            'low_stock': Product.query.filter(Product.quantity <= LOW_STOCK_THRESHOLD).count(),
+            'sales_today': len(todays_sales),
+            'revenue_today': round(sum(sale.total for sale in todays_sales), 2),
+        }
+    return render_template('home.html', stats=stats, today=date.today())
 
 @app.route('/products')
 @login_required

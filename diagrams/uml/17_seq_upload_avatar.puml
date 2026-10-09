@@ -1,0 +1,59 @@
+@startuml
+' Sequence: change profile picture - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor User
+participant "Profile page\n(browser)" as UI
+participant "profile()\n(app.py)" as C
+participant "static/avatars" as F
+database "User table" as DB
+User -> UI : chooses a picture, Upload picture
+UI -> C : POST /profile (multipart, CSRF)
+alt bigger than 2 MB
+  C --> UI : "That picture is too big"
+else first bytes are not PNG / JPG / WebP
+  C --> UI : "That file isn't a PNG, JPG or WebP picture"
+else picture
+  C -> F : save as user<id>_<random>.<type>
+  C -> F : delete the old picture
+  C -> DB : user.avatar = new file name
+  C --> UI : "Profile picture updated" (circle on every page)
+end
+@enduml

@@ -1,0 +1,80 @@
+@startuml
+' Activity model: complete a sale - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+start
+:Cashier taps Complete Sale;
+if (Basket empty?) then (yes)
+  :Show "The basket is empty";
+  stop
+endif
+:Check every line;
+if (Product deleted or option hidden?) then (yes)
+  :Take the line out, show a message;
+  stop
+endif
+if (Enough stock and ingredients?) then (no)
+  :Show which product / ingredient is short;
+  stop
+endif
+if (Payment method?) then (cash)
+  if (total <= cash <= 1,000,000?) then (no)
+    :Show "Cash received must be at least ...";
+    stop
+  endif
+else (GCash)
+  if (13 digits and not used before?) then (no)
+    :Show the reference message;
+    stop
+  endif
+endif
+:Create Sale and SaleItems;
+:Subtract stock and ingredients\n(only if enough is still there);
+if (Every update succeeded?) then (no)
+  :Roll back: nothing saved;
+  :Show "was just sold / used up";
+  stop
+endif
+:Write ingredient history;
+:Commit;
+:Empty the basket;
+:Show the receipt;
+stop
+@enduml

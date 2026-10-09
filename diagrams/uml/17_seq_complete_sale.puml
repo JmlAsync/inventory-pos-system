@@ -1,0 +1,70 @@
+@startuml
+' Sequence: complete a sale - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Cashier
+participant "New Sale page\n(browser)" as UI
+participant "complete_sale()\n(app.py)" as C
+participant "Basket\n(session)" as S
+database "Database" as DB
+Cashier -> UI : Cash: types cash received\nor GCash: types 13-digit reference
+Cashier -> UI : taps Complete Sale
+UI -> C : POST /sales/complete (+ CSRF token)
+C -> S : read basket lines
+C -> DB : check each product, option, stock and ingredient
+alt something missing or short
+  C --> UI : message, nothing saved
+else all fine
+  C -> C : check payment (cash >= total / reference 13 digits, not used)
+  C -> DB : BEGIN: create Sale and SaleItems
+  loop each product and ingredient
+    C -> DB : UPDATE ... SET quantity = quantity - n\nWHERE quantity >= n
+    DB --> C : rows changed (1 or 0)
+  end
+  alt any update changed 0 rows (sold by another till)
+    C -> DB : ROLLBACK (nothing saved)
+    C --> UI : "was just sold / used up"
+  else all updated
+    C -> DB : write ingredient history, COMMIT
+    C -> S : empty the basket
+    C --> UI : redirect to the receipt
+  end
+end
+@enduml

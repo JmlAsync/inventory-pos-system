@@ -1,0 +1,111 @@
+@startuml
+' Generalization hierarchy - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+class User {
+  username
+  password_hash
+  avatar
+  --
+  log in / log out
+  view products
+  process sale
+  change picture / password
+}
+class Cashier {
+  role = "cashier"
+}
+class Admin {
+  role = "admin"
+  --
+  add / edit / delete products
+  view sales report
+  manage servings and add-ons
+  manage ingredients and recipes
+}
+User <|-- Cashier
+User <|-- Admin
+class MenuOption {
+  name
+  price
+  active
+  sort_order
+}
+class Serving {
+  kind = "size"
+  scale
+  --
+  exactly one per drink
+}
+class AddOn {
+  kind = "addon"
+  --
+  any number per drink
+}
+MenuOption <|-- Serving
+MenuOption <|-- AddOn
+class IngredientMovement {
+  change
+  user
+  created_at
+}
+class SaleUse {
+  reason = "sale"
+  sale_id
+}
+class Restock {
+  reason = "restock"
+}
+class StockCount {
+  reason = "count"
+}
+IngredientMovement <|-- SaleUse
+IngredientMovement <|-- Restock
+IngredientMovement <|-- StockCount
+Cashier -[hidden]down- MenuOption
+Admin -[hidden]down- MenuOption
+Serving -[hidden]down- IngredientMovement
+AddOn -[hidden]down- IngredientMovement
+note right of User
+  In the code these are ONE table each,
+  with a "role" / "kind" / "reason" column
+  saying which kind it is.
+end note
+@enduml

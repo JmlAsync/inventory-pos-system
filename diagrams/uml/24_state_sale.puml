@@ -1,0 +1,62 @@
+@startuml
+' State diagram: a sale at the counter - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+[*] --> EmptyBasket
+EmptyBasket : nothing to pay
+EmptyBasket --> Building : add product
+Building : basket has lines
+Building --> Building : add / remove line
+Building --> EmptyBasket : remove last line / log out
+Building --> Paying : choose Cash or GCash
+Paying : typing cash or reference
+Paying --> Building : add or remove a line
+Paying --> Checking : Complete Sale
+Checking : check stock, ingredients, payment
+Checking --> Paying : payment refused
+Checking --> Building : stock / ingredient short
+Checking --> Saving : all fine
+Saving : one database transaction
+Saving --> Building : another till sold it (rolled back)
+Saving --> Completed : committed
+Completed : receipt shown, basket empty
+Completed --> EmptyBasket : Start New Sale
+Completed --> [*]
+@enduml

@@ -24,7 +24,7 @@
 9. Guide: drawing the use case diagram
 10. Report checklist (professor's Section B)
 11. Requirements (Lecture 4, items 4–10)
-12. System models (Lecture 5, items 12–25), in progress
+12. System models (Lecture 5, items 11–25)
 
 ---
 
@@ -1285,21 +1285,21 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 8 | Structured requirements of each part (L4 p. 42–43) | ✅ §11.5 (4 functions) |
 | 9 | Tabular computation of each function (L4 p. 45) | ✅ §11.6 (5 computations) |
 | 10 | Detailed scenarios (L4 p. 62–63) | ✅ §11.7 (3 scenarios) |
-| 11 | Use case diagram (L4 p. 65) | 🟡 §9 guide + `.puml` file |
-| 12 | Context UML diagram (L5 p. 10) | 🟡 §12.1 drawn (style to confirm) |
-| 13 | Process model UML diagram (L5 p. 12) | ⬜ |
-| 14 | Every use case's UML diagram (L5 p. 15) | ⬜ |
+| 11 | Use case diagram (L4 p. 65) | ✅ §12.3 (+ §9 guide to redraw it in draw.io) |
+| 12 | Context UML diagram (L5 p. 10) | ✅ §12.1 |
+| 13 | Process model UML diagram (L5 p. 12) | ✅ §12.2 |
+| 14 | Every use case's UML diagram (L5 p. 15) | ✅ §12.3 (15 diagrams) |
 | 15 | Tabular use case descriptions (L5 p. 16) | ✅ §8.2 |
-| 16 | Each agent's use cases (L5 p. 17) | ⬜ |
-| 17 | Sequence diagrams of every action (L5 p. 19–20) | ⬜ |
-| 18 | Class associations (L5 p. 23–24) | ⬜ |
-| 19 | Class models (L5 p. 25) | ⬜ |
-| 20 | Generalization hierarchy (L5 p. 30–31) | ⬜ |
-| 21 | Aggregation associations (L5 p. 33) | ⬜ (Sale ◇— SaleItem will be the example) |
-| 22 | Activity model (L5 p. 36) | ⬜ |
-| 23 | Application processes (L5 p. 37) | ⬜ |
-| 24 | State diagram (L5 p. 40) | ⬜ |
-| 25 | Structured forms of states (L5 p. 41–42) | ⬜ |
+| 16 | Each agent's use cases (L5 p. 17) | ✅ §12.4 (3 actors) |
+| 17 | Sequence diagrams of every action (L5 p. 19–20) | ✅ §12.5 (8 main actions) |
+| 18 | Class associations (L5 p. 23–24) | ✅ §12.6 |
+| 19 | Class models (L5 p. 25) | ✅ §12.6 |
+| 20 | Generalization hierarchy (L5 p. 30–31) | ✅ §12.7 |
+| 21 | Aggregation associations (L5 p. 33) | ✅ §12.8 |
+| 22 | Activity model (L5 p. 36) | ✅ §12.9 |
+| 23 | Application processes (L5 p. 37) | ✅ §12.10 |
+| 24 | State diagram (L5 p. 40) | ✅ §12.11 (sale, ingredient) |
+| 25 | Structured forms of states (L5 p. 41–42) | ✅ §12.12 |
 | 26 | Software architecture (L6 p. 42, 49) | ⬜ (this app follows MVC: Model–View–Controller) |
 | 27 | Context diagram (L7 p. 9) | ⬜ |
 | 28 | High-level architecture (L7 p. 13) | ⬜ |
@@ -1565,7 +1565,7 @@ In the form of Sommerville's "collecting medical history" scenario.
 
 ---
 
-## 12. System models (Lecture 5, report items 12–25), in progress
+## 12. System models (Lecture 5, report items 11–25)
 
 ### 12.1 Context model *(item 12, L5 p. 10)*
 
@@ -1580,3 +1580,248 @@ CDN are outside it.
 > **Why GCash and the supplier are dashed:** the system does not talk to them directly. A person reads the GCash
 > reference or the delivery note and types it in. A direct GCash connection would need a merchant account (see
 > known limitations).
+
+### How to read and edit these diagrams
+
+All diagrams below were drawn by Claude on 2026-10-09 from the code of **v0.18.2**, using **PlantUML**, a tool that
+turns a short text description into a UML picture. "UML" (Unified Modeling Language) is the standard set of symbols
+software engineers use to draw systems, so a reader from any school or company can understand them.
+
+- Every picture is in `diagrams/uml/` as a `.png` (for the report) with a `.puml` file next to it (the text it was made from).
+- **To change one:** open the `.puml` file, copy everything, and paste it into draw.io (**Arrange → Insert → Advanced →
+  PlantUML**) or into planttext.com. Edit the text and the picture redraws itself.
+- The file names start with the item number from the professor's checklist (§10), so `17_seq_log_in.png` belongs to item 17.
+
+### 12.2 Process model *(item 13, L5 p. 12)*
+
+A **process model** shows the steps of a real-world job and **who does each step**. The columns are called
+**swimlanes**: each one belongs to one participant (here the Customer, the Cashier and the System). Reading top to
+bottom, you follow one sale at the café counter from order to receipt. The diamond shapes are **decisions** (for
+example "Enough?"), where the flow splits into two paths.
+
+![Process model of a sale](diagrams/uml/13_process_model.png)
+
+> **What it shows about our design:** the System checks stock twice: once when a line is added to the basket and
+> again when the sale is completed. This is because another till may sell the last item in between (see DEF-13, the race
+> condition fixed with an atomic update).
+
+### 12.3 Use case diagrams *(items 11 and 14, L4 p. 65 and L5 p. 15)*
+
+A **use case** is one thing a person can do with the system, written from their point of view ("Process sale").
+An **actor** (the stick figure) is a type of user. Lines join actors to what they can do. Two kinds of dashed arrows appear:
+
+- **«include»**: the use case *always* runs another one. "Add product" always runs "Check permission (role)".
+- **«extend»**: the use case *sometimes* adds to another one. "View low-stock warning" only appears inside "View
+  product list" when stock is low.
+
+**All use cases together (item 11):**
+
+![Use case diagram](diagrams/use_case_diagram_draft.png)
+
+*The arrow with a hollow triangle from Cashier and Admin to User means "a Cashier is a kind of User" (generalization,
+§12.7). Whatever a User can do, a Cashier and an Admin can do too.*
+
+**One diagram per use case (item 14).** The note on each diagram gives the main rule; the full description is in the
+tables in §8.2.
+
+| UC | Diagram | UC | Diagram |
+|---|---|---|---|
+| UC-01 View home page | ![UC-01](diagrams/uml/14_UC01_view_home_page.png) | UC-02 Log in | ![UC-02](diagrams/uml/14_UC02_log_in.png) |
+| UC-03 Log out | ![UC-03](diagrams/uml/14_UC03_log_out.png) | UC-04 View product list | ![UC-04](diagrams/uml/14_UC04_view_product_list.png) |
+| UC-05 Add product | ![UC-05](diagrams/uml/14_UC05_add_product.png) | UC-06 Edit product | ![UC-06](diagrams/uml/14_UC06_edit_product.png) |
+| UC-07 Delete product | ![UC-07](diagrams/uml/14_UC07_delete_product.png) | UC-08 Process sale | ![UC-08](diagrams/uml/14_UC08_process_sale.png) |
+| UC-09 View low-stock warning | ![UC-09](diagrams/uml/14_UC09_view_low-stock_warning.png) | UC-10 View sales report | ![UC-10](diagrams/uml/14_UC10_view_sales_report.png) |
+| UC-11 Change profile picture | ![UC-11](diagrams/uml/14_UC11_change_profile_picture.png) | UC-12 Switch light/dark theme | ![UC-12](diagrams/uml/14_UC12_switch_light_dark_theme.png) |
+| UC-13 Change password | ![UC-13](diagrams/uml/14_UC13_change_password.png) | UC-14 Manage servings and add-ons | ![UC-14](diagrams/uml/14_UC14_manage_servings_and_add-ons.png) |
+| UC-15 Manage ingredients and recipes | ![UC-15](diagrams/uml/14_UC15_manage_ingredients_and_recipes.png) | | |
+
+*Item 15 (tabular use case descriptions) is already done in §8.2.*
+
+### 12.4 Each actor's use cases *(item 16, L5 p. 17)*
+
+The same use cases again, grouped by **who** uses them. This makes it easy to check permissions: everything on the
+Admin diagram that is not on the Cashier diagram must be refused (403 Forbidden) when a cashier tries it. Test cases
+TC-6.x in §6 check exactly this.
+
+| Visitor (not logged in) | Cashier | Admin |
+|---|---|---|
+| ![Visitor](diagrams/uml/16_actor_visitor.png) | ![Cashier](diagrams/uml/16_actor_cashier.png) | ![Admin](diagrams/uml/16_actor_admin.png) |
+
+### 12.5 Sequence diagrams *(item 17, L5 p. 19–20)*
+
+A **sequence diagram** shows the messages passed between the parts of the system, **in time order from top to
+bottom**. Each part has a dashed vertical line (its **lifeline**). A solid arrow is a request; a dashed arrow is the
+reply. Boxes marked **alt** mean "only one of these paths happens" (like an if/else), and **loop** means "repeat for
+each". The names in brackets, like `login()` in `app.py`, are the real function names, so you can find the code
+while recording the video.
+
+| # | Action | What to notice |
+|---|---|---|
+| a | Log in | The login limit is checked *before* the password, so a guesser is stopped even with the right password after 5 tries. |
+| b | Add a drink to the basket | Ingredients are checked for the *whole basket plus the new line*, not just the new line. |
+| c | Complete a sale | Each stock subtraction only succeeds if enough is still there; if any fails, everything is **rolled back** (undone). |
+| d | Restock an ingredient | One database step adds the amount and writes the history line. |
+| e | View the sales report | Dates are checked to be real and between 2000 and 2100 before the database is asked. |
+| f | Add a product | The picture is checked by its first bytes, not its file name, and saved under a random name. |
+| g | Change password | Four checks; if any fails, nothing changes. |
+| h | Upload a profile picture | The old picture file is deleted so the folder does not fill up. |
+
+**a. Log in**
+![Sequence: log in](diagrams/uml/17_seq_log_in.png)
+
+**b. Add a drink to the basket**
+![Sequence: add to basket](diagrams/uml/17_seq_add_to_basket.png)
+
+**c. Complete a sale**
+![Sequence: complete sale](diagrams/uml/17_seq_complete_sale.png)
+
+**d. Restock an ingredient**
+![Sequence: restock](diagrams/uml/17_seq_restock.png)
+
+**e. View the sales report**
+![Sequence: sales report](diagrams/uml/17_seq_sales_report.png)
+
+**f. Add a product**
+![Sequence: add product](diagrams/uml/17_seq_add_product.png)
+
+**g. Change password**
+![Sequence: change password](diagrams/uml/17_seq_change_password.png)
+
+**h. Upload a profile picture**
+![Sequence: upload avatar](diagrams/uml/17_seq_upload_avatar.png)
+
+*Smaller actions (log out, edit and delete product, switch theme) follow the same pattern as (f) and are not drawn
+separately: page → function in `app.py` → checks → database → redirect with a message.*
+
+### 12.6 Class associations and class model *(items 18 and 19, L5 p. 23–25)*
+
+A **class** is a type of thing the system stores, for example a Product. In our code each class is also a database
+table (in `models.py`). An **association** is a line saying two classes are related. The numbers at the ends are the
+**multiplicity**, meaning "how many":
+
+- `1`: exactly one · `0..1`: none or one · `0..*`: any number, including none · `1..*`: at least one
+
+So `User "1" — "0..*" Sale` reads: *one user makes any number of sales, and each sale is made by exactly one user*.
+
+**Item 18, associations only (names, no details):**
+
+![Class associations](diagrams/uml/18_class_associations.png)
+
+**Item 19, the full class model** with each class's **attributes** (the data it stores, the columns of its table) and
+the important **operations** (what it can do):
+
+![Class model](diagrams/uml/19_class_model.png)
+
+> **Why SaleItem copies the product name and price:** if the admin later renames a product or changes its price, old
+> receipts must still show what the customer actually paid. Copying them at the time of sale keeps history true
+> (the same reason UC-07 refuses to delete a product with sales history; see DEF-21).
+
+### 12.7 Generalization hierarchy *(item 20, L5 p. 30–31)*
+
+**Generalization** means "is a kind of". The arrow with a **hollow triangle** points from the specific class to the
+general one. The specific class **inherits** (automatically gets) everything the general class has and adds its own.
+Example: a Cashier *is a* User, so a Cashier has a username and password like every user.
+
+![Generalization hierarchy](diagrams/uml/20_generalization.png)
+
+> **Honest note for the report:** in the code these are not separate classes. Each is **one table** with a column
+> saying which kind it is (`User.role`, `MenuOption.kind`, `IngredientMovement.reason`). This is a common, simpler way
+> to store a hierarchy in a database (called **single-table inheritance**). The diagram shows the *idea*; the code
+> chooses the simpler storage. If the professor asks, this is the reason.
+
+### 12.8 Aggregation *(item 21, L5 p. 33)*
+
+**Aggregation** is a "has-a / is-part-of" relationship. UML has two strengths of it:
+
+- **Composition** (filled diamond ◆): the part **cannot live without** the whole. A SaleItem only exists inside its
+  Sale; a receipt line without a receipt makes no sense.
+- **Aggregation** (hollow diamond ◇): the parts **can exist on their own**. A recipe is made of recipe lines, and each
+  line points to an Ingredient that exists even if no recipe uses it.
+
+![Aggregation and composition](diagrams/uml/21_aggregation.png)
+
+### 12.9 Activity model *(item 22, L5 p. 36)*
+
+An **activity diagram** is a flowchart of one activity: the rounded boxes are actions, the diamonds are decisions,
+the black dot is the start and the circled dot is the end. This one shows **every check** the system makes when the
+cashier taps *Complete Sale*, in the order the code (`complete_sale()` in `app.py`) makes them. Every "stop" on the
+side is an error message where **nothing is saved**.
+
+![Activity: complete a sale](diagrams/uml/22_activity_complete_sale.png)
+
+### 12.10 Application process *(item 23, L5 p. 37)*
+
+An **application process** model shows how the system fits into a **business process** that goes beyond the
+software. Here: ingredients run low because of sales, the admin counts and orders, a **supplier** (outside the
+system) delivers, and the admin records the delivery. The swimlanes show which steps the software does and which a
+person does.
+
+![Application process: restocking](diagrams/uml/23_process_restock.png)
+
+### 12.11 State diagrams *(item 24, L5 p. 40)*
+
+A **state** is a situation something can be in (for example "Low" or "Out"). A **state diagram** shows all the
+states and the **transitions** (arrows) between them. The label on each arrow is the **stimulus**, the event that
+causes the change. The black dot is where it starts; the circled dot is where it ends.
+
+**a. A sale, from empty basket to receipt.** This shows why a sale is either saved completely or not at all: the
+*Saving* state can only end in *Completed* (committed) or go back to *Building* (rolled back), never halfway.
+
+![State diagram: a sale](diagrams/uml/24_state_sale.png)
+
+**b. An ingredient's stock level.** "Warn at" is the low-stock level the admin sets for each ingredient
+(`low_at` in the code; see `stock_status()` in `app.py`).
+
+![State diagram: ingredient stock](diagrams/uml/24_state_ingredient.png)
+
+### 12.12 Structured forms of states *(item 25, L5 p. 41–42)*
+
+The same two state diagrams written as tables, the way Lecture 5 shows them: one table describing each **state**,
+and one describing each **stimulus**.
+
+**a. Sale: states**
+
+| State | Description |
+|---|---|
+| Empty basket | The New Sale page is open and nothing has been added. The total is ₱0 and *Complete Sale* does nothing useful. |
+| Building | The basket has one or more lines. The cashier can add lines (stock and ingredients are checked each time) or remove them. |
+| Paying | The cashier has chosen Cash and is typing the cash received, or chosen GCash and is typing the 13-digit reference. |
+| Checking | The system re-checks every line (product still exists, option still offered, enough stock and ingredients) and the payment. |
+| Saving | One database **transaction** is open: the Sale and SaleItems are created and stock and ingredients are subtracted. |
+| Completed | The transaction is committed, the basket is emptied and the receipt is shown. |
+
+**a. Sale: stimuli**
+
+| Stimulus | Description |
+|---|---|
+| Add product | The cashier taps a tile or uses the dropdown and *Add to basket*. Moves Empty basket → Building. |
+| Add / remove line | The cashier changes the basket. Stays in Building (or goes back to Building from Paying). |
+| Remove last line / log out | The basket becomes empty. Building → Empty basket. Logging out always empties the basket. |
+| Choose Cash or GCash | The cashier picks the payment method. Building → Paying. |
+| Complete Sale | The cashier taps *Complete Sale*. Paying → Checking. |
+| Payment refused | Cash is less than the total or over ₱1,000,000, or the GCash reference is not 13 digits or was used before. Checking → Paying. |
+| Stock / ingredient short | A product or ingredient no longer has enough. Checking → Building, with a message naming it. |
+| All fine | Every check passed. Checking → Saving. |
+| Another till sold it | A stock update changed 0 rows because another sale took the last item first. The transaction is **rolled back**. Saving → Building. |
+| Committed | The database confirmed the save. Saving → Completed. |
+| Start New Sale | The cashier taps *Start New Sale* on the receipt. Completed → Empty basket. |
+
+**b. Ingredient: states**
+
+| State | Description |
+|---|---|
+| OK | On hand is more than the "warn at" level. Shown with a green bar. |
+| Low | On hand is above 0 but at or below "warn at". Shown in amber, counted on the Home page and listed under *Low or out*. |
+| Out | On hand is 0. Shown in red. Drinks that need it cannot be added to a basket ("Not enough …"). |
+
+**b. Ingredient: stimuli**
+
+| Stimulus | Description |
+|---|---|
+| Sale | A completed sale subtracts the recipe amounts. Can move OK → Low, Low → Out (or OK → Out in one big sale). |
+| Restock | The admin adds the amount delivered. Can move Out → Low, Out → OK or Low → OK. |
+| Count | The admin types the real amount on the shelf; the system saves the difference in history. Can move to any state. |
+| Edit "warn at" | The admin changes the warning level. The state is recalculated at once (for example OK → Low if the level is raised). |
+
+*Source for all four tables: `stock_status()` and `complete_sale()` in `app.py` (v0.18.2), and test cases TC-7.x,
+TC-15.x, TC-17.x and TC-18.x in §6.*

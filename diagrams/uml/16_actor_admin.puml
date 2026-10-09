@@ -1,0 +1,74 @@
+@startuml
+' Use cases of the Admin - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+left to right direction
+actor "Admin" as A
+rectangle "Inventory & POS System" {
+  usecase "UC01 View home page (dashboard)" as U0
+  usecase "UC03 Log out" as U1
+  usecase "UC04 View product list" as U2
+  usecase "UC05 Add product" as U3
+  usecase "UC06 Edit product" as U4
+  usecase "UC07 Delete product" as U5
+  usecase "UC08 Process sale" as U6
+  usecase "UC09 View low-stock warning" as U7
+  usecase "UC10 View sales report" as U8
+  usecase "UC11 Change profile picture" as U9
+  usecase "UC12 Switch light/dark theme" as U10
+  usecase "UC13 Change password" as U11
+  usecase "UC14 Manage servings and add-ons" as U12
+  usecase "UC15 Manage ingredients and recipes" as U13
+}
+A -- U0
+A -- U1
+A -- U2
+A -- U3
+A -- U4
+A -- U5
+A -- U6
+A -- U7
+A -- U8
+A -- U9
+A -- U10
+A -- U11
+A -- U12
+A -- U13
+@enduml

@@ -23,6 +23,8 @@
 8. Use cases (Lecture 4 p. 65 and Lecture 5 p. 15–17 style)
 9. Guide: drawing the use case diagram
 10. Report checklist (professor's Section B)
+11. Requirements (Lecture 4, items 4–10)
+12. System models (Lecture 5, items 12–25), in progress
 
 ---
 
@@ -1274,17 +1276,17 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | # | Item | Status |
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
-| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F11) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F6 |
-| 4 | Requirements definition: user and system requirements (L4 p. 7) | ⬜ |
-| 5 | Nonfunctional requirements (L4 p. 18) | ⬜ |
-| 6 | Nonfunctional requirements metrics table (L4 p. 21) | ⬜ |
-| 7 | Requirements of each part (L4 p. 39) | ⬜ |
-| 8 | Structured requirements of each part (L4 p. 42–43) | ⬜ |
-| 9 | Tabular computation of each function (L4 p. 45) | ⬜ (the sale total / stock update in F7 is the obvious example) |
-| 10 | Detailed scenarios (L4 p. 62–63) | 🟡 the stories in §5 are a starting point |
+| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F17 (193 cases), screenshots S1–S42 |
+| 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
+| 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
+| 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
+| 7 | Requirements of each part (L4 p. 39) | ✅ §11.4 |
+| 8 | Structured requirements of each part (L4 p. 42–43) | ✅ §11.5 (4 functions) |
+| 9 | Tabular computation of each function (L4 p. 45) | ✅ §11.6 (5 computations) |
+| 10 | Detailed scenarios (L4 p. 62–63) | ✅ §11.7 (3 scenarios) |
 | 11 | Use case diagram (L4 p. 65) | 🟡 §9 guide + `.puml` file |
-| 12 | Context UML diagram (L5 p. 10) | ⬜ |
+| 12 | Context UML diagram (L5 p. 10) | 🟡 §12.1 drawn (style to confirm) |
 | 13 | Process model UML diagram (L5 p. 12) | ⬜ |
 | 14 | Every use case's UML diagram (L5 p. 15) | ⬜ |
 | 15 | Tabular use case descriptions (L5 p. 16) | ✅ §8.2 |
@@ -1314,9 +1316,267 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 39 | Threat and control analysis (L12 p. 46) | 🟡 §7 Security review table |
 
 **Other submission requirements (Section C/D):**
-- ⬜ Code comments explaining every block (currently there are none)
-- 🟡 Use branches and pull requests (required: "commit, push, merge, pull request"): first one done, PR #1 for v0.7.1; keep using one branch + PR per feature
+- 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 46 pull requests, one branch per version, tags v0.7.1–v0.18.2
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)
 - ⬜ Video link saved as text in the project folder; whole project zipped to Google Drive; link emailed to the professor
+
+---
+
+## 11. Requirements (Lecture 4, report items 4–10)
+
+> Written on 2026-10-09 from the system as built in **v0.18.2** (`1a748cc`). Each requirement can be traced to a
+> feature (F1–F17), a test case (TC-…) and a use case (UC-…), so the report shows *requirements → design → tests*.
+> **Words used:** a *user requirement* says what users need, in everyday language; a *system requirement* says
+> exactly what the software must do, detailed enough to build and test. "Shall" means "must".
+
+### 11.1 Requirements definition: user and system requirements *(item 4, L4 p. 7)*
+
+| User requirement definition | System requirements specification |
+|---|---|
+| **UR-1** The system shall let a cashier sell products to a customer and give a receipt. | **1.1** A logged-in user (cashier or admin) shall add products to a basket by tapping a menu tile (1 each) or by choosing a product and a quantity. **1.2** The system shall not let the basket hold more of a product than can be sold (stock − basket, or what the ingredients allow). **1.3** On *Complete Sale* the system shall check stock again, save the sale and its items, and lower the stock in one database transaction; if anything is short, nothing is saved. **1.4** The system shall show a printable receipt with receipt number, date and time, cashier, items, options, total and payment. |
+| **UR-2** The system shall accept cash and GCash payments. | **2.1** For cash, the cashier shall type the amount received; the system shall refuse amounts below the total or above ₱1,000,000 and shall show the change. **2.2** For GCash, the cashier shall type the 13-digit reference number; the system shall refuse anything else and any reference already used. **2.3** The Sales Report shall show cash and GCash revenue separately. |
+| **UR-3** The admin shall keep the list of products up to date. | **3.1** Only an admin shall add, edit or delete products (name, SKU, price, quantity, category, optional picture). **3.2** SKUs shall be unique; prices and quantities shall be numbers from 0 to 1,000,000. **3.3** A product with sales history shall not be deleted (its quantity can be set to 0). **3.4** Pictures shall be PNG, JPG or WebP up to 2 MB, checked by their content. |
+| **UR-4** Staff shall be warned before something runs out. | **4.1** Products with 5 or fewer left shall get a *Low* badge (0: *Out of stock*) and be listed in a warning box. **4.2** Ingredients at or below their *warn at* level shall be marked *Low* (0: *Out*), listed first under *Needs attention*, and counted in a warning on Home. |
+| **UR-5** A café shall be able to sell drinks Hot or Iced, with upgrades. | **5.1** The admin shall keep a list of *servings* (choose exactly one, e.g. Hot / Iced) and *add-ons* (any number, e.g. Sub Oat +₱40), each with an extra price. **5.2** The drink window shall show the live price; the basket shall keep one line per product + serving + add-ons. **5.3** Receipts shall keep the options and the price paid even if prices change later. |
+| **UR-6** The café shall know how much of each ingredient it has. | **6.1** The admin shall record ingredients (name, unit g/ml/pcs, group, on hand, warn at, full level). **6.2** Each product, serving and add-on may have a recipe; every sale shall use up its ingredients in the same transaction as the sale. **6.3** *Restock* shall add a delivery; *Count* shall set what is really on the shelf; every change shall be written to the ingredient history with user, time and receipt. |
+| **UR-7** The owner shall see how the business is doing. | **7.1** An admin shall see revenue, number of sales, items sold, top 5 products and every sale for any dates from 2000 to 2100 (default: today). **7.2** Home shall show today's sales and revenue, products, low stock and low ingredients. |
+| **UR-8** Only the right people shall use each part. | **8.1** Users shall log in with a username and password; passwords shall be stored hashed. **8.2** Cashiers shall get *403 Forbidden* on admin pages (products editing, report, servings and add-ons, ingredients, recipes). **8.3** After 5 wrong passwords for a username from one computer, that computer shall wait 5 minutes. **8.4** Every form shall carry a CSRF token; a form without it shall be refused. **8.5** Users shall be able to change their password (8+ characters, not the username) and their profile picture. |
+
+### 11.2 Nonfunctional requirements *(item 5, L4 p. 18)*
+
+Sommerville splits these into **product**, **organizational** and **external** requirements.
+
+| Type | ID | Requirement |
+|---|---|---|
+| Product: performance | NFR-1 | Every page shall open in under 1 second on the shop's laptop with the demo data (22 products, about 60 sales). |
+| Product: reliability | NFR-2 | The system shall never sell more than is in stock, even when several cashiers complete sales at the same moment. |
+| Product: robustness | NFR-3 | Wrong or strange input (text instead of numbers, `nan`, huge numbers, huge ids, wrong files) shall give a message, never a server crash (HTTP 500). |
+| Product: usability | NFR-4 | A new cashier shall be able to complete a sale after a 15-minute introduction; a one-item sale shall take at most 5 taps. |
+| Product: usability | NFR-5 | The system shall work on a laptop and on a phone screen (390 px wide) without sideways scrolling, in a light and a dark theme. |
+| Product: security | NFR-6 | Passwords shall be stored only as hashes; the secret key shall not be in the source code; pages shall send anti-framing headers. |
+| Product: space | NFR-7 | The database for a week of café sales shall stay under 1 MB. |
+| Organizational: development | NFR-8 | The code shall be managed in Git/GitHub with one branch and pull request per version, semantic version tags (`MAJOR.MINOR.PATCH`) and a test run before every merge. |
+| Organizational: environment | NFR-9 | The system shall run with Python 3.11+ and Flask on Windows, macOS or Linux, in Chrome, Edge or Firefox. |
+| External: legal | NFR-10 | Personal data (user names, profile pictures) shall be handled in line with the Philippine Data Privacy Act of 2012 (RA 10173): collect only what is needed and keep it on the shop's own computer. |
+| External: business | NFR-11 | Money shall be shown in Philippine pesos with a ₱ sign and thousands separators (₱1,234.50). |
+
+### 11.3 Nonfunctional requirements metrics *(item 6, L4 p. 21)*
+
+"Measured" values were measured by Claude on 2026-10-09 on v0.18.2 (cloud test machine, 2 CPUs, Python 3.13), with
+the demo data; each page was opened 30 times.
+
+| Property | Measure | Target | Measured / evidence |
+|---|---|---|---|
+| Speed | Time to show a page | < 1 s | Median 2–15 ms, slowest 41 ms (Sales Report for a month) |
+| Speed | Time to complete a sale | < 1 s | Median 5 ms, slowest 8 ms (10 sales) |
+| Size | Database size after a week of sales | < 1 MB | 56 KB |
+| Size | Page size sent to the browser | < 100 KB (without Bootstrap) | 9–39 KB |
+| Ease of use | Taps for a one-item sale | ≤ 5 | Pastry: 2 taps (tile, Complete Sale) + typing the cash; drink: 3 taps (tile, Add, Complete Sale) + typing the cash |
+| Ease of use | Training time for a cashier | ≤ 15 min | ⏳ to measure with the café staff (hand test) |
+| Reliability | Oversold items with 20 cashiers selling the last 5 at once | 0 | 0 (5 sold, 15 refused; TC-7.26, TC-17.11) |
+| Robustness | Server crashes (HTTP 500) on bad input | 0 | 0 in the 31-request regression, the number limits (TC-2.7, TC-7.28) and the 14-input fuzz test (TC-7.31) |
+| Robustness | Time to restart after a failure | < 1 min | A few seconds (`python app.py`); no data lost, because each sale is saved in one transaction |
+| Portability | Screen widths without sideways scrolling | 390 px and up | 390 px and 1366 px checked (TC-12.5, TC-18.13) |
+| Portability | Operating systems | Windows, macOS, Linux | Windows 11 (Yesha), Linux (tests) |
+| Security | Known attacks that still work | 0 | 0 of 6 (TC-13.1–13.14) |
+
+### 11.4 Requirements of each part *(item 7, L4 p. 39)*
+
+Like the insulin pump example, the requirements are listed per part of the system.
+
+**Products (F1–F4, F13)**
+- P1. The system shall list every product with picture or icon, SKU, price, quantity (or "can make") and category.
+- P2. The system shall refuse a product with an empty name or SKU, a duplicate SKU, a price or quantity below 0 or above 1,000,000, or text longer than the database column.
+- P3. The system shall keep a product that has been sold; deleting it shall be refused with a message.
+
+**Sales (F7, F13)**
+- S1. The basket shall be kept per logged-in browser and emptied on logout.
+- S2. Adding to the basket shall be refused when not enough can be sold, with a message naming the product.
+- S3. Completing a sale shall lower the stock with an *atomic* (all-at-once) database update that only succeeds if enough is left.
+- S4. A deleted product in a basket shall be taken out with a message.
+
+**Payment (F7, F14)**
+- M1. Change shall be cash received − total, shown live while typing and calculated again on the server.
+- M2. A GCash reference shall be exactly 13 digits (spaces allowed while typing) and unique.
+
+**Drink options (F15)**
+- O1. A drink shall have exactly one serving (the first is the default) and any number of add-ons.
+- O2. A hidden option shall disappear from the drink window and from baskets, with a message; it shall never be deleted.
+
+**Ingredients (F16, F17)**
+- I1. A recipe product's "can make" count shall be the smallest of (on hand − basket needs) ÷ recipe amount over its ingredients.
+- I2. Restock shall add; Count shall replace; both shall be written to the history.
+- I3. *Full* shall be more than *warn at*, or 0 for no stock bar.
+
+**Reports (F9)**
+- R1. The report shall count sales from the start of the first day to the end of the last day.
+- R2. Top products shall be grouped by product, not by name, so a renamed product counts once.
+
+**Users and security (F5, F6, F10, F12)**
+- U1. Admin-only pages shall return 403 to cashiers and send visitors to the login page.
+- U2. Uploaded pictures shall get random file names and be checked by their first bytes.
+- U3. Debug mode shall be off unless `FLASK_DEBUG=1`.
+
+### 11.5 Structured requirements *(item 8, L4 p. 42–43)*
+
+The same form as Sommerville's insulin pump example.
+
+| Field | Complete a sale (UC-08) |
+|---|---|
+| **Function** | Complete sale |
+| **Description** | Saves the basket as a sale, takes the payment, lowers stock and ingredients, and shows the receipt. |
+| **Inputs** | Basket (from the session); payment method; cash received *or* GCash reference. |
+| **Source** | Basket: built by the cashier on New Sale. Payment: typed by the cashier. |
+| **Outputs** | `Sale` with its `SaleItem`s; lower product and ingredient stock; ingredient history lines; receipt page. |
+| **Destination** | SQLite database; cashier's screen (receipt). |
+| **Action** | Check every line (product exists, options still offered, enough stock and ingredients); check the payment; then in one transaction create the sale and items and subtract stock and ingredients with conditional updates. If any update finds too little, roll everything back and show a message. Otherwise empty the basket and show the receipt. |
+| **Requires** | A logged-in user; a non-empty basket. |
+| **Pre-condition** | Each product in the basket exists; stock and ingredients are enough for the whole basket. |
+| **Post-condition** | Stock(after) = stock(before) − quantity sold, for every product and ingredient used; total = Σ (unit price × quantity). |
+| **Side effects** | Low-stock and low-ingredient warnings may appear; the sale appears in the Sales Report and on Home. |
+
+| Field | Add to basket (UC-08) |
+|---|---|
+| **Function** | Add product to basket |
+| **Description** | Adds a quantity of one product (with serving and add-ons for drinks) to the basket. |
+| **Inputs** | Product id; quantity (default 1); serving id; add-on ids. |
+| **Source** | Menu tile, drink window or product list on New Sale. |
+| **Outputs** | Updated basket; New Sale page. |
+| **Destination** | Session (the browser's basket). |
+| **Action** | Refuse unknown products, quantities below 1, servings or add-ons not offered. Work out what can still be sold (stock − basket, or what the ingredients allow). If enough, add to the line with the same product + options; otherwise show "only N more can be added". |
+| **Requires** | A logged-in user. |
+| **Pre-condition** | The product exists and is in stock. |
+| **Post-condition** | Basket quantity of the line increased by the quantity; nothing saved in the database. |
+| **Side effects** | The "left" count on the tile goes down. |
+
+| Field | Restock an ingredient (UC-15) |
+|---|---|
+| **Function** | Restock ingredient |
+| **Description** | Adds a delivery to an ingredient's stock. |
+| **Inputs** | Ingredient id; amount received. |
+| **Source** | Admin, from the Update window or the ingredient's page. |
+| **Outputs** | Higher stock; one history line; message "Added … of …". |
+| **Destination** | Database; Ingredients page (back at the same row). |
+| **Action** | Refuse amounts that are not numbers, 0 or less, or above 1,000,000. Otherwise add the amount in one database step (so a sale at the same moment is never overwritten) and write a *restock* history line with the user. |
+| **Requires** | A logged-in admin; CSRF token. |
+| **Pre-condition** | The ingredient exists. |
+| **Post-condition** | Quantity(after) = quantity(before) + amount. |
+| **Side effects** | The Low/Out badge and the Home warning may disappear. |
+
+| Field | Log in (UC-02) |
+|---|---|
+| **Function** | Log in |
+| **Description** | Lets a user into the system. |
+| **Inputs** | Username; password; CSRF token. |
+| **Source** | Login form. |
+| **Outputs** | Logged-in session, or an error message. |
+| **Destination** | Browser (session cookie, HttpOnly, SameSite=Lax). |
+| **Action** | If this username has 5 wrong passwords from this computer in the last 5 minutes, refuse (429). Otherwise compare the password with the stored hash; if correct, reset the count and log in; if wrong, add a failure and show "Invalid username or password". |
+| **Requires** | A user account. |
+| **Pre-condition** | The user is not locked out. |
+| **Post-condition** | The user is logged in, or the failure count went up by 1. |
+| **Side effects** | None (the basket is emptied on logout, UC-03). |
+
+### 11.6 Tabular computation *(item 9, L4 p. 45)*
+
+Like the insulin pump's *CompDose* table: **condition** on the left, **action** on the right.
+
+**Change for a cash payment** (`complete_sale`)
+
+| Condition | Action |
+|---|---|
+| cash is not a number, `nan` or infinity | Refuse: "Cash received must be a number…" |
+| cash < total | Refuse; change preview shows "Not enough cash" |
+| cash > ₱1,000,000 | Refuse |
+| total ≤ cash ≤ ₱1,000,000 | change = round(cash − total, 2); save the sale |
+
+**What can still be added to the basket** (`show_sale_page`, `can_make`)
+
+| Condition | Action |
+|---|---|
+| Product has no recipe | available = product quantity − quantity already in the basket |
+| Product has a recipe | available = min over its ingredients of ⌊(on hand − basket needs) ÷ amount per item⌋ |
+| requested quantity ≤ available | Add to the basket |
+| requested quantity > available | Refuse: "only *available* more can be added" (or names the missing ingredient) |
+
+**Status of an ingredient** (`stock_status`)
+
+| Condition | Action |
+|---|---|
+| on hand ≤ 0 | Status *Out*: red badge, first in *Needs attention* |
+| 0 < on hand ≤ warn at | Status *Low*: amber badge, in *Needs attention* |
+| on hand > warn at | Status *OK* |
+| full > 0 | Stock bar = min(100, on hand ÷ full × 100) % |
+| full = 0 | No bar ("No full level set") |
+
+**Price of a drink line** (`read_line`)
+
+| Condition | Action |
+|---|---|
+| Product has no options | unit price = product price |
+| Drink with serving *s* and add-ons *a₁…aₙ* | unit price = product price + price(s) + Σ price(aᵢ) |
+| Any chosen option hidden or unknown | Take the line out of the basket with a message |
+| Line total | subtotal = unit price × quantity (rounded to centavos) |
+
+**Login attempt limit** (`login`)
+
+| Condition | Action |
+|---|---|
+| failures for (username, computer) in the last 5 minutes ≥ 5 | Refuse with 429 "Too many failed attempts" |
+| password correct | Log in; clear the failures |
+| password wrong | Add a failure with the current time; show "Invalid username or password" |
+
+### 11.7 Detailed scenarios *(item 10, L4 p. 62–63)*
+
+In the form of Sommerville's "collecting medical history" scenario.
+
+**Scenario 1: A morning sale paid by GCash**
+
+| | |
+|---|---|
+| **Initial assumption** | The café is open. Juan (cashier) is logged in on the counter laptop. Milk, beans and pastries are in stock. |
+| **Normal** | A customer orders an iced café latte with oat milk and a butter croissant. Juan opens **New Sale**, taps *Cafe Latte*, chooses **Iced** and **Sub Oat** (the button shows *Add 1 · ₱180.00*) and taps the croissant. The basket shows both lines and the total. The customer pays with GCash; Juan taps **GCash**, types the 13-digit reference from the customer's screen and taps **Complete Sale**. The receipt shows "Paid by GCash" and the reference; Juan prints it. |
+| **What can go wrong** | The reference has 12 digits or was already used: the sale is refused with a message and Juan asks the customer to show the receipt again. The oat milk ran out between adding and paying (another till): the whole sale is cancelled with "was just used up" and Juan takes the line out. The Wi-Fi is down: the system still works on the laptop (only the look depends on the internet until offline files are added). |
+| **Other activities** | Other cashiers can sell at the same time; stock is protected by atomic updates. |
+| **System state on completion** | A new Sale with 2 SaleItems; croissant stock −1; beans −18 g, oat milk −200 ml, ice −150 g, iced cups −1; history lines linked to the receipt; the sale appears in today's report and on Home. |
+
+**Scenario 2: Receiving a milk delivery**
+
+| | |
+|---|---|
+| **Initial assumption** | Maria (admin) is logged in. Home shows "2 ingredients running low". |
+| **Normal** | Maria clicks the warning; Ingredients opens filtered to *Low or out*. She clicks **Update** on Fresh milk, taps *Fill up to full (+2,160)* (or types what was delivered) and **Add to stock**. The page comes back to the Fresh milk row, now green. |
+| **What can go wrong** | She types letters or 0: refused with a message. She restocks the wrong ingredient: she uses **Count** to set the real amount; both changes stay in the history. |
+| **Other activities** | Sales continue during the restock; the restock adds in one database step, so no sale is lost. |
+| **System state on completion** | Fresh milk increased; one *restock* history line with Maria's name; the warning disappears when nothing is low. |
+
+**Scenario 3: Closing time**
+
+| | |
+|---|---|
+| **Initial assumption** | The café is closing; Maria is logged in. |
+| **Normal** | Maria opens **Sales Report** (today by default) and reads revenue split into cash and GCash, number of sales, items sold and the top 5 products. She counts the cash drawer and compares it with the cash figure. On **Ingredients** she uses **Count** for the milk and cream left in the fridge. She logs out, which empties any basket. |
+| **What can go wrong** | The cash in the drawer differs from the report: she opens the receipts listed in the report to find the sale. A count differs a lot from the system: the history shows each sale and change to explain it. |
+| **Other activities** | A cashier may still be finishing a sale; the report includes it after it is saved. |
+| **System state on completion** | Ingredient counts saved with their differences in the history; no user logged in. |
+
+---
+
+## 12. System models (Lecture 5, report items 12–25), in progress
+
+### 12.1 Context model *(item 12, L5 p. 10)*
+
+The context model shows the system (middle) and the other systems and devices around it. It answers *"where does
+our system end?"*: the database and picture files belong to it; the browser, printer, GCash, supplier, GitHub and the
+CDN are outside it.
+
+![Context model](diagrams/context_diagram.png)
+
+*Source: `diagrams/context_diagram.puml` (editable: paste into draw.io → Arrange → Insert → Advanced → PlantUML).*
+
+> **Why GCash and the supplier are dashed:** the system does not talk to them directly. A person reads the GCash
+> reference or the delivery note and types it in. A direct GCash connection would need a merchant account (see
+> known limitations).

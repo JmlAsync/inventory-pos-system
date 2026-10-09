@@ -1,4 +1,4 @@
-"""Light / dark switch (feature F11, v0.13.0; icon-only since v0.19.1, test cases TC-12.x)."""
+"""Light / dark switch (feature F11, v0.13.0; icon-only since v0.19.1) and the avatar menu beside it (v0.19.2), test cases TC-12.x."""
 import re
 from helpers import check, finish, make_users, text
 from app import app
@@ -30,4 +30,9 @@ html = pages['products (logged in)']
 footer = html[html.find('side-footer-row'):html.find('</aside>')]
 check('logged in: the icon sits in the same row as the user chip, after it', 'user-chip' in footer and footer.find('user-chip') < footer.find('js-theme-toggle'))
 check('the tooltip text is set by the page script ("Switch to dark mode")', "'Switch to dark mode'" in html and "setAttribute('title'" in html)
+menu = re.search(r'<ul class="dropdown-menu[^"]*"', html).group(0)
+check('avatar menu is not squeezed to the name button\'s width (DEF-46, v0.19.2)', 'user-menu' in menu and 'w-100' not in menu)
+css = open('static/css/theme.css', encoding='utf-8').read()
+check('avatar menu grows to fit its longest line, each line on one line (DEF-46)',
+      re.search(r'\.user-menu \{[^}]*min-width: 100%;[^}]*width: max-content;', css) is not None and 'white-space: nowrap' in css.split('.user-menu')[-1])
 finish('THEME')

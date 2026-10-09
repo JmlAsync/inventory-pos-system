@@ -172,7 +172,7 @@ body {
 .side-link:hover { background: var(--app-accent-soft); color: var(--app-text); }
 .side-link.active { background: var(--app-accent-soft); color: var(--app-accent); font-weight: 600; }
 
-/* Bottom of the sidebar: theme switch and the avatar menu */
+/* Bottom of the sidebar: the avatar menu and the theme switch */
 .side-footer { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--app-border); }
 .user-chip {
     display: flex;
@@ -190,7 +190,7 @@ body {
 .user-chip .user-name { font-weight: 600; line-height: 1.2; }
 .user-chip .user-role { font-size: 0.78rem; color: var(--app-muted); }
 
-/* Light/dark switch: shows a moon in light mode and a sun in dark mode */
+/* Light/dark switch (v0.13.0; icon only since v0.19.1: a sun in the light theme, a moon in the dark theme) */
 .theme-toggle {
     display: flex;
     align-items: center;
@@ -222,6 +222,10 @@ body {
 .side-footer-row { display: flex; align-items: center; gap: 0.5rem; }
 .side-footer-row .dropup { flex: 1 1 auto; min-width: 0; }
 .side-footer-row .theme-toggle { margin-left: auto; }
+/* Avatar menu (v0.19.2, DEF-46): since v0.19.1 the name button is narrower (the theme icon shares its row),
+   so the menu may not be limited to the button's width: it grows to fit its longest line, on one line each */
+.user-menu { min-width: 100%; width: max-content; }
+.user-menu .dropdown-item, .user-menu .dropdown-item-text { white-space: nowrap; }
 
 /* Round initials when a user has no picture yet (v0.12.0 avatar) */
 .avatar-initials { background: var(--app-accent); color: var(--app-accent-contrast); }

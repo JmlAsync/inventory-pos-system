@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.19.1** (2026-10-09). Versions v0.8.2–v0.19.1 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.19.2** (2026-10-09). Versions v0.8.2–v0.19.2 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -97,6 +97,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.18.0–v0.18.2 | Ingredients page redesign: groups, search, stock bars, Update window, History tab (+ keep-your-place patch) | Yes: easier to find and update an ingredient |
 | v0.19.0 | Project rules for people and AI assistants (AGENTS.md), automatic tests inside the repository, GitHub checks on every pull request | Yes: 333 checks run with one command |
 | v0.19.1 | Patch: the light/dark switch is just an icon showing the current theme (sun = light, moon = dark) | Yes |
+| v0.19.2 | Patch: avatar menu wide enough for its words again (DEF-46, side effect of v0.19.1) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -187,6 +188,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-09 | — | Documentation: Lecture 5 system models, 35 UML diagrams *(pull request #48, no tag)* |
 | v0.19.0 | 2026-10-09 | `cf2894e` | AGENTS.md rules, automated tests in `tests/` and GitHub checks on every pull request *(pull request #49)* |
 | v0.19.1 | 2026-10-09 | `b6b9090` | Light/dark switch is an icon only: sun in the light theme, moon in the dark theme, beside the user's name *(pull request #50)* |
+| v0.19.2 | 2026-10-09 | `57527bb` | Avatar menu grows to fit its words; each line on one line (DEF-46) *(pull request #51)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -627,6 +629,7 @@ anyone merges.
 | TC-12.10 | Light theme, logged in | Look at the bottom of the sidebar; hover the icon; click it; reload | Only a sun icon (no words) beside the user's name, tooltip "Switch to dark mode"; after the click a moon and "Switch to light mode"; still dark after reload | **v0.19.0:** a wide button with the words "Dark mode" · **v0.19.1:** as expected | ✅ |
 | TC-12.11 | Login page and phone (390 px) | Look at the switch; tap it | Same icon rule (sun = light, moon = dark), 40 × 40 px, works on the phone menu | As expected | ✅ |
 | TC-12.12 | Screen reader user | Read the switch's label | "Switch to dark mode" / "Switch to light mode" (the icon alone would say nothing) | As expected | ✅ |
+| TC-12.13 | Logged in (100 %, 110 %, 125 % text size; phone) | Open the avatar menu | Every line fits inside the menu, "Signed in as Admin" on one line | **v0.19.1:** "Change picture" and "Change password" ran past the menu's right edge (menu squeezed to 167 px) · **v0.19.2:** fits at every size (209 px at 100 %) | ❌→✅ DEF-46 |
 
 
 #### Screenshots: modern theme (v0.13.0) *(taken by Claude, 2026-10-09)*
@@ -640,6 +643,7 @@ anyone merges.
 | S18 | TC-12.8: "Please log in" as a blue info box | ![Login message](screenshots/v0.13.0_TC-12.8_login_message.png) |
 | S43 | TC-12.10 (v0.19.1): the switch beside the user's name, sun in the light theme (left, with its hover border) and moon in the dark theme (right) | ![Theme icon](screenshots/v0.19.1_TC-12.10_theme_icon.png) |
 | S44 | TC-12.11 (v0.19.1): the same icon on the login page and in the phone menu | ![Login and phone](screenshots/v0.19.1_TC-12.11_login_and_phone.png) |
+| S45 | TC-12.13: avatar menu in v0.19.1 (left: words run past the edge), v0.19.2 (middle) and v0.19.2 with 125 % text (right) | ![Avatar menu width](screenshots/v0.19.2_TC-12.13_avatar_menu_width.png) |
 
 ### F12 — Security patches *(v0.13.1–v0.13.5)*
 
@@ -893,8 +897,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_ingredients_page.py` | F17 / TC-18.x | 34 |
 | `test_number_boxes.py` | DEF-43, 5 pages | 5 |
 | `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
-| `test_theme.py` | F11 / TC-12.10–12.12 (v0.19.1): icon-only switch on 3 pages, label, position | 14 |
-| **17 files** | | **347 checks + 53 rule checks** |
+| `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
+| **17 files** | | **349 checks + 53 rule checks** |
 
 ### Test summary (v0.7.0 → v0.19.0)
 
@@ -912,7 +916,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F9 Sales report | 10 | 8 → **10** | 2 → **0** | 0 |
 | Demo data | 4 | 2 → **4** | 2 → **0** | 0 |
 | F10 Profile picture | 11 | 11 | 0 | 0 |
-| F11 Modern theme | 12 | 10 → **12** | 2 → **0** | 0 |
+| F11 Modern theme | 13 | 10 → **13** | 3 → **0** | 0 |
 | F12 Security | 14 | 8 → **14** | 6 → **0** | 0 |
 | F13 Pictures + café | 19 | 13 → **19** | 6 → **0** | 0 |
 | F14 Payment method | 10 | 10 | 0 | 0 |
@@ -920,7 +924,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
 | F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
 | F18 Rules + automated tests | 14 | 13 | 0 | 1 |
-| **Total** | **210** | **162 → 207** | **44 → 0** | **4 → 3** |
+| **Total** | **211** | **162 → 208** | **45 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -979,6 +983,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-43 | Medium | Number boxes were filled with "2,000", which a number box can't read, so they showed up empty; the Edit form of Fresh milk (warn at 2,000 ml) could not be saved | Screenshot review while redesigning (TC-18.1) | `plain_amount` filter (no separator) for every number box | ✅ Fixed v0.17.4 |
 | DEF-44 | Low (usability) | After each Restock / Count / Edit the list reloaded at the top with the search and filter cleared | v0.18.x stabilization (TC-18.12) | Return to the row (`#ing-<id>`), remember search and filter for the tab | ✅ Fixed v0.18.1 |
 | DEF-45 | Low (cosmetic) | In the Products table SKUs broke after the dash ("HC-" / "001") and "100 can make" took two lines | Screenshot review for the documentation (TC-18.15) | SKU and count cells keep their text on one line | ✅ Fixed v0.18.2 |
+| DEF-46 | Low (cosmetic) | Avatar menu: "Change picture" and "Change password" ran past the menu's right edge and "Signed in as Admin" took two lines. Side effect of v0.19.1: the menu was set to the name button's width (`w-100`), and the button became narrower when the theme icon moved into its row | Hand testing by Yesha (screenshot), confirmed by measuring in Chromium at 100 %, 110 %, 125 % and phone width (TC-12.13) | Menu is at least the button's width but grows to fit its longest line (`min-width: 100%; width: max-content`), lines never wrap | ✅ Fixed v0.19.2 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1327,7 +1332,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 (210 cases), screenshots S1–S44 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 (211 cases), screenshots S1–S45 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1367,7 +1372,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 49 pull requests, one branch per version, tags v0.7.1–v0.19.1, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 49 pull requests, one branch per version, tags v0.7.1–v0.19.2, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

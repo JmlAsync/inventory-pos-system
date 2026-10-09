@@ -85,7 +85,8 @@
                         </span>
                         <i class="bi bi-three-dots-vertical text-body-secondary" aria-hidden="true"></i>
                     </button>
-                    <ul class="dropdown-menu w-100">
+                    {# user-menu (v0.19.2): at least as wide as the name button, wider when the words need it (DEF-46) #}
+                    <ul class="dropdown-menu user-menu">
                         <li><span class="dropdown-item-text small text-body-secondary">Signed in as {{ current_user.role|capitalize }}</span></li>
                         <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-camera" aria-hidden="true"></i>Change picture</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('profile') }}#password"><i class="bi bi-key" aria-hidden="true"></i>Change password</a></li>

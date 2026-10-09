@@ -186,7 +186,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-09 | — | Documentation: requirements chapter (Lecture 4) and context model *(pull request #47, no tag)* |
 | — | 2026-10-09 | — | Documentation: Lecture 5 system models, 35 UML diagrams *(pull request #48, no tag)* |
 | v0.19.0 | 2026-10-09 | `cf2894e` | AGENTS.md rules, automated tests in `tests/` and GitHub checks on every pull request *(pull request #49)* |
-| v0.19.1 | 2026-10-09 | `COMMIT` | Light/dark switch is an icon only: sun in the light theme, moon in the dark theme, beside the user's name *(pull request #50)* |
+| v0.19.1 | 2026-10-09 | `b6b9090` | Light/dark switch is an icon only: sun in the light theme, moon in the dark theme, beside the user's name *(pull request #50)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*

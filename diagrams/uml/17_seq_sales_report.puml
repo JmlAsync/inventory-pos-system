@@ -1,0 +1,53 @@
+@startuml
+' Sequence: view the sales report - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Admin
+participant "Sales Report page\n(browser)" as UI
+participant "sales_report()\n(app.py)" as C
+database "Database" as DB
+Admin -> UI : opens Sales Report, picks From / To
+UI -> C : GET /reports/sales?start=...&end=...
+C -> C : admin? dates real and between 2000 and 2100?
+C -> DB : sales from start of first day to end of last day
+DB --> C : sales with items
+C -> C : revenue (cash / GCash), items sold,\ntop 5 products grouped by product
+C --> UI : summary cards, top products, all sales
+@enduml

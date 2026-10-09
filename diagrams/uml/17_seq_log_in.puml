@@ -1,0 +1,65 @@
+@startuml
+' Sequence: log in - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor User
+participant "Login page\n(browser)" as UI
+participant "login()\n(app.py)" as C
+participant "failed_logins\n(memory)" as L
+database "User table" as DB
+User -> UI : types username and password
+UI -> C : POST /login (+ CSRF token)
+C -> C : check CSRF token
+C -> L : recent failures for (username, computer)?
+alt 5 or more in 5 minutes
+  C --> UI : 429 "Too many failed attempts"
+else fewer than 5
+  C -> DB : find user by username
+  DB --> C : user (or none)
+  C -> C : check_password_hash()
+  alt correct
+    C -> L : clear failures
+    C --> UI : log in, redirect to Products
+  else wrong
+    C -> L : add a failure (time)
+    C --> UI : "Invalid username or password"
+  end
+end
+@enduml

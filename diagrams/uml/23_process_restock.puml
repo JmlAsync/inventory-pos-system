@@ -1,0 +1,63 @@
+@startuml
+' Application process: keeping ingredients stocked - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+|System|
+start
+:Sales use up ingredients;
+:Marks ingredients Low / Out;
+:Shows the warning on Home;
+|Admin|
+:Opens Ingredients (Low or out);
+:Counts the shelf;
+|System|
+:Count: sets the real amount,\nwrites the difference to history;
+|Admin|
+:Orders what is missing\n(Full - on hand);
+|Supplier|
+:Delivers the order;
+|Admin|
+:Restock: types the amount received;
+|System|
+:Adds it in one database step;
+:Writes the restock to history;
+:Clears the warning;
+stop
+@enduml

@@ -1,0 +1,59 @@
+@startuml
+' Sequence: restock an ingredient - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Admin
+participant "Ingredients page\n(browser)" as UI
+participant "ingredients()\n(app.py)" as C
+database "Database" as DB
+Admin -> UI : Update on Oat milk
+UI -> UI : opens the Update window (Restock)
+Admin -> UI : types 1000 (or Fill up to full), Add to stock
+UI -> C : POST /ingredients (action=restock, id, amount, CSRF)
+C -> C : admin? token? amount is a number > 0?
+alt not valid
+  C --> UI : message, nothing changed
+else valid
+  C -> DB : UPDATE ingredient SET quantity = quantity + amount
+  C -> DB : INSERT history line (restock, user, time)
+  C -> DB : COMMIT
+  C --> UI : back at the Oat milk row, "Added 1000 ml"
+end
+@enduml

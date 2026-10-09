@@ -1,0 +1,63 @@
+@startuml
+' Aggregation and composition - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+class Sale
+class SaleItem
+Sale "1" *-- "1..*" SaleItem : composition
+class "Recipe of a product" as Recipe
+class RecipeItem
+Recipe "1" o-- "0..*" RecipeItem : aggregation
+class Ingredient
+RecipeItem "0..*" --> "1" Ingredient : uses
+class "Basket (session)" as Basket
+class "Basket line" as Line
+Basket "1" o-- "0..*" Line : aggregation
+class Product
+Line --> "1" Product
+class MenuOption
+Line --> "0..*" MenuOption : serving + add-ons
+note right of Sale
+  Filled diamond: a SaleItem cannot exist
+  without its Sale (it is part of the receipt).
+  Hollow diamond: the parts exist on their own
+  (an ingredient exists without any recipe).
+end note
+@enduml

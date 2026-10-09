@@ -1,0 +1,56 @@
+@startuml
+' State diagram: stock of an ingredient - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+[*] --> OK
+OK : on hand > warn at
+Low : 0 < on hand <= warn at
+Out : on hand = 0
+OK --> Low : sale or count goes to warn at or below
+Low --> OK : restock or count above warn at
+Low --> Out : sale or count reaches 0
+Out --> Low : restock / count, still at or below warn at
+Out --> OK : restock / count above warn at
+OK --> Out : count = 0
+note right of Out
+  Drinks that need it can't be added
+  to a basket ("Not enough ...").
+end note
+@enduml

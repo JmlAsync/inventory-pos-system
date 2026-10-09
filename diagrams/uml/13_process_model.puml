@@ -1,0 +1,76 @@
+@startuml
+' Process model of a sale at the counter - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+|Customer|
+start
+:Orders drinks and pastries;
+|Cashier|
+:Taps each product on New Sale;
+:Chooses Hot / Iced and add-ons for drinks;
+|System|
+:Checks stock and ingredients;
+if (Enough?) then (yes)
+  :Adds the line to the basket;
+else (no)
+  :Shows "only N more" / names the missing ingredient;
+  |Cashier|
+  :Tells the customer, changes the order;
+  |System|
+endif
+|Customer|
+:Pays by cash or GCash;
+|Cashier|
+if (Payment?) then (cash)
+  :Types the cash received;
+else (GCash)
+  :Types the 13-digit reference;
+endif
+:Taps Complete Sale;
+|System|
+:Checks everything again;
+:Saves the sale, lowers stock and ingredients (one transaction);
+:Shows the receipt;
+|Cashier|
+:Prints the receipt, gives change;
+|Customer|
+:Receives order and receipt;
+stop
+@enduml

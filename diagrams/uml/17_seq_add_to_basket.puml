@@ -1,0 +1,64 @@
+@startuml
+' Sequence: add a drink to the basket - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Cashier
+participant "New Sale page\n(browser)" as UI
+participant "new_sale()\n(app.py)" as C
+participant "Recipes / can_make()" as R
+participant "Basket\n(session)" as S
+database "Database" as DB
+Cashier -> UI : taps a drink tile
+UI -> UI : opens the drink window
+Cashier -> UI : chooses Iced + Sub Oat, quantity 1
+UI -> C : POST /sales/new (product, serving, add-ons, quantity)
+C -> DB : product, serving and add-ons offered?
+DB --> C : yes
+C -> S : what is already in the basket?
+C -> R : ingredients needed for basket + this line
+R -> DB : ingredients on hand
+R --> C : enough / short (which ingredient)
+alt enough
+  C -> S : add to the line "product:serving:add-ons"
+  C --> UI : New Sale with the basket updated
+else short
+  C --> UI : "Not enough Fresh milk ..." (nothing added)
+end
+@enduml

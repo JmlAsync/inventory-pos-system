@@ -1,0 +1,59 @@
+@startuml
+' UML classes and associations - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+class User
+class Sale
+class SaleItem
+class Product
+class MenuOption
+class RecipeItem
+class Ingredient
+class IngredientMovement
+User "1" -- "0..*" Sale : makes >
+Sale "1" -- "1..*" SaleItem : contains >
+Product "1" -- "0..*" SaleItem : sold as >
+Product "1" -- "0..*" RecipeItem : recipe >
+MenuOption "1" -- "0..*" RecipeItem : recipe >
+Ingredient "1" -- "0..*" RecipeItem : used in >
+Ingredient "1" -- "0..*" IngredientMovement : history >
+Sale "0..1" -- "0..*" IngredientMovement : causes >
+User "0..1" -- "0..*" IngredientMovement : records >
+@enduml

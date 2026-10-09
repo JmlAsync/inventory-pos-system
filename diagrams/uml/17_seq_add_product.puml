@@ -1,0 +1,58 @@
+@startuml
+' Sequence: add a product with a picture - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Admin
+participant "Add Product page\n(browser)" as UI
+participant "add_product()\n(app.py)" as C
+participant "Picture helpers" as P
+database "Database" as DB
+Admin -> UI : fills in name, SKU, price, quantity, picture
+UI -> C : POST /products/add (multipart, CSRF)
+C -> C : validate_product_form()
+C -> P : read_uploaded_picture(): PNG/JPG/WebP? <= 2 MB?
+alt invalid field or picture
+  C --> UI : form again with a message
+else valid
+  C -> P : save_picture() with a random name
+  C -> DB : INSERT product, COMMIT
+  C --> UI : redirect to Products
+end
+@enduml

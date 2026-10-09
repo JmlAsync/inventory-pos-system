@@ -1,0 +1,123 @@
+@startuml
+' Class model with attributes and operations - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+class User {
+  id : int
+  username : str
+  password_hash : str
+  role : str  (admin / cashier)
+  avatar : str
+  --
+  initials() : str
+}
+class Product {
+  id : int
+  name : str
+  sku : str  (unique)
+  price : float
+  quantity : int
+  category : str
+  image : str
+  has_options : bool
+}
+class Sale {
+  id : int
+  created_at : datetime
+  user_id : int
+  total : float
+  cash_received : float
+  change_due : float
+  payment_method : str  (cash / gcash)
+  payment_reference : str  (unique)
+}
+class SaleItem {
+  id : int
+  sale_id : int
+  product_id : int
+  product_name : str
+  unit_price : float
+  quantity : int
+  options : str
+  --
+  subtotal() : float
+}
+class MenuOption {
+  id : int
+  kind : str  (size = serving / addon)
+  name : str
+  price : float
+  active : bool
+  sort_order : int
+  scale : float
+}
+class Ingredient {
+  id : int
+  name : str
+  unit : str  (g / ml / pcs)
+  quantity : float
+  low_at : float
+  category : str
+  full_at : float
+}
+class RecipeItem {
+  id : int
+  ingredient_id : int
+  product_id : int
+  option_id : int
+  amount : float
+}
+class IngredientMovement {
+  id : int
+  ingredient_id : int
+  change : float
+  reason : str  (sale / restock / count)
+  sale_id : int
+  user_id : int
+  created_at : datetime
+}
+User "1" -- "0..*" Sale
+Sale "1" *-- "1..*" SaleItem
+Product "1" -- "0..*" SaleItem
+Ingredient "1" -- "0..*" RecipeItem
+Product "1" -- "0..*" RecipeItem
+MenuOption "1" -- "0..*" RecipeItem
+Ingredient "1" -- "0..*" IngredientMovement
+@enduml

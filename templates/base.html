@@ -72,10 +72,8 @@
             {% endif %}
 
             <div class="side-footer">
-                <button type="button" class="theme-toggle js-theme-toggle" aria-label="Switch between light and dark theme">
-                    <i class="bi bi-moon-stars when-light" aria-hidden="true"></i><span class="when-light">Dark mode</span>
-                    <i class="bi bi-sun when-dark" aria-hidden="true"></i><span class="when-dark">Light mode</span>
-                </button>
+                {# One row: avatar menu on the left, theme icon on the right (v0.19.1) #}
+                <div class="side-footer-row">
                 {% if current_user.is_authenticated %}
                 {# Avatar menu (v0.12.0), now a "dropup" at the bottom of the sidebar #}
                 <div class="dropup">
@@ -102,6 +100,12 @@
                     </ul>
                 </div>
                 {% endif %}
+                {# Theme switch (v0.19.1): only an icon showing the CURRENT theme, sun = light, moon = dark.
+                   The words for screen readers and the hover tooltip are filled in by the script below. #}
+                <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
+                    <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
+                </button>
+                </div>
             </div>
         </div>
     </aside>
@@ -130,13 +134,24 @@
     // Light/dark switch and printing (v0.13.0)
     (function () {
         var root = document.documentElement;
-        document.querySelectorAll('.js-theme-toggle').forEach(function (button) {
+        var toggles = document.querySelectorAll('.js-theme-toggle');
+        // The icon shows the current theme, so the tooltip says what a click will do (v0.19.1)
+        function describeToggles() {
+            var label = root.getAttribute('data-bs-theme') === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+            toggles.forEach(function (button) {
+                button.setAttribute('aria-label', label);
+                button.setAttribute('title', label);
+            });
+        }
+        toggles.forEach(function (button) {
             button.addEventListener('click', function () {
                 var next = root.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
                 root.setAttribute('data-bs-theme', next);
                 try { localStorage.setItem('pos-theme', next); } catch (e) {}
+                describeToggles();
             });
         });
+        describeToggles();
         // Receipts and reports always print in the light theme (saves ink, reads better on paper)
         var themeBeforePrint = null;
         window.addEventListener('beforeprint', function () {

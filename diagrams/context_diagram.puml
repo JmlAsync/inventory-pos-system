@@ -1,0 +1,36 @@
+@startuml
+' Context model - Inventory & POS System (v0.18.2), Lecture 5 p. 10 style
+' The system in the middle; the other systems and devices it works with around it.
+' Paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com to edit.
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+  RoundCorner 8
+}
+left to right direction
+
+rectangle "Web browser\n(laptop or phone)" as Browser
+rectangle "Receipt printer\n(through the browser)" as Printer
+rectangle "GCash e-wallet\n(customer's phone)" as GCash
+rectangle "Inventory & POS\nSystem" as POS #E6F1EE
+rectangle "SQLite database\n(products, sales,\ningredients, users)" as DB
+rectangle "Picture files\n(products, avatars)" as Files
+rectangle "Supplier\n(deliveries)" as Supplier
+rectangle "GitHub\n(code and versions)" as GitHub
+rectangle "CDN\n(Bootstrap, icons, font)" as CDN
+
+Browser -- POS
+Printer -- POS
+GCash .. POS : reference number\n(typed by cashier)
+POS -- DB
+POS -- Files
+Supplier .. POS : restock\n(typed by admin)
+GitHub .. POS : source code
+CDN -- POS
+legend right
+  Solid line: connected directly
+  Dashed line: information typed in by a person
+endlegend
+@enduml

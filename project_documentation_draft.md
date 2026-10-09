@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.18.2** (2026-10-09). Versions v0.8.2–v0.18.2 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.19.0** (2026-10-09). Versions v0.8.2–v0.19.0 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -95,6 +95,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.17.0–v0.17.3 | Ingredients, recipes and ingredient history (+ deleted-product recipe patch, Hot / Iced wording, demo sales fix) | Yes: drinks are limited by milk and beans on hand |
 | v0.17.4 | Patch: number boxes without thousands separators | Yes |
 | v0.18.0–v0.18.2 | Ingredients page redesign: groups, search, stock bars, Update window, History tab (+ keep-your-place patch) | Yes: easier to find and update an ingredient |
+| v0.19.0 | Project rules for people and AI assistants (AGENTS.md), automatic tests inside the repository, GitHub checks on every pull request | Yes: 333 checks run with one command |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -180,6 +181,10 @@ The tag message summarizes what the increment added.
 | v0.18.1 | 2026-10-09 | `11e33e7` | Ingredients page keeps the search, filter and row after an update *(pull request #43)* |
 | — | 2026-10-09 | — | Documentation update for v0.17.4–v0.18.1 *(pull request #44, no tag)* |
 | v0.18.2 | 2026-10-09 | `4f1ca90` | Products table keeps SKUs and stock counts on one line *(pull request #45)* |
+| — | 2026-10-09 | — | Documentation: screenshots and how Claude tested *(pull request #46, no tag)* |
+| — | 2026-10-09 | — | Documentation: requirements chapter (Lecture 4) and context model *(pull request #47, no tag)* |
+| — | 2026-10-09 | — | Documentation: Lecture 5 system models, 35 UML diagrams *(pull request #48, no tag)* |
+| v0.19.0 | 2026-10-09 | `cf2894e` | AGENTS.md rules, automated tests in `tests/` and GitHub checks on every pull request *(pull request #49)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -352,6 +357,15 @@ Cups & packaging. Each row shows a bar of how full the shelf is, with a mark at 
 the search box, clicks **Update** on Oat milk, and a small window opens on **Restock**; she taps *Fill up to full
 (+2,000)* and **Add to stock**. The page comes back to the Oat milk row with her search still there *(v0.18.1)*.
 Later she clicks **History** and filters to Cocoa powder to see last night's count.
+
+### Story F18 — Changing the system safely *(v0.19.0)*
+A classmate (or an AI coding assistant) is asked to add a "void a sale" button. Before writing any code they read
+**AGENTS.md**, which tells them the rules already decided for this project: every admin page needs `@admin_required`,
+every form needs the CSRF token, stock may only be subtracted with a safe conditional update, no new packages without
+approval, and every change needs a test. When they are done they type `python tests/run_tests.py`; in about 40
+seconds it checks those rules and runs 333 checks in a throw-away copy of the project, so the café's real database is
+never touched. When they open a pull request, GitHub runs the same checks and shows a green tick or a red cross before
+anyone merges.
 
 ---
 
@@ -802,7 +816,30 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 > change preview. Every version was also re-run against **all earlier tests** (regression). Hand checks and
 > screenshots by Yesha are still to do for the report.
 
-### How Claude tested v0.8.2 – v0.18.2
+### F18 — Project rules and automated tests *(v0.19.0)*
+
+**Mutation testing** (TC-19.5 to TC-19.13): to prove the tests really catch mistakes, Claude put **deliberate bugs**
+into a copy of the code, one at a time, and ran the tests. A test that still passes with a bug in the code is useless;
+each bug below was caught. "Expected result" here means *the tests fail* (red), which is the correct outcome.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-19.1 | v0.19.0 | `python tests/run_tests.py` | Contract check + 15 test files pass (333 checks), about 40 s | "All 16 passed" | ✅ |
+| TC-19.2 | Real project folder | `python tests/test_sales.py` (run a test file directly) | Refused: "Run the tests with: python tests/run_tests.py"; nothing created | As expected | ✅ |
+| TC-19.3 | Real `instance/inventory.db` and an uploaded picture | Run the tests | Database and picture byte-for-byte unchanged (sha1 compared) | Unchanged | ✅ |
+| TC-19.4 | New computer: empty virtual environment | `pip install -r requirements.txt`, then run the tests | Everything passes with only the listed packages | As expected | ✅ |
+| TC-19.5 | Copy of the code | Remove `Product.quantity >= quantity` from the stock update (race guard) | `test_race.py` fails (overselling) | Caught by test_race | ✅ |
+| TC-19.6 | Copy of the code | Remove the same guard for ingredients | Tests fail | Caught by test_race, test_ingredients | ✅ |
+| TC-19.7 | Copy of the code | Remove `@admin_required` from Add Product | Contract + tests fail (cashier could add products) | Caught by check_contract, test_products, test_product_pictures | ✅ |
+| TC-19.8 | Copy of the code | Delete the CSRF token from the login form | Contract + tests fail | Caught by check_contract, test_security | ✅ |
+| TC-19.9 | Copy of the code | Let number boxes show `2,000` again (DEF-43) | Tests fail | Caught by test_number_boxes, test_ingredients_page | ✅ |
+| TC-19.10 | Copy of the code | Login limit 50 tries instead of 5 | Tests fail | Caught by test_security | ✅ |
+| TC-19.11 | Copy of the code | Add `requests` to requirements.txt | Contract fails (D1: package not allowed) | Caught by check_contract | ✅ |
+| TC-19.12 | Copy of the code | Receipt shows the product's *current* name instead of the name at the time of sale | Tests fail (old receipts would change) | Caught by test_sales, test_payment, test_options | ✅ |
+| TC-19.13 | Copy of the code | Add a new page `/secret-export` without any login check | Contract fails: "new page is not listed" (S1) | As expected | ✅ |
+| TC-19.14 | Pull request #49 on GitHub | Open the pull request | "Checks" runs and shows a green tick | To confirm after publishing | ⏳ |
+
+### How Claude tested v0.8.2 – v0.19.0
 
 **Method.** Each version was built in a separate copy of the repository and tested before it was published:
 1. **Automated tests** with Flask's *test client* (it sends requests to the app like a browser, but from a script), on a
@@ -824,31 +861,33 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 Demo data for the screenshots used a fake clock (3:30 PM) so "today's sales" look like a normal afternoon, and a generic
 café menu; the real café's menu and photos stay on the student's computer only (`local_demo/`).
 
-**Automated suites (all passing on v0.18.2):**
+**Automated tests in the repository (since v0.19.0).** Until v0.18.2 these suites lived on Claude's test machine.
+From v0.19.0 they are in the project's `tests/` folder, so anyone can run them with one command:
+`python tests/run_tests.py`. Each file runs in a temporary copy of the project, so the real database is never touched.
+GitHub runs the same command on every pull request (`.github/workflows/checks.yml`). Browser tests (Chromium) are
+still run by Claude before each release; they are not in `tests/` because they need extra software (AGENTS.md T4).
 
-| Suite | Covers | Checks |
+| Test file | Covers | Checks |
 |---|---|---|
-| v0.7.1 regression | F1–F6: product forms, login, roles (31 requests, no server crash) | 31 |
-| Sale tests | F7: basket, cash and change, stock deduction, receipts | 28 |
-| Logout basket | DEF-09: basket emptied on logout | 1 |
-| Race scenarios + 20-cashier stress | DEF-13: no overselling, no lost updates | 3 + 2 |
-| Number limits | DEF-14: nan, infinity, huge numbers | 17 inputs |
-| Browser change preview | live change while typing, no JS errors | 2 |
-| Low stock | F8 | 7 |
-| Sales report | F9 | 10 |
-| Demo data (twice) | TC-10.2: the demo seed is safe to run again | 1 |
-| Profile picture | F10 / TC-11.x | 17 |
-| Security | F12 / TC-13.x | 38 |
-| Product pictures + menu | F13 / TC-14.x | 25 |
-| Payment | F14 / TC-15.x | 19 |
-| Servings and add-ons | F15 / TC-16.x | 34 |
-| Ingredients and recipes (+ 20-till stress test) | F16 / TC-17.x | 38 + 1 |
-| Demo data with recipes | DEF-42, both menus | 2 |
-| Ingredients page | F17 / TC-18.x | 34 |
-| Number boxes | DEF-43 | 1 scan of 4 pages |
-| **19 suites** | | **about 300 checks** |
+| `check_contract.py` | The AGENTS.md rules marked [checked]: every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 53 rule checks |
+| `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 34 |
+| `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
+| `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
+| `test_limits.py` | DEF-14, DEF-15, DEF-17: nan, infinity, huge numbers and ids, long text | 18 |
+| `test_low_stock.py` | F8, DEF-18 | 8 |
+| `test_report.py` | F9: dates, midnight, totals, top products | 11 |
+| `test_avatar.py` | F10 / TC-11.x | 17 |
+| `test_security.py` | F12 / TC-13.x: secret key, CSRF, login limit, headers, passwords | 38 |
+| `test_product_pictures.py` | F13 / TC-14.x | 25 |
+| `test_payment.py` | F14 / TC-15.x | 19 |
+| `test_options.py` | F15 / TC-16.x | 34 |
+| `test_ingredients.py` | F16 / TC-17.x | 38 |
+| `test_ingredients_page.py` | F17 / TC-18.x | 34 |
+| `test_number_boxes.py` | DEF-43, 5 pages | 5 |
+| `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
+| **16 files** | | **333 checks + 53 rule checks** |
 
-### Test summary (v0.7.0 → v0.18.2)
+### Test summary (v0.7.0 → v0.19.0)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -871,7 +910,8 @@ café menu; the real café's menu and photos stay on the student's computer only
 | F15 Servings + add-ons | 14 | 11 → **14** | 3 → **0** | 0 |
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
 | F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
-| **Total** | **193** | **146 → 191** | **44 → 0** | **3 → 2** |
+| F18 Rules + automated tests | 14 | 13 | 0 | 1 |
+| **Total** | **207** | **159 → 204** | **44 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -945,7 +985,8 @@ café menu; the real café's menu and photos stay on the student's computer only
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.18.2** (future increments):
+> **Known limitations after v0.19.0** (future increments):
+> - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
 > - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.
@@ -1277,7 +1318,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F17 (193 cases), screenshots S1–S42 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 (207 cases), screenshots S1–S42 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1317,7 +1358,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 46 pull requests, one branch per version, tags v0.7.1–v0.18.2
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 49 pull requests, one branch per version, tags v0.7.1–v0.19.0, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

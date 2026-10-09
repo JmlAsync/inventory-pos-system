@@ -1,0 +1,27 @@
+# GitHub Actions (v0.19.0): runs the AGENTS.md contract check and every test on each pull request
+# and on every push to main. The result shows as a green tick or a red cross on the pull request.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read   # the checks only read the code
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v6
+      - name: Install Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install the packages from requirements.txt
+        run: pip install -r requirements.txt
+      - name: Contract check and all tests
+        run: python tests/run_tests.py

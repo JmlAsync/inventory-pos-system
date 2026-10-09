@@ -1,0 +1,427 @@
+{
+ "_note": "Test menu for tests/test_seed.py: drinks use recipes (quantity 0), pastries use their own quantity. Generic names only (no real shop's data).",
+ "products": [
+  [
+   "Americano",
+   "HC-001",
+   110,
+   0,
+   "Coffee",
+   true,
+   null
+  ],
+  [
+   "Cafe Latte",
+   "HC-002",
+   140,
+   0,
+   "Coffee",
+   true,
+   "cup.png"
+  ],
+  [
+   "Cappuccino",
+   "HC-003",
+   140,
+   0,
+   "Coffee",
+   true,
+   null
+  ],
+  [
+   "Spanish Latte",
+   "HC-004",
+   155,
+   0,
+   "Coffee",
+   true,
+   null
+  ],
+  [
+   "Caramel Macchiato",
+   "HC-005",
+   170,
+   0,
+   "Coffee",
+   true,
+   null
+  ],
+  [
+   "Mocha",
+   "HC-006",
+   170,
+   0,
+   "Coffee",
+   true,
+   null
+  ],
+  [
+   "Matcha Latte",
+   "NC-001",
+   160,
+   0,
+   "Non-Coffee",
+   true,
+   null
+  ],
+  [
+   "Chocolate",
+   "NC-002",
+   130,
+   0,
+   "Non-Coffee",
+   true,
+   null
+  ],
+  [
+   "Butter Croissant",
+   "PA-001",
+   95,
+   5,
+   "Pastries",
+   false,
+   "not_a_picture.png"
+  ],
+  [
+   "Ensaymada",
+   "PA-002",
+   65,
+   12,
+   "Pastries",
+   false,
+   null
+  ],
+  [
+   "Chocolate Chip Cookie",
+   "PA-003",
+   60,
+   18,
+   "Pastries",
+   false,
+   null
+  ],
+  [
+   "Cinnamon Roll",
+   "PA-004",
+   110,
+   4,
+   "Pastries",
+   false,
+   null
+  ],
+  [
+   "Basque Burnt Cheesecake (slice)",
+   "CK-001",
+   180,
+   8,
+   "Cakes",
+   false,
+   null
+  ],
+  [
+   "Chocolate Cake (slice)",
+   "CK-002",
+   150,
+   3,
+   "Cakes",
+   false,
+   null
+  ]
+ ],
+ "sizes": [
+  [
+   "Hot",
+   0,
+   1.0
+  ],
+  [
+   "Iced",
+   0,
+   1.0
+  ]
+ ],
+ "addons": [
+  [
+   "Espresso",
+   30
+  ],
+  [
+   "Sub Oat",
+   40
+  ],
+  [
+   "Cold Foam",
+   30
+  ],
+  [
+   "Syrup",
+   20
+  ],
+  [
+   "0 Cal Sweetener",
+   5
+  ]
+ ],
+ "ingredients": [
+  [
+   "Espresso beans",
+   "g",
+   3000,
+   500,
+   "Coffee",
+   5000
+  ],
+  [
+   "Fresh milk",
+   "ml",
+   10000,
+   2000,
+   "Milk & cream",
+   12000
+  ],
+  [
+   "Oat milk",
+   "ml",
+   2000,
+   500,
+   "Milk & cream",
+   4000
+  ],
+  [
+   "Cream (for foam)",
+   "ml",
+   3000,
+   500,
+   "Milk & cream",
+   4000
+  ],
+  [
+   "Condensed milk",
+   "ml",
+   1500,
+   300,
+   "Milk & cream",
+   2000
+  ],
+  [
+   "Caramel sauce",
+   "ml",
+   1000,
+   200,
+   "Syrups & sauces",
+   1500
+  ],
+  [
+   "Chocolate sauce",
+   "ml",
+   1000,
+   200,
+   "Syrups & sauces",
+   1500
+  ],
+  [
+   "Simple syrup",
+   "ml",
+   1000,
+   200,
+   "Syrups & sauces",
+   2000
+  ],
+  [
+   "0 Cal sweetener sachets",
+   "pcs",
+   100,
+   20,
+   "Syrups & sauces",
+   200
+  ],
+  [
+   "Matcha powder",
+   "g",
+   50,
+   60,
+   "Toppings",
+   500
+  ],
+  [
+   "Cocoa powder",
+   "g",
+   500,
+   100,
+   "Toppings",
+   1000
+  ],
+  [
+   "Ice",
+   "g",
+   8000,
+   1500,
+   "Other",
+   10000
+  ],
+  [
+   "Hot cups",
+   "pcs",
+   100,
+   20,
+   "Cups & packaging",
+   200
+  ],
+  [
+   "Iced cups",
+   "pcs",
+   15,
+   20,
+   "Cups & packaging",
+   200
+  ]
+ ],
+ "recipes": {
+  "HC-001": [
+   [
+    "Espresso beans",
+    18
+   ]
+  ],
+  "HC-002": [
+   [
+    "Espresso beans",
+    18
+   ],
+   [
+    "Fresh milk",
+    200
+   ]
+  ],
+  "HC-003": [
+   [
+    "Espresso beans",
+    18
+   ],
+   [
+    "Fresh milk",
+    150
+   ],
+   [
+    "Cream (for foam)",
+    30
+   ]
+  ],
+  "HC-004": [
+   [
+    "Espresso beans",
+    18
+   ],
+   [
+    "Fresh milk",
+    180
+   ],
+   [
+    "Condensed milk",
+    20
+   ]
+  ],
+  "HC-005": [
+   [
+    "Espresso beans",
+    18
+   ],
+   [
+    "Fresh milk",
+    180
+   ],
+   [
+    "Caramel sauce",
+    20
+   ]
+  ],
+  "HC-006": [
+   [
+    "Espresso beans",
+    18
+   ],
+   [
+    "Fresh milk",
+    160
+   ],
+   [
+    "Chocolate sauce",
+    30
+   ]
+  ],
+  "NC-001": [
+   [
+    "Matcha powder",
+    6
+   ],
+   [
+    "Fresh milk",
+    200
+   ]
+  ],
+  "NC-002": [
+   [
+    "Chocolate sauce",
+    40
+   ],
+   [
+    "Fresh milk",
+    200
+   ],
+   [
+    "Cocoa powder",
+    3
+   ]
+  ],
+  "size:Hot": [
+   [
+    "Hot cups",
+    1
+   ]
+  ],
+  "size:Iced": [
+   [
+    "Ice",
+    150
+   ],
+   [
+    "Iced cups",
+    1
+   ]
+  ],
+  "addon:Espresso": [
+   [
+    "Espresso beans",
+    18
+   ]
+  ],
+  "addon:Sub Oat": [
+   [
+    "Fresh milk",
+    -200
+   ],
+   [
+    "Oat milk",
+    200
+   ]
+  ],
+  "addon:Cold Foam": [
+   [
+    "Cream (for foam)",
+    40
+   ]
+  ],
+  "addon:Syrup": [
+   [
+    "Simple syrup",
+    15
+   ]
+  ],
+  "addon:0 Cal Sweetener": [
+   [
+    "0 Cal sweetener sachets",
+    1
+   ]
+  ]
+ }
+}

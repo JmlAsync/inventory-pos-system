@@ -8,7 +8,7 @@ the project owner changes this file.
 Rules marked **[checked]** are verified by `tests/check_contract.py` on every pull request.
 The others are checked by review.
 
-Last reviewed for v0.19.3 (2026-10-11).
+Last reviewed for v0.19.4 (2026-10-11).
 
 ---
 
@@ -23,7 +23,7 @@ ingredients and recipes. Cashiers sell at the counter (cash or GCash) and print 
 | Language | Python 3.13 |
 | Web framework | Flask 3.1, Flask-Login, Flask-SQLAlchemy |
 | Database | SQLite, one file: `instance/inventory.db` |
-| Pages | Jinja2 templates + Bootstrap 5.3.3 + Bootstrap Icons 1.11.3 + Inter font |
+| Pages | Jinja2 templates + Bootstrap 5.3.3 + Bootstrap Icons 1.11.3 + Inter font, all stored in `static/vendor/` |
 | Tests | Python standard library only (`tests/`) |
 
 The project's audience is a **beginner**. Code comments and messages are written so a beginner
@@ -96,9 +96,11 @@ can follow them.
   itsdangerous, Jinja2, MarkupSafe, SQLAlchemy, typing_extensions, Werkzeug.
   Adding a package needs the project owner's approval and a change to this list (and to the
   allowlist in `tests/check_contract.py`).
-- **D2 [checked]** Pages may only load these from outside: Bootstrap 5.3.3 and Bootstrap Icons
-  1.11.3 from cdn.jsdelivr.net, and the Inter font from Google Fonts. No other CDN, script,
-  tracker or analytics.
+- **D2 [checked]** Pages load **nothing from the internet** (changed in v0.19.4, so the system works
+  offline). Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and the Inter font (@fontsource/inter 5.2.8) are
+  stored in `static/vendor/` with their licences; `static/vendor/README.md` lists the exact files.
+  No CDN, outside script, tracker or analytics. Updating one of them means replacing its files and
+  changing the versions here, in that README and in `tests/check_contract.py`.
 - **D3** Tests use only the Python standard library plus the packages above.
 
 ## 6. Private files

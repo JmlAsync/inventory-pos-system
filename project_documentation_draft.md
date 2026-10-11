@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.19.3** (2026-10-11). Versions v0.8.2–v0.19.3 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.19.4** (2026-10-11). Versions v0.8.2–v0.19.4 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -99,6 +99,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.19.1 | Patch: the light/dark switch is just an icon showing the current theme (sun = light, moon = dark) | Yes |
 | v0.19.2 | Patch: avatar menu wide enough for its words again (DEF-46, side effect of v0.19.1) | Yes |
 | v0.19.3 | Security audit patch: no crash on huge quantities, login limit can't fill memory, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) | Yes: each attack re-run and now blocked |
+| v0.19.4 | Works without internet: Bootstrap, icons and the Inter font stored in the project (DEF-53) | Yes: tested with the internet blocked |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -192,6 +193,7 @@ The tag message summarizes what the increment added.
 | v0.19.2 | 2026-10-09 | `57527bb` | Avatar menu grows to fit its words; each line on one line (DEF-46) *(pull request #51)* |
 | — | 2026-10-11 | — | Documentation: security audit of v0.19.2 (`docs/security_audit_2026-10-11.md`, DEF-47–DEF-52) *(pull request #52, no tag)* |
 | v0.19.3 | 2026-10-11 | `1318ec3` | Security audit patch: quantity limit on New Sale, login limit remembers at most 50 characters and forgets old entries, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) *(pull request #53)* |
+| v0.19.4 | 2026-10-11 | `4821094` | Pages work without internet: Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Inter stored in `static/vendor/` (DEF-53) *(pull request #54)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -868,7 +870,26 @@ v0.19.3 and is now blocked. The automated checks are in `test_limits.py` and `te
 | TC-20.5 | `requirements.txt` | `pip-audit`; run all tests on the new version | No known vulnerability; Werkzeug 3.1.9; everything passes | **v0.19.2:** CVE-2026-102598 in Werkzeug 3.1.8 · **v0.19.3:** none | ❌→✅ DEF-49 |
 | TC-20.6 | All earlier tests | `python tests/run_tests.py` | All 17 pass | As expected | ✅ |
 
-### How Claude tested v0.8.2 – v0.19.3
+### Offline pages *(v0.19.4)*
+
+The presentation venue's internet may fail. These tests were run in Chromium with **every request to the internet
+blocked**; `test_offline.py` checks the same automatically.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-21.1 | Login, Home, Products, New Sale, Ingredients, Report | Look for addresses outside the app in each page | None; every style sheet, script and font comes from `/static/` and exists | **v0.19.3:** 4 files from jsDelivr / Google Fonts · **v0.19.4:** none | ❌→✅ DEF-53 |
+| TC-21.2 | Internet blocked | Open New Sale | Menu grid (3 tiles per row), icons and the Inter font as usual | **v0.19.3:** one tile per row, no icons, plain font · **v0.19.4:** as expected | ❌→✅ DEF-53 |
+| TC-21.3 | Internet blocked | Open the avatar menu; switch the theme; open the phone menu (390 px) | Menu hidden until clicked; sun/moon icon visible; phone menu slides in | **v0.19.3:** avatar menu always open, icon missing · **v0.19.4:** as expected | ❌→✅ DEF-53 |
+| TC-21.4 | Internet blocked | Sales Report | ₱ shown in the Inter font; 0 requests to the internet; no JavaScript errors | As expected | ✅ |
+| TC-21.5 | All earlier tests | `python tests/run_tests.py` | All 18 pass | As expected | ✅ |
+
+#### Screenshot: without internet *(taken by Claude, 2026-10-11)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S46 | TC-21.2: New Sale with the internet blocked, v0.19.3 (left) and v0.19.4 (right) | ![New Sale without internet](screenshots/v0.19.4_TC-21.2_new_sale_without_internet.png) |
+
+### How Claude tested v0.8.2 – v0.19.4
 
 **Method.** Each version was built in a separate copy of the repository and tested before it was published:
 1. **Automated tests** with Flask's *test client* (it sends requests to the app like a browser, but from a script), on a
@@ -898,7 +919,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 
 | Test file | Covers | Checks |
 |---|---|---|
-| `check_contract.py` | The AGENTS.md rules marked [checked]: every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 53 rule checks |
+| `check_contract.py` | The AGENTS.md rules marked [checked] (54 checks since v0.19.4): every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 53 rule checks |
 | `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 34 |
 | `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
 | `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
@@ -915,7 +936,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_number_boxes.py` | DEF-43, 5 pages | 5 |
 | `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
-| **17 files** | | **358 checks + 53 rule checks** |
+| `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
+| **18 files** | | **369 checks + 54 rule checks** |
 
 ### Test summary (v0.7.0 → v0.19.0)
 
@@ -942,7 +964,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
 | F18 Rules + automated tests | 14 | 13 | 0 | 1 |
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
-| **Total** | **217** | **164 → 214** | **49 → 0** | **4 → 3** |
+| Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
+| **Total** | **222** | **166 → 219** | **52 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1008,6 +1031,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ✅ Fixed v0.19.3 |
 | DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | Session version per user + idle timeout | ⏳ Open |
 | DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals | ⏳ Open |
+| DEF-53 | Medium (demo) | Without internet the pages lost their layout, icons and font, and the avatar and phone menus stayed open, because Bootstrap, its icons and Inter loaded from jsDelivr and Google Fonts | Offline test in Chromium with the internet blocked (2026-10-10); security audit R4 | Store the three in `static/vendor/` with their licences; AGENTS.md rule D2 changed | ✅ Fixed v0.19.4 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1023,7 +1047,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.19.0** (future increments):
+> **Known limitations after v0.19.4** (future increments):
 > - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
@@ -1033,8 +1057,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Sold-out items are hidden from the menu** instead of shown greyed out.
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
 > - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
-> - **No Content-Security-Policy header** yet, because the pages use inline scripts and CDN files.
-> - **Styling comes from the internet** (Bootstrap, icons and font from CDNs, i.e. content delivery networks). Without internet the system still works but looks unstyled. Fix: save those files in `static/` so it runs fully offline.
+> - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
 > - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
@@ -1368,7 +1391,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 + audit patches (217 cases), screenshots S1–S45 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 + audit patches (222 cases), screenshots S1–S46 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1408,7 +1431,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 53 pull requests, one branch per version, tags v0.7.1–v0.19.3, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 54 pull requests, one branch per version, tags v0.7.1–v0.19.4, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)
@@ -1661,8 +1684,9 @@ In the form of Sommerville's "collecting medical history" scenario.
 ### 12.1 Context model *(item 12, L5 p. 10)*
 
 The context model shows the system (middle) and the other systems and devices around it. It answers *"where does
-our system end?"*: the database and picture files belong to it; the browser, printer, GCash, supplier, GitHub and the
-CDN are outside it.
+our system end?"*: the database, picture files and (since v0.19.4) the Bootstrap, icon and font files belong to it;
+the browser, printer, GCash, supplier and GitHub are outside it. *(Until v0.19.3 a CDN on the internet supplied
+Bootstrap, the icons and the font; v0.19.4 moved them inside the system so it works offline.)*
 
 ![Context model](diagrams/context_diagram.png)
 

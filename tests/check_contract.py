@@ -137,17 +137,22 @@ allowed = {p.replace('_', '-') for p in ALLOWED_PACKAGES}
 result('D1 requirements.txt only has allowed packages', set(packages) <= allowed, 'not allowed: ' + ', '.join(sorted(set(packages) - allowed)))
 result('D1 every package has an exact version (name==1.2.3)', all(packages.values()), 'missing: ' + ', '.join(n for n, v in packages.items() if not v))
 
-# D2: the only outside files a page may load (pinned versions; AGENTS.md rule D2)
-ALLOWED_URLS = ('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/', 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/',
-                'https://fonts.googleapis.com', 'https://fonts.gstatic.com')
+# D2: pages load nothing from the internet (AGENTS.md rule D2, changed in v0.19.4 for offline use)
+ALLOWED_URLS = ()   # no outside address is allowed in a src, href or url(...)
+VENDOR_FILES = ['bootstrap/bootstrap.min.css', 'bootstrap/bootstrap.bundle.min.js', 'bootstrap/LICENSE.txt',
+                'bootstrap-icons/bootstrap-icons.min.css', 'bootstrap-icons/fonts/bootstrap-icons.woff2',
+                'bootstrap-icons/LICENSE.txt', 'inter/inter.css', 'inter/LICENSE.txt']
+missing = [f for f in VENDOR_FILES if not os.path.exists(os.path.join(ROOT, 'static', 'vendor', f))]
+result('D2 Bootstrap, its icons and the Inter font are stored in static/vendor/ with their licences', not missing,
+       'missing: ' + ', '.join(missing))
 outside = []
 for folder in ['templates', os.path.join('static', 'css')]:
     for name in sorted(os.listdir(os.path.join(ROOT, folder))):
         for url in re.findall(r'(?:src|href)\s*=\s*["\'](https?://[^"\']+)', read(os.path.join(folder, name))) + \
                    re.findall(r'url\(["\']?(https?://[^"\')]+)', read(os.path.join(folder, name))):
-            if not url.startswith(ALLOWED_URLS):
+            if not ALLOWED_URLS or not url.startswith(ALLOWED_URLS):
                 outside.append(f'{folder}/{name}: {url}')
-result('D2 pages only load Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and the Inter font from outside', not outside, '; '.join(outside[:5]))
+result('D2 no page loads anything from the internet (no http:// or https:// in src, href or url())', not outside, '; '.join(outside[:5]))
 
 # P1: private files are not in Git
 try:

@@ -1,5 +1,5 @@
 @startuml
-' Context model - Inventory & POS System (v0.18.2), Lecture 5 p. 10 style
+' Context model - Inventory & POS System (v0.19.4: Bootstrap, icons and font now inside the system), Lecture 5 p. 10 style
 ' The system in the middle; the other systems and devices it works with around it.
 ' Paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com to edit.
 skinparam defaultFontName Arial
@@ -19,7 +19,6 @@ rectangle "SQLite database\n(products, sales,\ningredients, users)" as DB
 rectangle "Picture files\n(products, avatars)" as Files
 rectangle "Supplier\n(deliveries)" as Supplier
 rectangle "GitHub\n(code and versions)" as GitHub
-rectangle "CDN\n(Bootstrap, icons, font)" as CDN
 
 Browser -- POS
 Printer -- POS
@@ -28,7 +27,6 @@ POS -- DB
 POS -- Files
 Supplier .. POS : restock\n(typed by admin)
 GitHub .. POS : source code
-CDN -- POS
 legend right
   Solid line: connected directly
   Dashed line: information typed in by a person

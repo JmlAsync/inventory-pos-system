@@ -193,7 +193,7 @@ The tag message summarizes what the increment added.
 | v0.19.2 | 2026-10-09 | `57527bb` | Avatar menu grows to fit its words; each line on one line (DEF-46) *(pull request #51)* |
 | — | 2026-10-11 | — | Documentation: security audit of v0.19.2 (`docs/security_audit_2026-10-11.md`, DEF-47–DEF-52) *(pull request #52, no tag)* |
 | v0.19.3 | 2026-10-11 | `1318ec3` | Security audit patch: quantity limit on New Sale, login limit remembers at most 50 characters and forgets old entries, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) *(pull request #53)* |
-| v0.19.4 | 2026-10-11 | `COMMIT` | Pages work without internet: Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Inter stored in `static/vendor/` (DEF-53) *(pull request #54)* |
+| v0.19.4 | 2026-10-11 | `4821094` | Pages work without internet: Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Inter stored in `static/vendor/` (DEF-53) *(pull request #54)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*

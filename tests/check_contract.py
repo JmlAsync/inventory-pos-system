@@ -23,6 +23,7 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',
     '/sales/complete', '/sales/<int:sale_id>', '/profile', '/profile/remove', '/profile/password',
+    '/sales/line-quantity', '/sales/line-options',     # order-line − / + and change add-ons (v0.20.0)
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',

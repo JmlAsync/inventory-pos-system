@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.19.4** (2026-10-11). Versions v0.8.2–v0.19.4 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.20.0** (2026-10-12). Versions v0.8.2–v0.20.0 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -100,6 +100,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.19.2 | Patch: avatar menu wide enough for its words again (DEF-46, side effect of v0.19.1) | Yes |
 | v0.19.3 | Security audit patch: no crash on huge quantities, login limit can't fill memory, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) | Yes: each attack re-run and now blocked |
 | v0.19.4 | Works without internet: Bootstrap, icons and the Inter font stored in the project (DEF-53) | Yes: tested with the internet blocked |
+| v0.20.0 | New Sale redesign: one-tap Hot / Iced tiles with stock bars, − / + and add-ons on the basket line, "Uses N ingredients" panel, quick cash | Yes: tested with the counter flow in a real browser |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -194,6 +195,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-11 | — | Documentation: security audit of v0.19.2 (`docs/security_audit_2026-10-11.md`, DEF-47–DEF-52) *(pull request #52, no tag)* |
 | v0.19.3 | 2026-10-11 | `1318ec3` | Security audit patch: quantity limit on New Sale, login limit remembers at most 50 characters and forgets old entries, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) *(pull request #53)* |
 | v0.19.4 | 2026-10-11 | `4821094` | Pages work without internet: Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Inter stored in `static/vendor/` (DEF-53) *(pull request #54)* |
+| v0.20.0 | 2026-10-12 | `6f42f1e` | New Sale redesign "Rush Hour + Stock Aware": + Hot / + Iced on each tile, stock bar and the missing ingredient, running-low banner, − / + and add-ons changed on the basket line (design 6a), "Uses N ingredients" panel, quick cash *(pull request #55)*. A feature chosen by the student before the open patches DEF-48/51/52: a recorded exception to the stabilization rule |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -348,7 +350,8 @@ should be in the drawer) and GCash.
 Maria sets up the servings (**Hot** and **Iced**, same price; v0.16.0 called them sizes, and a shop can still use
 12oz / 16oz +₱20) and the café's upgrades (Espresso +₱30, Sub Oat +₱40, Cold Foam +₱30…) on the **Servings & Add-ons**
 page, and ticks "Drink" on each latte. The Iced serving has its own recipe: 150 g of ice and an iced cup. When Juan
-taps **Sea Salt**, a small window opens: he picks **Iced** and **Sub Oat**, and the button shows *Add 1 · ₱220.00*.
+taps **Sea Salt**, a small window opens: he picks **Iced** and **Sub Oat**, and the button shows *Add 1 · ₱220.00*
+*(since v0.20.0 he taps **+ Iced** on the tile and adds Sub Oat on the basket line instead; see F19)*.
 The basket shows the line as *Sea Salt — Iced, Sub Oat*, separate from a Hot Sea Salt, and the receipt keeps the
 options and the price paid, even if the add-on price changes later.
 
@@ -376,6 +379,15 @@ approval, and every change needs a test. When they are done they type `python te
 seconds it checks those rules and runs 333 checks in a throw-away copy of the project, so the café's real database is
 never touched. When they open a pull request, GitHub runs the same checks and shows a green tick or a red cross before
 anyone merges.
+
+### Story F19 — Serving a queue quickly *(v0.20.0)*
+It is 3 PM and six customers are waiting. Juan taps **+ Iced** on the Cafe Latte tile: one Iced latte is in the basket,
+no window to close. The next customer wants oat milk, so he taps the latte's line in the basket; it opens in place with
+**Hot / Iced** and the add-ons, he taps **Sub Oat** and **Done · ₱180.00 each**. A second croffle is one tap on **+**.
+Each tile shows a bar and "49 left", so he sees before he promises that only *3 Iced* drinks are left (the iced cups are
+low), and the Matcha tile is greyed with "Out of Matcha powder". Under the basket, "Uses 4 ingredients · Iced cups will
+be low" has opened by itself. The customer hands over ₱500: Juan taps **₱500**, sees *Change ₱190.00*, and taps the big
+**Complete Sale ₱310.00**. Maria (admin) sees the same yellow "Running low" banner and taps it to open Ingredients.
 
 ---
 
@@ -889,7 +901,42 @@ blocked**; `test_offline.py` checks the same automatically.
 |---|---|---|
 | S46 | TC-21.2: New Sale with the internet blocked, v0.19.3 (left) and v0.19.4 (right) | ![New Sale without internet](screenshots/v0.19.4_TC-21.2_new_sale_without_internet.png) |
 
-### How Claude tested v0.8.2 – v0.19.4
+### F19 — New Sale redesign *(v0.20.0)*
+
+The design was chosen on the design canvas "POS UI Explorations" (2026-10-11/12): **Rush Hour** (big one-tap buttons)
+combined with **Stock Aware** (how much is left and why), with add-ons changed **on the basket line** (option 6a; the
+"+ add-ons on the tile" option 6b was rejected because it makes the tiles crowded). Two new pages were added, both
+for logged-in users only and both checking the CSRF token: `POST /sales/line-quantity` (the − and + buttons) and
+`POST /sales/line-options` (change serving and add-ons). Every button is a small form, so the server checks stock,
+options and prices again; the scripts only open panels, show prices and fill in the cash box.
+TC-22.1–22.8 are automated in `tests/test_new_sale.py` (49 checks; they fail on v0.19.4 and pass on v0.20.0).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-22.1 | Cafe Latte with 2 iced cups and no hot cups; Matcha with no powder; Croffle 3 in stock | Open New Sale | Latte: "+ Iced" works, "+ Hot" greyed with "no Hot cups", "Only 2 left", bar 10 %; Matcha greyed "Out of Matcha powder", no add button; Croffle "+ Add", "Only 3 left" | As expected | ✅ |
+| TC-22.2 | Iced cups low, Hot cups and Matcha powder at 0 | Open New Sale as cashier, then as admin | Banner "Running low: Iced cups · Hot cups, Matcha powder are out"; only the admin's banner links to Ingredients | As expected | ✅ |
+| TC-22.3 | 1 Iced latte in the basket | +, + again, then −, −; also send change = 5, −3, abc; an unknown line; + on a line already at 1,000,000 | 2; refused "Not enough Iced cups" (basket stays 2); 1; line removed. Anything other than −1/+1 changes nothing; unknown line harmless; maximum quantity kept | As expected | ✅ |
+| TC-22.4 | Iced latte in the basket | Tap the line, tick Sub Oat, Done; add a plain Iced latte and change it to Sub Oat (oat milk short, then restocked); switch to Hot (no hot cups); send an add-on as the serving, an unknown serving, a serving as an add-on, "x", a hidden add-on; change a croffle | "Iced, Sub Oat" ₱180.00 and the ingredient panel shows oat milk; merge refused "Not enough Oat milk", then one line "2 × ₱180.00"; Hot refused; every bad input refused with a message; croffle "has no servings or add-ons to change" | As expected | ✅ |
+| TC-22.5 | 1 Iced latte in the basket | Look at "Uses N ingredients"; add the last cup | "Uses 4 ingredients", each with − amount, before → after and "for Cafe Latte"; opens by itself with "Iced cups will be low"; Low rows first; link only for the admin; then "Iced cups will run out" | As expected | ✅ |
+| TC-22.6 | Basket ₱310 / ₱600 / ₱1,000 / ₱150 | Look at the quick cash buttons; tap one | Exact + the next ₱100, ₱500 and ₱1,000 (310 → 400, 500, 1,000; 600 → 700, 1,000); never above ₱1,000,000; the tap fills Cash received and shows the change | As expected | ✅ |
+| TC-22.7 | Latte + 2 croffles added with the new buttons | Complete Sale with ₱500 | Sale ₱440.00, change ₱60.00; iced cups 2 → 1, croffles 3 → 1 | As expected | ✅ |
+| TC-22.8 | Logged out; then logged in with the token check on | Post to both new pages; count the forms; post without the token | Logged out → login page; every one of the page's forms carries the token; without it → 400 and nothing changes | As expected | ✅ |
+| TC-22.9 | Demo menu, iced cups low | Chromium at 390, 1024, 1280, 1440 and 1920 px, light and dark: tap, change a line, quick cash, search, complete a sale | No sideways scrolling, nothing spills out of a tile or button, every button at least 44 px, 0 requests to the internet, no JavaScript errors | **First run:** names broke in the middle of a word ("Cappuccin/o", DEF-54); "₱1,000" spilled out of its button on phones (DEF-55); basket lines cramped on phones (DEF-56) · **after the fixes:** as expected | ❌→✅ |
+| TC-22.10 | All earlier tests | `python tests/run_tests.py` | All 19 pass (7 old checks rewritten because the layout changed on purpose: the drink window is gone and sold-out items are shown greyed) | As expected | ✅ |
+
+**Decision recorded:** cashiers can see the ingredient amounts on New Sale (they still can't open or change the
+Ingredients page). The student chose this because the cashier is the one who warns the customer that something is
+running out.
+
+#### Screenshots: New Sale redesign (v0.20.0) *(taken by Claude, 2026-10-12, demo menu)*
+
+| # | Test | Screenshot |
+|---|---|---|
+| S47 | TC-22.1 / TC-22.6: tiles with stock bars, basket with − / +, "Uses 4 ingredients", ₱400 tapped (change ₱90.00) | ![New Sale v0.20.0](screenshots/v0.20.0_TC-22.1_new_sale_light.png) |
+| S48 | TC-22.4: the Cafe Latte line opened to change it (Iced ✓, Sub Oat ✓, Done · ₱180.00 each) | ![Change on the basket line](screenshots/v0.20.0_TC-22.4_change_on_basket_line.png) |
+| S49 | TC-22.9: dark theme (left) and phone, 390 px (right) | ![Dark and phone](screenshots/v0.20.0_TC-22.9_dark_and_phone.png) |
+
+### How Claude tested v0.8.2 – v0.20.0
 
 **Method.** Each version was built in a separate copy of the repository and tested before it was published:
 1. **Automated tests** with Flask's *test client* (it sends requests to the app like a browser, but from a script), on a
@@ -919,7 +966,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 
 | Test file | Covers | Checks |
 |---|---|---|
-| `check_contract.py` | The AGENTS.md rules marked [checked] (54 checks since v0.19.4): every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 53 rule checks |
+| `check_contract.py` | The AGENTS.md rules marked [checked] (58 checks since v0.20.0): every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 58 rule checks |
 | `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 34 |
 | `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
 | `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
@@ -937,9 +984,10 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
-| **18 files** | | **369 checks + 54 rule checks** |
+| `test_new_sale.py` | F19 / TC-22.1–22.8 (v0.20.0): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages | 49 |
+| **19 files** | | **418 checks + 58 rule checks** |
 
-### Test summary (v0.7.0 → v0.19.0)
+### Test summary (v0.7.0 → v0.20.0)
 
 | Feature | Cases | ✅ Pass | ❌ Fail | ⚠️/⏳ Other |
 |---|---|---|---|---|
@@ -965,7 +1013,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F18 Rules + automated tests | 14 | 13 | 0 | 1 |
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
-| **Total** | **222** | **166 → 219** | **52 → 0** | **4 → 3** |
+| F19 New Sale redesign (v0.20.0) | 10 | 9 → **10** | 1 → **0** | 0 |
+| **Total** | **232** | **175 → 229** | **53 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1032,6 +1081,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | Session version per user + idle timeout | ⏳ Open |
 | DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals | ⏳ Open |
 | DEF-53 | Medium (demo) | Without internet the pages lost their layout, icons and font, and the avatar and phone menus stayed open, because Bootstrap, its icons and Inter loaded from jsDelivr and Google Fonts | Offline test in Chromium with the internet blocked (2026-10-10); security audit R4 | Store the three in `static/vendor/` with their licences; AGENTS.md rule D2 changed | ✅ Fixed v0.19.4 |
+| DEF-54 | Low | New Sale v0.20.0 (before release): product names broke in the middle of a word ("Cappuccin / o") because the picture took space beside the name | Screenshot review, TC-22.9 | Picture and price on the top row, the name across the whole tile, wrapping only at spaces | ✅ Fixed before v0.20.0 was published |
+| DEF-55 | Low | New Sale v0.20.0 (before release): on phones "₱1,000" spilled out of its quick-cash button | Measured in Chromium at 390 px, TC-22.9 | Buttons at least 3.9 rem wide; a fifth button wraps to the next row instead | ✅ Fixed before v0.20.0 was published |
+| DEF-56 | Low | New Sale v0.20.0 (before release): on phones the basket line squeezed the name beside the − / + buttons ("1 ×" and "₱140.00" on two lines) | Screenshot review at 390 px, TC-22.9 | On phones the name gets its own row; − / + and the subtotal go below it | ✅ Fixed before v0.20.0 was published |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1047,18 +1099,19 @@ still run by Claude before each release; they are not in `tests/` because they n
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.19.4** (future increments):
+> **Known limitations after v0.20.0** (future increments):
 > - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
 > - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.
 > - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
 > - **The shop name on receipts is fixed** ("Inventory & POS").
-> - **Sold-out items are hidden from the menu** instead of shown greyed out.
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
 > - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
+> - **The diagrams in §12 still show the v0.19 New Sale screen** (drink window). The server steps are the same; the "choose options" step now happens on the basket line (v0.20.0).
+> - **No "undo" for a tap:** a wrong tap is fixed with − on the basket line (one more tap), not an undo button.
 > - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
 > - **Sold products can't be deleted, only set to 0**, so they stay in the list with an "Out of stock" badge. Fix: an "archive" option.
@@ -1279,7 +1332,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Description** | Keeps the list of servings (Hot / Iced, or sizes; exactly one per drink) and add-ons (any number) with their extra prices |
 | **Data** | `menu_option`: kind (size/add-on), name, extra price, offered or hidden, order, recipe scale (sizes) |
 | **Stimulus** | Admin opens Servings & Add-ons, edits a row or adds one |
-| **Response** | Saved; hidden options disappear from the drink window; baskets holding them lose that line with a message |
+| **Response** | Saved; hidden options disappear from New Sale (tiles and basket-line panels); baskets holding them lose that line with a message |
 | **Comments** | Includes *Check permission* (admin only). Options are hidden, never deleted, because receipts and recipes refer to them |
 
 **UC-15 Manage ingredients and recipes** *(built v0.17.0)*
@@ -1391,7 +1444,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 + audit patches (222 cases), screenshots S1–S46 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (232 cases), screenshots S1–S49 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1431,7 +1484,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 54 pull requests, one branch per version, tags v0.7.1–v0.19.4, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 55 pull requests, one branch per version, tags v0.7.1–v0.20.0, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)
@@ -1518,7 +1571,7 @@ Like the insulin pump example, the requirements are listed per part of the syste
 
 **Drink options (F15)**
 - O1. A drink shall have exactly one serving (the first is the default) and any number of add-ons.
-- O2. A hidden option shall disappear from the drink window and from baskets, with a message; it shall never be deleted.
+- O2. A hidden option shall disappear from New Sale (tiles and basket-line panels) and from baskets, with a message; it shall never be deleted.
 
 **Ingredients (F16, F17)**
 - I1. A recipe product's "can make" count shall be the smallest of (on hand − basket needs) ÷ recipe amount over its ingredients.
@@ -1557,7 +1610,7 @@ The same form as Sommerville's insulin pump example.
 | **Function** | Add product to basket |
 | **Description** | Adds a quantity of one product (with serving and add-ons for drinks) to the basket. |
 | **Inputs** | Product id; quantity (default 1); serving id; add-on ids. |
-| **Source** | Menu tile, drink window or product list on New Sale. |
+| **Source** | A serving button on a menu tile (+ Hot / + Iced / + Add), or the product list on New Sale; serving and add-ons can then be changed on the basket line (v0.20.0). |
 | **Outputs** | Updated basket; New Sale page. |
 | **Destination** | Session (the browser's basket). |
 | **Action** | Refuse unknown products, quantities below 1, servings or add-ons not offered. Work out what can still be sold (stock − basket, or what the ingredients allow). If enough, add to the line with the same product + options; otherwise show "only N more can be added". |

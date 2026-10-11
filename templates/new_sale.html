@@ -2,161 +2,306 @@
 {% from "_product_image.html" import product_thumb %}
 {% block title %}New Sale{% endblock %}
 {% block content %}
-<h1>New Sale</h1>
-<p class="page-subtitle">Tap a product to add one to the basket, then take the customer's cash.</p>
+{# =====================================================================
+   New Sale (v0.20.0): "Rush Hour + Stock Aware", add-ons from the order line (design 6a)
+   - Tiles: one tap adds a drink (+ Hot / + Iced). A bar shows how many can still be made.
+   - Order: − / + on each line; tap a line to change its serving and add-ons.
+   - "Uses N ingredients": what this order will take from the shelf.
+   Every button is a small form, so the server checks everything again (stock, prices,
+   options). The scripts at the bottom only add conveniences.
+   ===================================================================== #}
+{% set is_admin = current_user.role == 'admin' %}
+
+<div class="sale-header">
+    <h1 class="mb-0">New Sale</h1>
+    {# Running-low banner (v0.20.0): ingredients at or below their warning level.
+       The admin can jump to Ingredients; a cashier only sees the warning. #}
+    {% if low or out %}
+    {% set low_names = low|map(attribute='name')|list %}
+    {% set out_names = out|map(attribute='name')|list %}
+    {% if is_admin %}<a href="{{ url_for('ingredients') }}" class="low-banner" title="Open Ingredients">{% else %}<div class="low-banner">{% endif %}
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <span>
+            {% if low_names %}Running low: {{ low_names[:4]|join(' · ') }}{% if low_names|length > 4 %} +{{ low_names|length - 4 }} more{% endif %}{% endif %}
+            {% if low_names and out_names %} · {% endif %}
+            {% if out_names %}{{ out_names[:4]|join(', ') }}{% if out_names|length > 4 %} +{{ out_names|length - 4 }} more{% endif %} {{ 'is' if out_names|length == 1 else 'are' }} out{% endif %}
+        </span>
+    {% if is_admin %}</a>{% else %}</div>{% endif %}
+    {% endif %}
+</div>
 {% if error %}
-<div class="alert alert-danger">{{ error }}</div>
+<div class="alert alert-danger" role="alert">{{ error }}</div>
 {% endif %}
 
 <div class="row g-4">
-    {# ---------- Left: the menu (v0.14.0) ---------- #}
+    {# ---------- Left: the menu ---------- #}
     <div class="col-xl-7">
-        <div class="card"><div class="card-body">
-            {% if choices %}
-            {# Category buttons: show only that category's tiles (done in the browser, see the script below) #}
-            {% set categories = choices|map(attribute='product.category')|map('default', 'Other', true)|unique|sort %}
-            <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by category">
+        {% if tiles %}
+        {% set categories = tiles|map(attribute='product.category')|map('default', 'Other', true)|unique|sort %}
+        <div class="menu-tools">
+            {# Category buttons and search: done in the browser, nothing is sent to the server #}
+            <div class="d-flex flex-wrap gap-2" role="group" aria-label="Filter by category">
                 <button type="button" class="chip active" data-filter="all">All</button>
                 {% for category in categories %}
                 <button type="button" class="chip" data-filter="{{ category }}" title="{{ category }}">{{ category }}</button>
                 {% endfor %}
             </div>
-            <div class="row row-cols-2 row-cols-sm-3 g-2">
-                {% for choice in choices %}
-                <div class="col" data-category="{{ choice.product.category or 'Other' }}">
-                    {# Each tile is a tiny form that adds 1 of this product #}
-                    <form method="POST" action="{{ url_for('new_sale') }}" class="h-100">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="product_id" value="{{ choice.product.id }}">
-                        <input type="hidden" name="quantity" value="1">
-                        {% set with_options = choice.product.has_options and (sizes or addons) %}
-                        {# Drinks (v0.16.0): the tap opens the size/add-on window instead. Without
-                           JavaScript the tile still works and adds the default size. #}
-                        <button type="submit" class="menu-tile w-100 h-100{% if with_options %} js-options{% endif %}" title="Add 1 {{ choice.product.name }}"
-                                {% if with_options %}data-product-id="{{ choice.product.id }}" data-name="{{ choice.product.name }}"
-                                data-price="{{ choice.product.price }}" data-available="{{ choice.available }}"{% endif %}>
-                            {{ product_thumb(choice.product, 56) }}
-                            <span class="menu-tile-name">{{ choice.product.name }}</span>
-                            {% if with_options %}<span class="menu-tile-options"><i class="bi bi-sliders" aria-hidden="true"></i> {{ sizes|map(attribute='name')|join(' / ') if sizes else 'Options' }}{% if addons %} · add-ons{% endif %}</span>{% endif %}
-                            <span class="menu-tile-price">{{ choice.product.price|peso }}</span>
-                            <span class="menu-tile-left{% if choice.available <= 5 %} low{% endif %}">{{ '{:,}'.format(choice.available) }} left</span>
-                        </button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-body-secondary mb-0">No products in stock right now.</p>
-            {% endif %}
-        </div></div>
+            <label for="menuSearch" class="visually-hidden">Search the menu</label>
+            <input type="search" id="menuSearch" class="form-control menu-search" placeholder="Search menu" autocomplete="off">
+        </div>
 
-        <!-- Or pick from the list and type a quantity (the original v0.8.0 form) -->
-        <div class="card mt-3"><div class="card-body">
-        <form method="POST" action="{{ url_for('new_sale') }}" class="row g-2 align-items-end">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-md-6">
-                <label class="form-label">Product</label>
-                <select name="product_id" class="form-select" required>
-                    <option value="">-- Choose a product --</option>
-                    {% for choice in choices %}
-                    <option value="{{ choice.product.id }}">{{ choice.product.name }} ({{ choice.product.price|peso }}, {{ choice.available }} available)</option>
-                    {% endfor %}
-                </select>
+        <div class="row row-cols-2 row-cols-sm-3 g-3" id="menuTiles">
+            {% for tile in tiles %}
+            {% set product = tile.product %}
+            <div class="col" data-category="{{ product.category or 'Other' }}" data-name="{{ product.name|lower }}">
+                <div class="sale-tile level-{{ tile.level }}">
+                    {# Picture and price on top, then the name across the whole tile, so long names wrap at spaces #}
+                    <div class="sale-tile-head">
+                        {{ product_thumb(product, 36) }}
+                        <span class="sale-tile-price">{{ product.price|peso }}</span>
+                    </div>
+                    <span class="sale-tile-name" title="{{ product.name }}">{{ product.name }}</span>
+                    {# Stock bar: full at 20 or more left (STOCK_BAR_FULL); amber when low, grey when out #}
+                    <div class="stock-bar" aria-hidden="true"><span style="width: {{ tile.percent }}%"></span></div>
+                    <span class="stock-note">
+                        {% if tile.level == 'out' %}{% if tile.short %}Out of {{ tile.short.name }}{% else %}Out of stock{% endif %}
+                        {% elif tile.level == 'low' %}Only {{ '{:,}'.format(tile.available) }} left
+                        {% else %}{{ '{:,}'.format(tile.available) }} left{% endif %}
+                    </span>
+                    {% if tile.level == 'out' %}
+                    <button type="button" class="serve-btn serve-out" disabled>{{ "Can't make now" if tile.short else 'Sold out' }}</button>
+                    {% else %}
+                    <div class="serve-grid{% if tile.buttons|length == 1 %} single{% endif %}">
+                        {% for b in tile.buttons %}
+                        {% set label = b.size.name if b.size else 'Add' %}
+                        {% set kind = 'hot' if b.size and 'hot' in b.size.name|lower else ('iced' if b.size and 'ice' in b.size.name|lower else 'plain') %}
+                        {% if b.available > 0 %}
+                        {# One tap = 1 of this product in this serving, no add-ons (change them in the order) #}
+                        <form method="POST" action="{{ url_for('new_sale') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            {% if b.size %}<input type="hidden" name="size_id" value="{{ b.size.id }}">{% endif %}
+                            <button type="submit" class="serve-btn serve-{{ kind }}" title="Add 1 {{ product.name }}{% if b.size %} ({{ b.size.name }}){% endif %}">
+                                + {{ label }}{% if b.size and b.size.price %} <small>+{{ b.size.price|peso }}</small>{% endif %}
+                                {% if b.available <= 5 and tile.buttons|length > 1 %}<small class="d-block">{{ b.available }} left</small>{% endif %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <button type="button" class="serve-btn serve-out" disabled
+                                title="{% if b.short %}No {{ b.short.name }} left{% else %}None left{% endif %}">
+                            {{ label }} <small class="d-block">{% if b.short %}no {{ b.short.name }}{% else %}none left{% endif %}</small>
+                        </button>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Quantity</label>
-                <input type="number" name="quantity" class="form-control" min="1" max="1000000" value="1" required>
+            {% endfor %}
+        </div>
+        <p class="text-body-secondary small mt-2 mb-0" id="noMatch" hidden>No item matches your search.</p>
+        {% else %}
+        <div class="card"><div class="card-body text-body-secondary">No products yet. An admin can add them on the Products page.</div></div>
+        {% endif %}
+
+        {# Several at once (the original v0.8.0 form): pick from the list and type a quantity #}
+        {% if choices %}
+        <details class="card mt-3 qty-form">
+            <summary class="card-body py-2">Add several at once (type a quantity)</summary>
+            <div class="card-body pt-0">
+            <form method="POST" action="{{ url_for('new_sale') }}" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-6">
+                    <label class="form-label" for="listProduct">Product</label>
+                    <select name="product_id" id="listProduct" class="form-select" required>
+                        <option value="">-- Choose a product --</option>
+                        {% for choice in choices %}
+                        <option value="{{ choice.product.id }}">{{ choice.product.name }} ({{ choice.product.price|peso }}, {{ choice.available }} available)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="listQuantity">Quantity</label>
+                    <input type="number" name="quantity" id="listQuantity" class="form-control" min="1" max="1000000" value="1" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add</button>
+                </div>
+                {% if sizes %}<div class="col-12 form-text mt-1">Drinks added here are {{ sizes[0].name }} with no add-ons; tap the line in the order to change them.</div>{% endif %}
+            </form>
             </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to basket</button>
-            </div>
-            {% if sizes %}<div class="col-12 form-text mt-1">Drinks added from this list are {{ sizes[0].name }} with no add-ons. Tap the drink's picture to choose.</div>{% endif %}
-        </form>
-        </div></div>
+        </details>
+        {% endif %}
     </div>
 
-    {# ---------- Right: the basket and payment ---------- #}
+    {# ---------- Right: the basket (order) and payment ---------- #}
     <div class="col-xl-5">
-        <div class="basket-column" id="basket">
-        <h2 class="section-title mt-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
+        <div class="basket-column order-panel" id="basket">
+        <div class="d-flex justify-content-between align-items-baseline mb-2">
+            <h2 class="section-title my-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
+            {% if lines %}<span class="small text-body-secondary">Tap a line to change it</span>{% endif %}
+        </div>
         {% if lines %}
-        <div class="card app-card mb-3"><div class="table-responsive">
-        <table class="table">
-            <thead>
-                <tr><th>Product</th><th class="text-end">Subtotal</th><th><span class="visually-hidden">Remove</span></th></tr>
-            </thead>
-            <tbody>
-                {% for line in lines %}
-                <tr>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            {{ product_thumb(line.product, 32) }}
-                            <span><span class="d-block fw-medium product-name">{{ line.product.name }}</span>
-                            {# Quantity shown under the name (v0.14.4), so the row fits narrow screens #}
-                            {% if line.options %}<span class="d-block small basket-options">{{ line.options }}</span>{% endif %}
-                            <span class="small text-body-secondary">{{ line.quantity }} × {{ line.unit_price|peso }}</span></span>
-                        </div>
-                    </td>
-                    <td class="text-end text-nowrap">{{ line.subtotal|peso }}</td>
-                    <td class="text-end">
-                        <form method="POST" action="{{ url_for('remove_line') }}">
+        <!-- order lines -->
+        <div class="order-lines">
+            {% for line in lines %}
+            {% set n = loop.index %}
+            <div class="order-line">
+                <div class="order-line-row">
+                    <button type="button" class="order-line-name js-line-toggle" aria-expanded="false" aria-controls="lineEdit{{ n }}"
+                            title="Change {{ line.product.name }}">
+                        <span class="d-block fw-semibold product-name">{{ line.product.name }}</span>
+                        {% if line.options %}<span class="d-block small basket-options">{{ line.options }}</span>{% endif %}
+                        <span class="d-block small text-body-secondary">{{ line.quantity }} × {{ line.unit_price|peso }}</span>
+                    </button>
+                    <div class="stepper">
+                        <form method="POST" action="{{ url_for('change_line_quantity') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="line" value="{{ line.key }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove {{ line.product.name }}"><i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove</span></button>
+                            <input type="hidden" name="change" value="-1">
+                            <button type="submit" class="step-btn" aria-label="One less {{ line.product.name }}">−</button>
                         </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr><th class="text-end">Total</th><th class="fs-5 text-end text-nowrap">{{ total|peso }}</th><th></th></tr>
-            </tfoot>
-        </table>
-        </div></div>
-        <!-- Payment: the cashier types how much cash the customer handed over -->
-        <div class="card"><div class="card-body">
-        <form method="POST" action="{{ url_for('complete_sale') }}" class="row g-2 align-items-end">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {# How the customer pays (v0.15.0). "btn-check" turns radio buttons into toggle buttons #}
-            <div class="col-12">
-                <div class="btn-group w-100" role="group" aria-label="Payment method">
-                    <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" checked>
-                    <label class="btn btn-outline-primary" for="pay_cash"><i class="bi bi-cash me-1" aria-hidden="true"></i>Cash</label>
-                    <input type="radio" class="btn-check" name="payment_method" id="pay_gcash" value="gcash">
-                    <label class="btn btn-outline-primary" for="pay_gcash"><i class="bi bi-phone me-1" aria-hidden="true"></i>GCash</label>
+                        <span class="step-qty">{{ '{:,}'.format(line.quantity) }}</span>
+                        <form method="POST" action="{{ url_for('change_line_quantity') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="line" value="{{ line.key }}">
+                            <input type="hidden" name="change" value="1">
+                            <button type="submit" class="step-btn" aria-label="One more {{ line.product.name }}">+</button>
+                        </form>
+                    </div>
+                    <span class="order-line-sub">{{ line.subtotal|peso }}</span>
+                </div>
+                {# Design 6a: change the serving and add-ons right here #}
+                <div class="order-line-edit" id="lineEdit{{ n }}" hidden>
+                    {% if line.product.has_options and (sizes or addons) %}
+                    {% set chosen = line.addons|map(attribute='id')|list %}
+                    <form method="POST" action="{{ url_for('change_line_options') }}" class="js-line-form" data-base="{{ line.product.price }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="line" value="{{ line.key }}">
+                        {% if sizes %}
+                        <div class="edit-label">Serving</div>
+                        <div class="serve-grid mb-2">
+                            {% for size in sizes %}
+                            <input type="radio" class="btn-check" name="size_id" id="l{{ n }}s{{ size.id }}" value="{{ size.id }}" data-price="{{ size.price }}"
+                                   {% if (line.size and line.size.id == size.id) or (not line.size and loop.first) %}checked{% endif %}>
+                            <label class="toggle-btn" for="l{{ n }}s{{ size.id }}">{{ size.name }}{% if size.price %} <small>+{{ size.price|peso }}</small>{% endif %}</label>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if addons %}
+                        <div class="edit-label">Add-ons</div>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            {% for addon in addons %}
+                            <input type="checkbox" class="btn-check" name="addon_ids" id="l{{ n }}a{{ addon.id }}" value="{{ addon.id }}" data-price="{{ addon.price }}"
+                                   {% if addon.id in chosen %}checked{% endif %}>
+                            <label class="toggle-pill" for="l{{ n }}a{{ addon.id }}">{{ addon.name }} <small>+{{ addon.price|peso }}</small></label>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary w-100 js-line-done">Done</button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('remove_line') }}" class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="line" value="{{ line.key }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1" aria-hidden="true"></i>Remove this line</button>
+                    </form>
                 </div>
             </div>
-            <div class="col-sm-6 cash-only">
-                <label class="form-label">Cash received (₱)</label>
-                <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
-                       class="form-control" required>
+            {% endfor %}
+        </div>
+        <!-- end of order lines -->
+
+        {# "This order uses": which ingredients, how much, and what is left after (v0.20.0).
+           It opens by itself when something will be low or used up. #}
+        {% if uses %}
+        {% set will_low = uses|selectattr('status', 'equalto', 'low')|map(attribute='ingredient.name')|list %}
+        {% set will_out = uses|selectattr('status', 'equalto', 'out')|map(attribute='ingredient.name')|list %}
+        <details class="uses-panel{% if will_low or will_out %} warn{% endif %}"{% if will_low or will_out %} open{% endif %}>
+            <summary>
+                Uses {{ uses|length }} ingredient{{ '' if uses|length == 1 else 's' }} ·
+                {% if will_out %}{{ will_out|join(', ') }} will run out{% endif %}{% if will_out and will_low %} · {% endif %}{% if will_low %}{{ will_low|join(', ') }} will be low{% endif %}
+                {% if not will_low and not will_out %}all OK{% endif %}
+            </summary>
+            <ul class="uses-list">
+                {% for u in uses %}
+                <li>
+                    <span class="uses-text">
+                        <strong>{{ u.ingredient.name }}</strong> <span class="text-body-secondary">−{{ u.used|amount }} {{ u.ingredient.unit }}</span>
+                        <span class="d-block small text-body-secondary">{{ u.before|amount }} → {{ u.after|amount }} {{ u.ingredient.unit }} · for {{ u.by }}</span>
+                    </span>
+                    <span class="uses-chip uses-{{ u.status }}">{{ {'ok': 'OK', 'low': 'Low', 'out': 'Runs out'}[u.status] }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if is_admin %}<a href="{{ url_for('ingredients') }}" class="small fw-semibold">Open Ingredients →</a>{% endif %}
+        </details>
+        {% endif %}
+
+        <!-- Payment -->
+        <form method="POST" action="{{ url_for('complete_sale') }}" class="pay-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {# How the customer pays (v0.15.0). "btn-check" turns radio buttons into toggle buttons #}
+            <div class="pay-methods" role="group" aria-label="Payment method">
+                <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" checked>
+                <label class="pay-method" for="pay_cash"><i class="bi bi-cash me-1" aria-hidden="true"></i>Cash</label>
+                <input type="radio" class="btn-check" name="payment_method" id="pay_gcash" value="gcash">
+                <label class="pay-method" for="pay_gcash"><i class="bi bi-phone me-1" aria-hidden="true"></i>GCash</label>
             </div>
-            <div class="col-sm-6 cash-only">
-                <label class="form-label">Change</label>
-                <input type="text" id="change_preview" class="form-control" value="₱0.00" readonly>
+            <div class="cash-only">
+                {# Quick cash (v0.20.0): fills in the box below; the server still checks the amount #}
+                <div class="quick-cash" role="group" aria-label="Quick cash amounts">
+                    <button type="button" class="quick-btn" data-cash="{{ '%.2f' % total }}">Exact</button>
+                    {% for amount in quick_cash %}
+                    <button type="button" class="quick-btn" data-cash="{{ amount }}">₱{{ '{:,}'.format(amount) }}</button>
+                    {% endfor %}
+                    <button type="button" class="quick-btn" data-cash="">Other</button>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-6">
+                        <label class="form-label small mb-1" for="cash_received">Cash received (₱)</label>
+                        <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
+                               class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1" for="change_preview">Change</label>
+                        <input type="text" id="change_preview" class="form-control" value="₱0.00" readonly>
+                    </div>
+                </div>
             </div>
-            <div class="col-12 gcash-only" hidden>
+            <div class="gcash-only" hidden>
                 <label class="form-label" for="gcash_reference">GCash reference no.</label>
                 <input type="text" inputmode="numeric" name="gcash_reference" id="gcash_reference" class="form-control"
                        placeholder="13 digits from the customer's GCash receipt" maxlength="20" autocomplete="off">
                 <div class="form-text">Check that the amount on the customer's screen is {{ total|peso }}.</div>
             </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-success w-100 btn-lg"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Complete Sale</button>
-            </div>
+            <button type="submit" class="complete-btn">
+                <span><i class="bi bi-check2-circle me-2" aria-hidden="true"></i>Complete Sale</span><span>{{ total|peso }}</span>
+            </button>
         </form>
-        </div></div>
         <script>
             // Shows the change while the cashier types. The server calculates it again
             // when the sale is saved, so this is only a convenience for the cashier.
             const total = {{ total }};
             const cashInput = document.getElementById('cash_received');
             const changeBox = document.getElementById('change_preview');
-            cashInput.addEventListener('input', function () {
+            function showChange() {
                 const change = parseFloat(cashInput.value) - total;
-                changeBox.value = change >= 0
+                changeBox.value = isNaN(change) ? '₱0.00' : change >= 0
                     ? '₱' + change.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})
                     : 'Not enough cash';
+            }
+            cashInput.addEventListener('input', showChange);
+            // Quick cash buttons (v0.20.0): Exact / round amounts fill the box; Other lets the cashier type
+            document.querySelectorAll('.quick-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    document.querySelectorAll('.quick-btn').forEach(function (b) { b.classList.remove('active'); });
+                    button.classList.add('active');
+                    cashInput.value = button.dataset.cash;
+                    showChange();
+                    if (!button.dataset.cash) { cashInput.focus(); }
+                });
             });
             // Cash or GCash (v0.15.0): show only the matching boxes, and only require those
             const referenceInput = document.getElementById('gcash_reference');
@@ -172,116 +317,88 @@
             });
         </script>
         {% else %}
-        <div class="card"><div class="card-body text-center text-body-secondary py-5">
+        <div class="order-empty">
             <i class="bi bi-basket fs-1 d-block mb-2" aria-hidden="true"></i>
-            The basket is empty. Tap a product to add it.
-        </div></div>
+            The basket is empty. Tap <strong>+ Hot</strong>, <strong>+ Iced</strong> or <strong>+ Add</strong> on a tile.
+        </div>
         {% endif %}
         </div>
     </div>
 </div>
 
 {% if lines %}
-{# Phones (v0.14.3): the basket is below the long menu, so a bar at the bottom of the
-   screen shows the total and jumps to the basket. d-xl-none hides it on wide screens (v0.14.4: menu and basket side by side only from 1200px). #}
+{# Phones (v0.14.3): the order is below the long menu, so a bar at the bottom of the
+   screen shows the total and jumps to it. d-xl-none hides it on wide screens. #}
 <a href="#basket" class="basket-bar d-xl-none d-print-none">
     <span><i class="bi bi-basket me-2" aria-hidden="true"></i>{{ lines|sum(attribute='quantity') }} item{{ '' if lines|sum(attribute='quantity') == 1 else 's' }} · {{ total|peso }}</span>
     <span class="fw-semibold">Pay <i class="bi bi-arrow-down" aria-hidden="true"></i></span>
 </a>
 {% endif %}
+{# Without JavaScript, every order line shows its change panel open #}
+<noscript><style>.order-line-edit[hidden] { display: block !important; }</style></noscript>
 
-{# ---------- Serving (hot/iced or size) and add-ons window (v0.16.0, wording v0.17.2) ----------
-   One shared window; the script below fills in the drink that was tapped.
-   <dialog> is built into browsers, so it works without Bootstrap's JavaScript. #}
-{% if sizes or addons %}
-<dialog id="optionsDialog" class="options-dialog" aria-labelledby="optionsTitle">
-    <form method="POST" action="{{ url_for('new_sale') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="product_id" id="optionsProduct">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-            <h2 class="h5 fw-bold mb-0" id="optionsTitle">Drink</h2>
-            <button type="button" class="btn-close js-close" aria-label="Close"></button>
-        </div>
-        {% if sizes %}
-        <div class="small fw-semibold text-body-secondary text-uppercase mb-2">Serving</div>
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            {% for size in sizes %}
-            <input type="radio" class="btn-check" name="size_id" id="size{{ size.id }}" value="{{ size.id }}" data-price="{{ size.price }}"{% if loop.first %} checked{% endif %}>
-            <label class="btn btn-outline-primary" for="size{{ size.id }}">{{ size.name }}{% if size.price %} <span class="small">+{{ size.price|peso }}</span>{% endif %}</label>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% if addons %}
-        <div class="small fw-semibold text-body-secondary text-uppercase mb-2">Add-ons</div>
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            {% for addon in addons %}
-            <input type="checkbox" class="btn-check" name="addon_ids" id="addon{{ addon.id }}" value="{{ addon.id }}" data-price="{{ addon.price }}">
-            <label class="btn btn-outline-primary btn-sm" for="addon{{ addon.id }}">{{ addon.name }} <span class="small">+{{ addon.price|peso }}</span></label>
-            {% endfor %}
-        </div>
-        {% endif %}
-        <div class="d-flex align-items-end gap-2">
-            <div style="width: 6.5rem;">
-                <label class="form-label small" for="optionsQuantity">Quantity</label>
-                <input type="number" class="form-control" name="quantity" id="optionsQuantity" min="1" max="1000000" value="1" required>
-            </div>
-            <button type="submit" class="btn btn-primary flex-grow-1" id="optionsSubmit">Add</button>
-        </div>
-    </form>
-</dialog>
 <script>
-    // Fill and open the window when a drink tile is tapped; show the live price
+    // Order lines (v0.20.0): tap a line to open its panel (only one open at a time),
+    // and show the new price on "Done" while serving and add-ons are being picked.
     (function () {
-        const dialog = document.getElementById('optionsDialog');
-        if (!dialog || !dialog.showModal) { return; }   // very old browser: the tile adds the default size
-        let basePrice = 0;
         const peso = n => '₱' + n.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        function updatePrice() {
-            let unit = basePrice;
-            dialog.querySelectorAll('input[data-price]:checked').forEach(function (i) { unit += parseFloat(i.dataset.price); });
-            const quantity = Math.max(1, parseInt(document.getElementById('optionsQuantity').value) || 1);
-            document.getElementById('optionsSubmit').textContent = 'Add ' + quantity + ' · ' + peso(unit * quantity);
-        }
-        document.querySelectorAll('.js-options').forEach(function (tile) {
-            tile.addEventListener('click', function (event) {
-                event.preventDefault();
-                basePrice = parseFloat(tile.dataset.price);
-                document.getElementById('optionsProduct').value = tile.dataset.productId;
-                document.getElementById('optionsTitle').textContent = tile.dataset.name + ' · ' + peso(basePrice);
-                const quantity = document.getElementById('optionsQuantity');
-                quantity.value = 1; quantity.max = tile.dataset.available;
-                dialog.querySelectorAll('input[name="addon_ids"]').forEach(function (i) { i.checked = false; });
-                const firstSize = dialog.querySelector('input[name="size_id"]');
-                if (firstSize) { firstSize.checked = true; }
-                updatePrice();
-                dialog.showModal();
+        document.querySelectorAll('.js-line-toggle').forEach(function (toggle) {
+            toggle.addEventListener('click', function () {
+                const panel = document.getElementById(toggle.getAttribute('aria-controls'));
+                const opening = panel.hidden;
+                document.querySelectorAll('.js-line-toggle').forEach(function (t) {
+                    t.setAttribute('aria-expanded', 'false');
+                    document.getElementById(t.getAttribute('aria-controls')).hidden = true;
+                    t.closest('.order-line').classList.remove('open');
+                });
+                panel.hidden = !opening;
+                toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+                toggle.closest('.order-line').classList.toggle('open', opening);
             });
         });
-        dialog.addEventListener('change', updatePrice);
-        dialog.addEventListener('input', updatePrice);
-        dialog.querySelector('.js-close').addEventListener('click', function () { dialog.close(); });
-        dialog.addEventListener('click', function (event) { if (event.target === dialog) { dialog.close(); } });  // tap outside
-    })();
-</script>
-{% endif %}
-
-<script>
-    // Category buttons (v0.14.0): hide the tiles of other categories. Nothing is sent to the server.
-    // The chosen category is remembered for this browser tab (sessionStorage), so it stays
-    // selected after each tap reloads the page (v0.14.2).
-    function showCategory(chip) {
-        document.querySelectorAll('.chip[data-filter]').forEach(function (c) { c.classList.remove('active'); });
-        chip.classList.add('active');
-        document.querySelectorAll('[data-category]').forEach(function (tile) {
-            tile.hidden = chip.dataset.filter !== 'all' && tile.dataset.category !== chip.dataset.filter;
+        document.querySelectorAll('.js-line-form').forEach(function (form) {
+            function updatePrice() {
+                let unit = parseFloat(form.dataset.base);
+                form.querySelectorAll('input[data-price]:checked').forEach(function (i) { unit += parseFloat(i.dataset.price); });
+                form.querySelector('.js-line-done').textContent = 'Done · ' + peso(unit) + ' each';
+            }
+            form.addEventListener('change', updatePrice);
+            updatePrice();
         });
-        try { sessionStorage.setItem('pos-menu-category', chip.dataset.filter); } catch (e) {}
-    }
-    document.querySelectorAll('.chip[data-filter]').forEach(function (chip) {
-        chip.addEventListener('click', function () { showCategory(chip); });
-        var saved = null;
-        try { saved = sessionStorage.getItem('pos-menu-category'); } catch (e) {}
-        if (saved !== null && chip.dataset.filter === saved) { showCategory(chip); }
-    });
+    })();
+
+    // Category buttons (v0.14.0) and search (v0.20.0): hide the tiles that don't match.
+    // Nothing is sent to the server. The chosen category is remembered for this browser
+    // tab (sessionStorage), so it stays selected after each tap reloads the page (v0.14.2).
+    (function () {
+        const search = document.getElementById('menuSearch');
+        let category = 'all';
+        function filter() {
+            const text = search ? search.value.trim().toLowerCase() : '';
+            let shown = 0;
+            document.querySelectorAll('#menuTiles [data-category]').forEach(function (tile) {
+                const match = (category === 'all' || tile.dataset.category === category)
+                    && (!text || tile.dataset.name.indexOf(text) !== -1);
+                tile.hidden = !match;
+                if (match) { shown += 1; }
+            });
+            const none = document.getElementById('noMatch');
+            if (none) { none.hidden = shown > 0; }
+        }
+        function showCategory(chip) {
+            document.querySelectorAll('.chip[data-filter]').forEach(function (c) { c.classList.remove('active'); });
+            chip.classList.add('active');
+            category = chip.dataset.filter;
+            filter();
+            try { sessionStorage.setItem('pos-menu-category', category); } catch (e) {}
+        }
+        document.querySelectorAll('.chip[data-filter]').forEach(function (chip) {
+            chip.addEventListener('click', function () { showCategory(chip); });
+            let saved = null;
+            try { saved = sessionStorage.getItem('pos-menu-category'); } catch (e) {}
+            if (saved !== null && chip.dataset.filter === saved) { showCategory(chip); }
+        });
+        if (search) { search.addEventListener('input', filter); }
+    })();
 </script>
 {% endblock %}

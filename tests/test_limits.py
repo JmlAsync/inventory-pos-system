@@ -44,5 +44,6 @@ for qty in ['9' * 309, '9' * 400, '1000001']:
 r = c.post('/sales/new', data={'product_id': latte, 'quantity': '3'})
 check('recipe drink, normal quantity 3 still added', r.status_code == 302)
 page = open('templates/new_sale.html', encoding='utf-8').read()
-check('both quantity boxes on New Sale (list and drink window) say max="1000000"', page.count('min="1" max="1000000"') == 2)
+# v0.20.0: the drink window is gone (one tap adds 1; − / + change it), so only the list form has a quantity box
+check('the quantity box on New Sale says max="1000000"', page.count('min="1" max="1000000"') == 1)
 finish('LIMITS')

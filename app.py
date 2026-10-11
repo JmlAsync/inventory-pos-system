@@ -825,38 +825,166 @@ def units_in_basket(basket, product_id):
     return sum(q for key, q in basket.items() if key.split(':')[0] == str(product_id))
 
 
+# ---------------- New Sale screen (v0.20.0): Rush Hour + Stock Aware ----------------
+# The tiles show a stock bar, one button per serving (+ Hot / + Iced), and the reason a
+# drink can't be made. The order shows which ingredients it will use. Add-ons are changed
+# on the order line (design "6a"), so one tap is enough for most drinks.
+
+STOCK_BAR_FULL = LOW_STOCK_THRESHOLD * 4   # this many left (20) or more = a full bar on the tile (v0.20.0)
+
+
+def limiting_ingredient(product, recipes, reserved=None, size=None):
+    """The ingredient that runs out first for this recipe product and serving: the reason
+    can_make() is small. None for products without a recipe (v0.20.0)."""
+    reserved = reserved or {}
+    worst, worst_count = None, None
+    for ingredient_id, amount in recipes.usage(product, size if product.has_options else None).items():
+        ingredient = db.session.get(Ingredient, ingredient_id)
+        left = (ingredient.quantity if ingredient else 0) - reserved.get(ingredient_id, 0)
+        count = max(0, math.floor((left + 1e-9) / amount))
+        if worst_count is None or count < worst_count:
+            worst, worst_count = ingredient, count
+    return worst
+
+
+def menu_tile(product, recipes, reserved, basket, sizes):
+    """Everything one tile on New Sale needs (v0.20.0): a button per serving with how many
+    can still be made, the stock bar, and the missing ingredient when it can't be made."""
+    servings = sizes if (product.has_options and sizes) else [None]
+    buttons = []
+    for size in servings:
+        if recipes.has(product):
+            available = can_make(product, recipes, reserved, size)
+            short = None if available else limiting_ingredient(product, recipes, reserved, size)
+        else:
+            # No recipe: the product's own count, minus what is already in the order
+            available = max(0, product.quantity - units_in_basket(basket, product.id))
+            short = None
+        buttons.append({'size': size, 'available': available, 'short': short})
+    available = max(b['available'] for b in buttons)
+    level = 'out' if available <= 0 else 'low' if available <= LOW_STOCK_THRESHOLD else 'ok'
+    return {'product': product, 'buttons': buttons, 'available': available, 'level': level,
+            'percent': min(100, round(available / STOCK_BAR_FULL * 100)),
+            'short': buttons[0]['short'] if available <= 0 else None}
+
+
+def running_low():
+    """Ingredients at or below their warning level, for the banner (v0.20.0): (low, out)."""
+    items = Ingredient.query.filter(Ingredient.quantity <= Ingredient.low_at).order_by(Ingredient.name).all()
+    return [i for i in items if i.quantity > 0], [i for i in items if i.quantity <= 0]
+
+
+def usage_rows(lines, recipes):
+    """One row per ingredient the order will use (v0.20.0): how much, before -> after,
+    which items use it, and whether it will be OK, low or used up. Worst first."""
+    rows = {}
+    for line in lines:
+        if not recipes.has(line['product']):
+            continue
+        for ingredient_id, amount in recipes.usage(line['product'], line['size'], line['addons'], line['quantity']).items():
+            row = rows.setdefault(ingredient_id, {'used': 0, 'by': []})
+            row['used'] = round(row['used'] + amount, 3)
+            if line['product'].name not in row['by']:
+                row['by'].append(line['product'].name)
+    result = []
+    for ingredient_id, row in rows.items():
+        ingredient = db.session.get(Ingredient, ingredient_id)
+        if ingredient is None:
+            continue
+        after = round(ingredient.quantity - row['used'], 3)
+        status = 'out' if after <= 0 else 'low' if after <= ingredient.low_at else 'ok'
+        result.append({'ingredient': ingredient, 'used': row['used'], 'before': ingredient.quantity,
+                       'after': after, 'by': ', '.join(row['by']), 'status': status})
+    order = {'out': 0, 'low': 1, 'ok': 2}
+    return sorted(result, key=lambda r: (order[r['status']], r['ingredient'].name.lower()))
+
+
+def quick_cash(total):
+    """Round amounts a customer is likely to hand over: the next ₱100, ₱500 and ₱1,000 above
+    the total, e.g. 310 -> [400, 500, 1000], 600 -> [700, 1000] (v0.20.0)."""
+    if total <= 0:
+        return []
+    amounts = {math.floor(total / step) * step + step for step in (100, 500, 1000)}
+    return sorted(a for a in amounts if a <= MAX_CASH)
+
+
 def show_sale_page(error=None):
-    """Build the basket lines and total, then show the New Sale page."""
+    """Build the order lines, total and menu tiles, then show the New Sale page."""
     basket = get_basket()
     lines, problem = basket_lines(basket)
     error = error or problem
     save_basket(basket)
     total = round(sum(line['subtotal'] for line in lines), 2)
-    # Products that can still be added: stock minus what is already in the basket.
+    # What can still be added: stock minus what is already in the order.
     # (The real stock in the database only goes down when the sale is completed.)
     # Menu order (v0.14.2): grouped by category (products without one last), then by name
     in_menu_order = (Product.category.is_(None), Product.category, Product.name)
     recipes = Recipes()
-    reserved = basket_usage(lines, recipes)   # ingredients the basket already needs (v0.17.0)
-    choices = []
-    for product in Product.query.order_by(*in_menu_order).all():
-        if recipes.has(product):
-            available = can_make(product, recipes, reserved)
-        else:
-            available = product.quantity - units_in_basket(basket, product.id)
-        if available > 0:
-            choices.append({'product': product, 'available': available})
+    reserved = basket_usage(lines, recipes)   # ingredients the order already needs (v0.17.0)
     sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
     addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
-    return render_template('new_sale.html', choices=choices, lines=lines, total=total,
-                           sizes=sizes, addons=addons, error=error)
+    # v0.20.0: products that can't be made are shown too (greyed, with the missing ingredient)
+    tiles = [menu_tile(p, recipes, reserved, basket, sizes) for p in Product.query.order_by(*in_menu_order).all()]
+    choices = [t for t in tiles if t['available'] > 0]   # for the "type a quantity" form
+    low, out = running_low()
+    return render_template('new_sale.html', tiles=tiles, choices=choices, lines=lines, total=total,
+                           sizes=sizes, addons=addons, error=error, low=low, out=out,
+                           uses=usage_rows(lines, recipes), quick_cash=quick_cash(total))
+
+
+def read_chosen_options(product):
+    """The serving and add-ons sent with a form, checked against what is offered now.
+    Returns (size_id, addon_ids, error). Shared by "add" and "change line" (v0.20.0;
+    the checks themselves are from v0.16.0)."""
+    if not product.has_options:
+        return None, [], None
+    sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
+    size_id = request.form.get('size_id', type=int)
+    if sizes:
+        if size_id is None:
+            size_id = sizes[0].id          # the first serving if none was chosen (e.g. the list form)
+        if size_id not in [s.id for s in sizes]:
+            return None, [], 'Please choose one of the servings offered (e.g. Hot or Iced).'
+    else:
+        size_id = None
+    active_addons = {a.id for a in MenuOption.query.filter_by(kind='addon', active=True)}
+    try:
+        addon_ids = sorted({int(i) for i in request.form.getlist('addon_ids')})
+    except ValueError:
+        return None, [], 'Please choose add-ons from the list.'
+    if not set(addon_ids) <= active_addons:
+        return None, [], 'Please choose add-ons from the list.'
+    return size_id, addon_ids, None
+
+
+def basket_stock_problem(basket):
+    """Why this order can't be made with what is on hand, or None (v0.20.0). Used before
+    saving a + tap or a changed line: units for products without a recipe, ingredients
+    for the rest (the same rules as adding a product)."""
+    lines, problem = basket_lines(dict(basket))
+    if problem:
+        return problem
+    recipes = Recipes()
+    units = {}
+    for line in lines:
+        if not recipes.has(line['product']):
+            units[line['product']] = units.get(line['product'], 0) + line['quantity']
+    for product, quantity in units.items():
+        if quantity > product.quantity:
+            return f'Not enough stock for {product.name}: only {product.quantity} on hand.'
+    short = shortages(basket_usage(lines, recipes))
+    if short:
+        ingredient, need, have = short[0]
+        return (f'Not enough {ingredient.name}: the order would need {fmt_amount(need)} {ingredient.unit}, '
+                f'only {fmt_amount(have)} {ingredient.unit} on hand.')
+    return None
 
 
 @app.route('/sales/new', methods=['GET', 'POST'])
 @login_required
 def new_sale():
     if request.method == 'POST':
-        # A tile, the options window or the "Add to basket" form was submitted
+        # A serving button on a tile, "+ Add", or the "type a quantity" form was submitted
         product = find_by_id(Product, request.form.get('product_id', type=int))
         quantity = request.form.get('quantity', type=int)  # None if not a whole number
 
@@ -870,24 +998,9 @@ def new_sale():
             return show_sale_page(f'Quantity can be at most {MAX_QUANTITY:,}.')
 
         # Size and add-ons (v0.16.0), only for products that offer them
-        size_id, addon_ids = None, []
-        if product.has_options:
-            sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order, MenuOption.id).all()
-            size_id = request.form.get('size_id', type=int)
-            if sizes:
-                if size_id is None:
-                    size_id = sizes[0].id          # the smallest size if none was chosen (e.g. the list form)
-                if size_id not in [s.id for s in sizes]:
-                    return show_sale_page('Please choose one of the servings offered (e.g. Hot or Iced).')
-            else:
-                size_id = None
-            active_addons = {a.id for a in MenuOption.query.filter_by(kind='addon', active=True)}
-            try:
-                addon_ids = sorted({int(i) for i in request.form.getlist('addon_ids')})
-            except ValueError:
-                return show_sale_page('Please choose add-ons from the list.')
-            if not set(addon_ids) <= active_addons:
-                return show_sale_page('Please choose add-ons from the list.')
+        size_id, addon_ids, problem = read_chosen_options(product)
+        if problem:
+            return show_sale_page(problem)
 
         basket = get_basket()
         recipes = Recipes()
@@ -914,6 +1027,68 @@ def new_sale():
         return redirect(url_for('new_sale'))
 
     return show_sale_page()
+
+
+@app.route('/sales/line-quantity', methods=['POST'])
+@login_required
+def change_line_quantity():
+    """The − and + buttons on an order line (v0.20.0): one less or one more of exactly that
+    line. Only -1 and +1 are accepted; at 0 the line is taken out. "+" is checked against
+    the stock first, like adding a product."""
+    basket = get_basket()
+    key = request.form.get('line', '')
+    change = request.form.get('change', type=int)
+    if key not in basket or change not in (-1, 1):
+        return redirect(url_for('new_sale'))   # nothing to change (e.g. a tap on an old page)
+    quantity = basket[key] + change
+    if quantity <= 0:
+        basket.pop(key)
+        save_basket(basket)
+        return redirect(url_for('new_sale'))
+    if quantity > MAX_QUANTITY:
+        return show_sale_page(f'Quantity can be at most {MAX_QUANTITY:,}.')
+    trial = dict(basket)
+    trial[key] = quantity
+    if change > 0:
+        problem = basket_stock_problem(trial)
+        if problem:
+            return show_sale_page(problem)
+    save_basket(trial)
+    return redirect(url_for('new_sale'))
+
+
+@app.route('/sales/line-options', methods=['POST'])
+@login_required
+def change_line_options():
+    """Design 6a (v0.20.0): change the serving and add-ons of a drink that is already in the
+    order. The line gets a new key (see make_line_key); if the same drink with the same
+    choices is already there, the two lines become one. Checked like adding a product."""
+    basket = get_basket()
+    key = request.form.get('line', '')
+    if key not in basket:
+        return redirect(url_for('new_sale'))
+    line, problem = read_line(key, basket[key])
+    if problem:
+        return show_sale_page()   # shows the problem and takes the line out
+    product = line['product']
+    if not product.has_options:
+        return show_sale_page(f'{product.name} has no servings or add-ons to change.')
+    size_id, addon_ids, problem = read_chosen_options(product)
+    if problem:
+        return show_sale_page(problem)
+    new_key = make_line_key(product.id, size_id, addon_ids)
+    if new_key == key:
+        return redirect(url_for('new_sale'))   # nothing changed
+    trial = dict(basket)
+    quantity = trial.pop(key)
+    trial[new_key] = trial.get(new_key, 0) + quantity
+    if trial[new_key] > MAX_QUANTITY:
+        return show_sale_page(f'Quantity can be at most {MAX_QUANTITY:,}.')
+    problem = basket_stock_problem(trial)
+    if problem:
+        return show_sale_page(problem)
+    save_basket(trial)
+    return redirect(url_for('new_sale'))
 
 
 @app.route('/sales/remove/<int:product_id>', methods=['POST'])

@@ -76,9 +76,10 @@ with app.app_context():
 check('app.py still exists after deleting a product named ../../app.py picture', (a.post(f'/products/delete/{sid}'), os.path.exists('app.py'))[1])
 # New Sale tiles
 h = a.get('/sales/new').get_data(as_text=True)
-with app.app_context(): in_stock = Product.query.filter(Product.quantity > 0).count()
-check(f'New Sale shows one tile per product in stock ({in_stock})', h.count('class="menu-tile w-100') == in_stock)
-check('sold-out product has no tile', 'Ube Cheesecake' not in h)
+with app.app_context(): every, in_stock = Product.query.count(), Product.query.filter(Product.quantity > 0).count()
+# v0.20.0: every product has a tile; sold-out ones are greyed and have no add button
+check(f'New Sale shows one tile per product ({every}), {in_stock} with an add button', h.count('class="sale-tile ') == every and h.count('class="sale-tile level-out') == every - in_stock)
+check('sold-out product: greyed tile, "Sold out"', re.search(r'Ube Cheesecake \(slice\)</span>.*?Sold out', h, re.S) is not None)
 cats = re.findall(r'<div class="col" data-category="([^"]*)"', h)
 check('menu tiles grouped by category (v0.14.2)', cats == sorted(cats, key=lambda c: (c == 'Other', c)))
 check('chosen category remembered after a tap (v0.14.2)', 'pos-menu-category' in h)

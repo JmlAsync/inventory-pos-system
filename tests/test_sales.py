@@ -1,6 +1,7 @@
 """Process sale, cash and change, receipts and the basket (feature F7, test cases TC-7.x).
 Starts from a v0.7.1 database (only the product and user tables) to prove the upgrade keeps the data."""
 import os
+import re
 import sqlite3
 from werkzeug.security import generate_password_hash as g
 from helpers import check, finish, text
@@ -31,7 +32,8 @@ with app.app_context():
 check('visitor is sent to log in for New Sale', app.test_client().get('/sales/new').status_code == 302)
 c = app.test_client(); c.post('/login', data={'username': 'cashier', 'password': 'cashier123'})
 h = text(c.get('/sales/new'))
-check('cashier opens New Sale: empty basket, out-of-stock Soap not offered', 'basket is empty' in h and 'Soap' not in h)
+# v0.20.0: an out-of-stock product still has a (greyed) tile, but no button that adds it
+check('cashier opens New Sale: empty basket, out-of-stock Soap not offered', 'basket is empty' in h and 'name="product_id" value="3"' not in h and 'Out of stock' in h)
 check('Complete Sale with an empty basket: message', 'basket is empty' in text(c.post('/sales/complete')))
 c.post('/sales/new', data={'product_id': '1', 'quantity': '2'})
 c.post('/sales/new', data={'product_id': '2', 'quantity': '3'})
@@ -74,7 +76,8 @@ check('Complete Sale by plain link (GET) not allowed: 405', c.get('/sales/comple
 a = app.test_client(); a.post('/login', data={'username': 'admin', 'password': 'admin123'})
 a.post('/sales/new', data={'product_id': '1', 'quantity': '2'})
 check('admin can complete a sale', a.post('/sales/complete', data={'cash_received': '151'}).status_code == 302)
-check('product with 0 stock is not offered', 'Coke' not in text(a.get('/sales/new')))
+h = a.get('/sales/new').get_data(as_text=True)
+check('product with 0 stock is not offered (greyed tile, no add button) (v0.20.0)', re.search(r'Coke 1\.5L</span>.*?Sold out', h, re.S) is not None and 'Coke 1.5L (' not in h)
 a.post('/products/edit/1', data={'name': 'Coke 1.5L NEW', 'sku': 'BEV-001', 'price': '99', 'quantity': '10', 'category': 'Beverages'})
 h = text(c.get(receipt))
 check('renaming / repricing a product does not change old receipts', 'Coke 1.5L' in h and 'NEW' not in h and '₱75.50' in h)

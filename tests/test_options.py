@@ -36,7 +36,11 @@ check('cashier cannot open or change options (403)', c.get('/options').status_co
 a.post('/products/add', data={'name': 'Sea Salt', 'sku': 'D1', 'price': '180', 'quantity': '3', 'category': 'Lattes', 'has_options': '1'})
 with app.app_context(): sea = Product.query.filter_by(sku='D1').first(); check('product form tick box saves has_options', sea.has_options); sid = sea.id
 h = c.get('/sales/new').get_data(as_text=True)
-check('drink tile opens the options window; croffle tile does not', f'data-product-id="{sid}"' in h and 'data-product-id="1"' not in h and 'optionsDialog' in h)
+# v0.20.0: a drink tile has one button per serving (each sends size_id); the croffle tile has one "+ Add" without
+drink_form = re.search(rf'name="product_id" value="{sid}">\s*<input type="hidden" name="quantity" value="1">\s*<input type="hidden" name="size_id"', h)
+plain_form = re.search(r'name="product_id" value="1">\s*<input type="hidden" name="quantity" value="1">\s*<button', h)
+check('drink tile has a button per serving; croffle tile has "+ Add" (v0.20.0)', drink_form is not None and plain_form is not None and 'optionsDialog' not in h)
+def line_options(h): return re.findall(r'basket-options">([^<]*)<', h)   # the options text of each basket line
 def basket(): return c.get('/sales/new').get_data(as_text=True)
 c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso'], ids['Sub Oat']]})
 h = basket()
@@ -59,7 +63,7 @@ c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['1
 h = basket(); check('two Sea Salt lines with different options', h.count('product-name">Sea Salt</span>') == 2)
 keys = re.findall(r'name="line" value="([^"]+)"', h)
 c.post('/sales/remove-line', data={'line': [k for k in keys if k.startswith(f'{sid}:') and k.endswith(str(ids['Syrup']))][0]})
-h = basket(); check('remove-line removes only that line', h.count('product-name">Sea Salt</span>') == 1 and 'Syrup' not in h.split('Basket')[1].split('optionsDialog')[0])
+h = basket(); check('remove-line removes only that line', h.count('product-name">Sea Salt</span>') == 1 and not any('Syrup' in o for o in line_options(h)))
 c.post('/sales/remove-line', data={'line': 'does-not-exist'}); check('removing an unknown line is harmless', basket().count('product-name">Sea Salt</span>') == 1)
 # complete
 c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Sub Oat']]})
@@ -78,7 +82,7 @@ a2 = a.get('/reports/sales').get_data(as_text=True); check('report: Sea Salt cou
 with app.app_context(): p = db.session.get(Product, sid); p.quantity = 5; db.session.commit()
 c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso']]})
 opt(option_id=ids['Espresso'], name='Espresso', price='30')   # no 'active' -> hidden
-h = basket(); check('hidden add-on: its basket line is taken out with a message', 'no longer offered' in h and 'Espresso' not in h.split('Basket')[1].split('optionsDialog')[0])
+h = basket(); check('hidden add-on: its basket line is taken out with a message', 'no longer offered' in h and not any('Espresso' in o for o in line_options(h)))
 check('hidden add-on not offered in the window', f'id="addon{ids["Espresso"]}"' not in basket())
 with c.session_transaction() as sess: sess['basket'] = {'abc:x': 1, '1': 1}
 h = basket(); check('broken basket key removed without a crash; old-style key "1" still works', 'not understood' in h and '1 × ₱150.00' in h)

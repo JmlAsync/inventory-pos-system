@@ -91,4 +91,25 @@ check('old password no longer works', login(app.test_client(), 'cashier', 'cashi
 check('new password works', login(app.test_client(), 'cashier', 'Kape-2026!').status_code == 302)
 check('visitor cannot change a password', app.test_client().post('/profile/password', data={}).status_code in (302, 400))
 
+# ---- v0.19.3 (security audit 2026-10-11)
+# DEF-50: the login limit kept every wrong username at full length and never forgot untried ones
+A.failed_logins.clear()
+v = app.test_client()
+for i in range(20):
+    login(v, f'{i}' + 'x' * 400_000, 'wrong')
+check('DEF-50: a 400 KB username is remembered as at most 50 characters',
+      len(A.failed_logins) == 20 and max(len(k[0]) for k in A.failed_logins) <= 50)
+for k in A.failed_logins:
+    A.failed_logins[k] = [t - timedelta(minutes=6) for t in A.failed_logins[k]]
+login(app.test_client(), 'someone-else', 'wrong')
+check('DEF-50: wrong usernames older than 5 minutes are forgotten for everyone', len(A.failed_logins) == 1)
+A.failed_logins.clear()
+c = app.test_client()
+for i in range(5): login(c, 'cashier' + 'x' * 60, f'wrong{i}')
+check('the limit still works for long usernames (6th try waits)', login(c, 'cashier' + 'x' * 60, 'wrong').status_code == 429)
+A.failed_logins.clear()
+# DEF-49: Werkzeug 3.1.8 has CVE-2026-102598 (Windows device names like NUL: hang static-file requests)
+pins = dict(line.split('==') for line in open('requirements.txt', encoding='utf-16').read().split() if '==' in line)
+check('DEF-49: requirements.txt pins Werkzeug 3.1.9 or newer', tuple(int(n) for n in pins['Werkzeug'].split('.')) >= (3, 1, 9))
+
 finish('SECURITY')

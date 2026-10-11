@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.19.2** (2026-10-09). Versions v0.8.2–v0.19.2 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.19.3** (2026-10-11). Versions v0.8.2–v0.19.3 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -98,6 +98,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.19.0 | Project rules for people and AI assistants (AGENTS.md), automatic tests inside the repository, GitHub checks on every pull request | Yes: 333 checks run with one command |
 | v0.19.1 | Patch: the light/dark switch is just an icon showing the current theme (sun = light, moon = dark) | Yes |
 | v0.19.2 | Patch: avatar menu wide enough for its words again (DEF-46, side effect of v0.19.1) | Yes |
+| v0.19.3 | Security audit patch: no crash on huge quantities, login limit can't fill memory, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) | Yes: each attack re-run and now blocked |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -190,6 +191,7 @@ The tag message summarizes what the increment added.
 | v0.19.1 | 2026-10-09 | `b6b9090` | Light/dark switch is an icon only: sun in the light theme, moon in the dark theme, beside the user's name *(pull request #50)* |
 | v0.19.2 | 2026-10-09 | `57527bb` | Avatar menu grows to fit its words; each line on one line (DEF-46) *(pull request #51)* |
 | — | 2026-10-11 | — | Documentation: security audit of v0.19.2 (`docs/security_audit_2026-10-11.md`, DEF-47–DEF-52) *(pull request #52, no tag)* |
+| v0.19.3 | 2026-10-11 | `COMMIT` | Security audit patch: quantity limit on New Sale, login limit remembers at most 50 characters and forgets old entries, Werkzeug 3.1.9 (DEF-47, DEF-49, DEF-50) *(pull request #53)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -852,7 +854,21 @@ each bug below was caught. "Expected result" here means *the tests fail* (red), 
 | TC-19.13 | Copy of the code | Add a new page `/secret-export` without any login check | Contract fails: "new page is not listed" (S1) | As expected | ✅ |
 | TC-19.14 | Pull request #49 on GitHub | Open the pull request | "Checks" runs and shows a green tick | To confirm after publishing | ⏳ |
 
-### How Claude tested v0.8.2 – v0.19.0
+### Security audit patches *(v0.19.3)*
+
+The security audit of 2026-10-11 (`docs/security_audit_2026-10-11.md`) found these; each attack was run again on
+v0.19.3 and is now blocked. The automated checks are in `test_limits.py` and `test_security.py`.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-20.1 | A drink made from a recipe | New Sale: quantity of 309 or 400 digits | Message "Quantity can be at most 1,000,000", no crash | **v0.19.2:** *Internal Server Error* (500) · **v0.19.3:** message | ❌→✅ DEF-47 |
+| TC-20.2 | Same drink | Quantity 1,000,001; then 3 | Refused with the same message; 3 is added normally. Both quantity boxes have `max="1000000"` | As expected | ✅ |
+| TC-20.3 | Login page | 50 wrong log-ins with 450 KB usernames | Memory stays flat (each username remembered as at most 50 characters) | **v0.19.2:** 33 MB kept, growing · **v0.19.3:** about 1.5 MB, the same after 200 tries | ❌→✅ DEF-50 |
+| TC-20.4 | Wrong usernames older than 5 minutes | Any new log-in attempt | Old entries forgotten for every username, not only the one typed; the 5-try limit still works | **v0.19.2:** 3,000 random usernames stayed forever · **v0.19.3:** cleared | ❌→✅ DEF-50 |
+| TC-20.5 | `requirements.txt` | `pip-audit`; run all tests on the new version | No known vulnerability; Werkzeug 3.1.9; everything passes | **v0.19.2:** CVE-2026-102598 in Werkzeug 3.1.8 · **v0.19.3:** none | ❌→✅ DEF-49 |
+| TC-20.6 | All earlier tests | `python tests/run_tests.py` | All 17 pass | As expected | ✅ |
+
+### How Claude tested v0.8.2 – v0.19.3
 
 **Method.** Each version was built in a separate copy of the repository and tested before it was published:
 1. **Automated tests** with Flask's *test client* (it sends requests to the app like a browser, but from a script), on a
@@ -886,11 +902,11 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 34 |
 | `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
 | `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
-| `test_limits.py` | DEF-14, DEF-15, DEF-17: nan, infinity, huge numbers and ids, long text | 18 |
+| `test_limits.py` | DEF-14, DEF-15, DEF-17, DEF-47: nan, infinity, huge numbers and ids, long text, huge drink quantities | 23 |
 | `test_low_stock.py` | F8, DEF-18 | 8 |
 | `test_report.py` | F9: dates, midnight, totals, top products | 11 |
 | `test_avatar.py` | F10 / TC-11.x | 17 |
-| `test_security.py` | F12 / TC-13.x: secret key, CSRF, login limit, headers, passwords | 38 |
+| `test_security.py` | F12 / TC-13.x, TC-20.3–20.5: secret key, CSRF, login limit (incl. DEF-50), headers, passwords, Werkzeug version (DEF-49) | 42 |
 | `test_product_pictures.py` | F13 / TC-14.x | 25 |
 | `test_payment.py` | F14 / TC-15.x | 19 |
 | `test_options.py` | F15 / TC-16.x | 34 |
@@ -899,7 +915,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_number_boxes.py` | DEF-43, 5 pages | 5 |
 | `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
-| **17 files** | | **349 checks + 53 rule checks** |
+| **17 files** | | **358 checks + 53 rule checks** |
 
 ### Test summary (v0.7.0 → v0.19.0)
 
@@ -925,7 +941,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
 | F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
 | F18 Rules + automated tests | 14 | 13 | 0 | 1 |
-| **Total** | **211** | **162 → 208** | **45 → 0** | **4 → 3** |
+| Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
+| **Total** | **217** | **164 → 214** | **49 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -985,10 +1002,10 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-44 | Low (usability) | After each Restock / Count / Edit the list reloaded at the top with the search and filter cleared | v0.18.x stabilization (TC-18.12) | Return to the row (`#ing-<id>`), remember search and filter for the tab | ✅ Fixed v0.18.1 |
 | DEF-45 | Low (cosmetic) | In the Products table SKUs broke after the dash ("HC-" / "001") and "100 can make" took two lines | Screenshot review for the documentation (TC-18.15) | SKU and count cells keep their text on one line | ✅ Fixed v0.18.2 |
 | DEF-46 | Low (cosmetic) | Avatar menu: "Change picture" and "Change password" ran past the menu's right edge and "Signed in as Admin" took two lines. Side effect of v0.19.1: the menu was set to the name button's width (`w-100`), and the button became narrower when the theme icon moved into its row | Hand testing by Yesha (screenshot), confirmed by measuring in Chromium at 100 %, 110 %, 125 % and phone width (TC-12.13) | Menu is at least the button's width but grows to fit its longest line (`min-width: 100%; width: max-content`), lines never wrap | ✅ Fixed v0.19.2 |
-| DEF-47 | Medium | A 309-digit quantity for a drink made from a recipe crashed New Sale (500, `OverflowError` in `Recipes.usage`); neither quantity box has a maximum | Security audit 2026-10-11 (fuzzing, audit A1) | Refuse quantities above `MAX_QUANTITY` before calculating | ⏳ Open, next patch |
+| DEF-47 | Medium | A 309-digit quantity for a drink made from a recipe crashed New Sale (500, `OverflowError` in `Recipes.usage`); neither quantity box has a maximum | Security audit 2026-10-11 (fuzzing, audit A1) | Refuse quantities above `MAX_QUANTITY` before calculating | ✅ Fixed v0.19.3 |
 | DEF-48 | Medium | Two *Complete Sale* requests sent at the same moment with the same basket both succeed: two receipts, stock taken twice (the basket is in the cookie both carry) | Security audit 2026-10-11 (audit A2; a real double-click in Chromium made only 1 sale) | One-time sale ticket checked by the server + disable the button after the first click | ⏳ Open |
-| DEF-49 | Medium (Windows) | Werkzeug 3.1.8 has CVE-2026-102598: on Windows a static-file request for a device name like `NUL:` hangs | `pip-audit`, security audit 2026-10-11 (audit A3) | `Werkzeug==3.1.9` (all 17 test files pass with it) | ⏳ Open, next patch |
-| DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ⏳ Open |
+| DEF-49 | Medium (Windows) | Werkzeug 3.1.8 has CVE-2026-102598: on Windows a static-file request for a device name like `NUL:` hangs | `pip-audit`, security audit 2026-10-11 (audit A3) | `Werkzeug==3.1.9` (all 17 test files pass with it) | ✅ Fixed v0.19.3 |
+| DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ✅ Fixed v0.19.3 |
 | DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | Session version per user + idle timeout | ⏳ Open |
 | DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals | ⏳ Open |
 
@@ -1351,7 +1368,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 (211 cases), screenshots S1–S45 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F18 + audit patches (217 cases), screenshots S1–S45 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1391,7 +1408,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 49 pull requests, one branch per version, tags v0.7.1–v0.19.2, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 53 pull requests, one branch per version, tags v0.7.1–v0.19.3, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

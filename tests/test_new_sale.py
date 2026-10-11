@@ -150,8 +150,8 @@ check('TC-22.5 no recipe in the basket -> no panel', 'uses-panel' not in h)
 check('TC-22.6 quick cash = next ₱100 / ₱500 / ₱1,000: 310 -> 400, 500, 1,000; 600 -> 700, 1,000; 1,000 -> 1,100, 1,500, 2,000',
       quick_cash(310) == [400, 500, 1000] and quick_cash(600) == [700, 1000] and quick_cash(1000) == [1100, 1500, 2000] and quick_cash(0) == [])
 check('TC-22.6 never above the cash limit', quick_cash(999_999.5) == [1_000_000])
-check('TC-22.6 the page shows Exact, the amounts and Other (₱150 basket)', 'data-cash="150.00">Exact' in h and 'data-cash="200">₱200' in h
-      and 'data-cash="1000">₱1,000' in h and 'data-cash="">Other' in h)
+check('TC-22.6 the page shows Exact, the amounts and an "Other amount" box (₱150 basket)', 'data-cash="150.00">Exact' in h and 'data-cash="200">₱200' in h
+      and 'data-cash="1000">₱1,000' in h and 'placeholder="Other amount"' in h)
 
 # ---- TC-22.7 a sale made with the new buttons is saved and deducted correctly
 with c.session_transaction() as s: s['basket'] = {}
@@ -177,5 +177,15 @@ check('TC-22.8 "+" without the token is refused (400) and changes nothing',
       c.post('/sales/line-quantity', data={'line': str(C), 'change': '1'}).status_code == 400 and basket() == {str(C): 1})
 check('TC-22.8 changing a line without the token is refused (400)', c.post('/sales/line-options', data={'line': str(C)}).status_code == 400)
 app.config['CSRF_ENABLED'] = False
+
+# ---- TC-22.11 (v0.20.1, DEF-57) New Sale uses the whole screen width
+css = open('static/css/theme.css', encoding='utf-8').read()
+check('TC-22.11 New Sale has no 1180px width limit (other pages keep it)',
+      re.search(r'\.app-content:has\(\.sale-page\)\s*\{\s*max-width:\s*none', css) is not None and '<div class="sale-page">' in h
+      and re.search(r'\.app-content\s*\{[^}]*max-width:\s*1180px', css) is not None)
+check('TC-22.11 as many tiles per row as fit (auto-fill grid), not a fixed 3', 'class="tile-grid"' in h and 'row-cols-sm-3' not in h
+      and re.search(r'\.tile-grid\s*\{[^}]*repeat\(auto-fill', css) is not None)
+check('TC-22.11 the basket gets a fixed share (380-460px) and the menu takes the rest', 'clamp(380px, 30%, 460px)' in css and '<div class="sale-side">' in h)
+check('TC-22.11 bar and "N left" share one line in the tile', '<div class="stock-row">' in h)
 
 finish('NEW SALE')

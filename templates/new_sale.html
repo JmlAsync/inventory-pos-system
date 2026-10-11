@@ -2,6 +2,7 @@
 {% from "_product_image.html" import product_thumb %}
 {% block title %}New Sale{% endblock %}
 {% block content %}
+<div class="sale-page">
 {# =====================================================================
    New Sale (v0.20.0): "Rush Hour + Stock Aware", add-ons from the order line (design 6a)
    - Tiles: one tap adds a drink (+ Hot / + Iced). A bar shows how many can still be made.
@@ -33,9 +34,10 @@
 <div class="alert alert-danger" role="alert">{{ error }}</div>
 {% endif %}
 
-<div class="row g-4">
+{# v0.20.1: the menu takes all the room the basket doesn't need (CSS grid, see .sale-layout in theme.css) #}
+<div class="sale-layout">
     {# ---------- Left: the menu ---------- #}
-    <div class="col-xl-7">
+    <div class="sale-menu">
         {% if tiles %}
         {% set categories = tiles|map(attribute='product.category')|map('default', 'Other', true)|unique|sort %}
         <div class="menu-tools">
@@ -50,7 +52,8 @@
             <input type="search" id="menuSearch" class="form-control menu-search" placeholder="Search menu" autocomplete="off">
         </div>
 
-        <div class="row row-cols-2 row-cols-sm-3 g-3" id="menuTiles">
+        {# As many tiles per row as fit (at least 10rem wide each), so wide screens show more of the menu (v0.20.1) #}
+        <div class="tile-grid" id="menuTiles">
             {% for tile in tiles %}
             {% set product = tile.product %}
             <div class="col" data-category="{{ product.category or 'Other' }}" data-name="{{ product.name|lower }}">
@@ -62,12 +65,14 @@
                     </div>
                     <span class="sale-tile-name" title="{{ product.name }}">{{ product.name }}</span>
                     {# Stock bar: full at 20 or more left (STOCK_BAR_FULL); amber when low, grey when out #}
-                    <div class="stock-bar" aria-hidden="true"><span style="width: {{ tile.percent }}%"></span></div>
-                    <span class="stock-note">
-                        {% if tile.level == 'out' %}{% if tile.short %}Out of {{ tile.short.name }}{% else %}Out of stock{% endif %}
-                        {% elif tile.level == 'low' %}Only {{ '{:,}'.format(tile.available) }} left
-                        {% else %}{{ '{:,}'.format(tile.available) }} left{% endif %}
-                    </span>
+                    <div class="stock-row">
+                        <div class="stock-bar" aria-hidden="true"><span style="width: {{ tile.percent }}%"></span></div>
+                        <span class="stock-note">
+                            {% if tile.level == 'out' %}{% if tile.short %}Out of {{ tile.short.name }}{% else %}Out of stock{% endif %}
+                            {% elif tile.level == 'low' %}Only {{ '{:,}'.format(tile.available) }} left
+                            {% else %}{{ '{:,}'.format(tile.available) }} left{% endif %}
+                        </span>
+                    </div>
                     {% if tile.level == 'out' %}
                     <button type="button" class="serve-btn serve-out" disabled>{{ "Can't make now" if tile.short else 'Sold out' }}</button>
                     {% else %}
@@ -83,7 +88,7 @@
                             <input type="hidden" name="quantity" value="1">
                             {% if b.size %}<input type="hidden" name="size_id" value="{{ b.size.id }}">{% endif %}
                             <button type="submit" class="serve-btn serve-{{ kind }}" title="Add 1 {{ product.name }}{% if b.size %} ({{ b.size.name }}){% endif %}">
-                                + {{ label }}{% if b.size and b.size.price %} <small>+{{ b.size.price|peso }}</small>{% endif %}
+                                <span class="serve-label">+ {{ label }}</span>{% if b.size and b.size.price %} <small>+{{ b.size.price|peso }}</small>{% endif %}
                                 {% if b.available <= 5 and tile.buttons|length > 1 %}<small class="d-block">{{ b.available }} left</small>{% endif %}
                             </button>
                         </form>
@@ -136,7 +141,7 @@
     </div>
 
     {# ---------- Right: the basket (order) and payment ---------- #}
-    <div class="col-xl-5">
+    <div class="sale-side">
         <div class="basket-column order-panel" id="basket">
         <div class="d-flex justify-content-between align-items-baseline mb-2">
             <h2 class="section-title my-0"><i class="bi bi-basket me-1" aria-hidden="true"></i>Basket</h2>
@@ -250,19 +255,19 @@
                 <label class="pay-method" for="pay_gcash"><i class="bi bi-phone me-1" aria-hidden="true"></i>GCash</label>
             </div>
             <div class="cash-only">
-                {# Quick cash (v0.20.0): fills in the box below; the server still checks the amount #}
+                {# Quick cash (v0.20.0): fills in the box below; the server still checks the amount.
+                   Any other amount: type it in the box (v0.20.1: the "Other" button was removed to save a row) #}
                 <div class="quick-cash" role="group" aria-label="Quick cash amounts">
                     <button type="button" class="quick-btn" data-cash="{{ '%.2f' % total }}">Exact</button>
                     {% for amount in quick_cash %}
                     <button type="button" class="quick-btn" data-cash="{{ amount }}">₱{{ '{:,}'.format(amount) }}</button>
                     {% endfor %}
-                    <button type="button" class="quick-btn" data-cash="">Other</button>
                 </div>
                 <div class="row g-2 mt-1">
                     <div class="col-6">
                         <label class="form-label small mb-1" for="cash_received">Cash received (₱)</label>
                         <input type="number" step="0.01" min="{{ total }}" max="1000000" name="cash_received" id="cash_received"
-                               class="form-control" required>
+                               class="form-control" placeholder="Other amount" required>
                     </div>
                     <div class="col-6">
                         <label class="form-label small mb-1" for="change_preview">Change</label>
@@ -293,14 +298,13 @@
                     : 'Not enough cash';
             }
             cashInput.addEventListener('input', showChange);
-            // Quick cash buttons (v0.20.0): Exact / round amounts fill the box; Other lets the cashier type
+            // Quick cash buttons (v0.20.0): Exact / round amounts fill the box; any other amount is typed in the box
             document.querySelectorAll('.quick-btn').forEach(function (button) {
                 button.addEventListener('click', function () {
                     document.querySelectorAll('.quick-btn').forEach(function (b) { b.classList.remove('active'); });
                     button.classList.add('active');
                     cashInput.value = button.dataset.cash;
                     showChange();
-                    if (!button.dataset.cash) { cashInput.focus(); }
                 });
             });
             // Cash or GCash (v0.15.0): show only the matching boxes, and only require those
@@ -401,4 +405,5 @@
         if (search) { search.addEventListener('input', filter); }
     })();
 </script>
+</div>
 {% endblock %}

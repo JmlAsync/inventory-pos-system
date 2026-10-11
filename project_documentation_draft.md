@@ -189,6 +189,7 @@ The tag message summarizes what the increment added.
 | v0.19.0 | 2026-10-09 | `cf2894e` | AGENTS.md rules, automated tests in `tests/` and GitHub checks on every pull request *(pull request #49)* |
 | v0.19.1 | 2026-10-09 | `b6b9090` | Light/dark switch is an icon only: sun in the light theme, moon in the dark theme, beside the user's name *(pull request #50)* |
 | v0.19.2 | 2026-10-09 | `57527bb` | Avatar menu grows to fit its words; each line on one line (DEF-46) *(pull request #51)* |
+| — | 2026-10-11 | — | Documentation: security audit of v0.19.2 (`docs/security_audit_2026-10-11.md`, DEF-47–DEF-52) *(pull request #52, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -984,6 +985,12 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-44 | Low (usability) | After each Restock / Count / Edit the list reloaded at the top with the search and filter cleared | v0.18.x stabilization (TC-18.12) | Return to the row (`#ing-<id>`), remember search and filter for the tab | ✅ Fixed v0.18.1 |
 | DEF-45 | Low (cosmetic) | In the Products table SKUs broke after the dash ("HC-" / "001") and "100 can make" took two lines | Screenshot review for the documentation (TC-18.15) | SKU and count cells keep their text on one line | ✅ Fixed v0.18.2 |
 | DEF-46 | Low (cosmetic) | Avatar menu: "Change picture" and "Change password" ran past the menu's right edge and "Signed in as Admin" took two lines. Side effect of v0.19.1: the menu was set to the name button's width (`w-100`), and the button became narrower when the theme icon moved into its row | Hand testing by Yesha (screenshot), confirmed by measuring in Chromium at 100 %, 110 %, 125 % and phone width (TC-12.13) | Menu is at least the button's width but grows to fit its longest line (`min-width: 100%; width: max-content`), lines never wrap | ✅ Fixed v0.19.2 |
+| DEF-47 | Medium | A 309-digit quantity for a drink made from a recipe crashed New Sale (500, `OverflowError` in `Recipes.usage`); neither quantity box has a maximum | Security audit 2026-10-11 (fuzzing, audit A1) | Refuse quantities above `MAX_QUANTITY` before calculating | ⏳ Open, next patch |
+| DEF-48 | Medium | Two *Complete Sale* requests sent at the same moment with the same basket both succeed: two receipts, stock taken twice (the basket is in the cookie both carry) | Security audit 2026-10-11 (audit A2; a real double-click in Chromium made only 1 sale) | One-time sale ticket checked by the server + disable the button after the first click | ⏳ Open |
+| DEF-49 | Medium (Windows) | Werkzeug 3.1.8 has CVE-2026-102598: on Windows a static-file request for a device name like `NUL:` hangs | `pip-audit`, security audit 2026-10-11 (audit A3) | `Werkzeug==3.1.9` (all 17 test files pass with it) | ⏳ Open, next patch |
+| DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ⏳ Open |
+| DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | Session version per user + idle timeout | ⏳ Open |
+| DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals | ⏳ Open |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1018,6 +1025,18 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **One low-stock threshold (5) for every product.** Fix: a per-product threshold (needs a database column, i.e. a migration).
 > - **Money stored as `Float`**, rounded to centavos. Real POS systems store whole centavos or `Decimal`.
 > - **SQLite allows one writer at a time.** Fine for a small shop; many tills would need a server database.
+
+### Security audit (2026-10-11) — full review of v0.19.2
+
+A full vulnerability and debugging review is in **[`docs/security_audit_2026-10-11.md`](docs/security_audit_2026-10-11.md)**.
+In short:
+- **Method:** dependency check (`pip-audit`), code scanner (`bandit`), manual review of all 21 routes, fuzzing of 39
+  forms with 6,417 hostile requests, 11 targeted attacks and live server probes.
+- **What held up:** no SQL injection, no script injection, no way past the login or admin checks, no crash from the
+  6,417 fuzzing requests.
+- **What it found:** 1 crash (DEF-47), a duplicate-sale risk (DEF-48), an outdated package (DEF-49), memory growth in
+  the login limit (DEF-50), sessions that can't be cancelled (DEF-51), case-different SKUs (DEF-52), public demo
+  passwords, and 11 risks for future goals (time zone, money as decimals, migrations, splitting `app.py`, user management).
 
 ### Security review (2026-10-09) — threats and controls
 
@@ -1362,13 +1381,13 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 30 | Detailed usage scenario (L8 p. 53) | ⬜ |
 | 31 | Reliability terminology (L11 p. 25) | ⬜ |
 | 32 | Safety terminology (L11 p. 35) | ⬜ |
-| 33 | Security terminology (L11 p. 42) | 🟡 §7 Security review (threat, vulnerability, control, attack) |
+| 33 | Security terminology (L11 p. 42) | 🟡 §7 Security review + `docs/security_audit_2026-10-11.md` §5 (threat, vulnerability, control, attack) |
 | 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks, upload checks (file content, 2 MB limit, random names), CSRF tokens, login limit, security headers |
 | 35 | Risk classification table (L12 p. 15) | ⬜ |
 | 36 | Software fault tree (L12 p. 18) | ⬜ |
 | 37 | Safety requirements (L12 p. 23) | ⬜ |
 | 38 | Functional reliability requirements (L12 p. 39) | ⬜ |
-| 39 | Threat and control analysis (L12 p. 46) | 🟡 §7 Security review table |
+| 39 | Threat and control analysis (L12 p. 46) | 🟡 §7 Security review table + security audit findings rated by severity (`docs/security_audit_2026-10-11.md` §3–4) |
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check

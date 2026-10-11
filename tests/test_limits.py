@@ -30,4 +30,19 @@ check('5,000-character name refused (DEF-17)', a.post('/products/add', data={'na
 check('an id too big for the database is "not found", not a crash (DEF-15)', a.get('/products/edit/99999999999999999999').status_code == 404)
 with app.app_context():
     check('no "not a number" or infinite price was saved', all(math.isfinite(p.price) for p in Product.query.all()))
+
+# v0.19.3 (DEF-47, security audit A1): a drink made from a recipe with a 309-digit quantity crashed New Sale
+from models import Ingredient, RecipeItem
+with app.app_context():
+    db.session.add_all([Product(name='Latte', sku='LAT', price=150, quantity=0), Ingredient(name='Milk', unit='ml', quantity=5000, low_at=0)])
+    db.session.commit()
+    latte = Product.query.filter_by(sku='LAT').first().id
+    db.session.add(RecipeItem(product_id=latte, ingredient_id=Ingredient.query.filter_by(name='Milk').first().id, amount=200)); db.session.commit()
+for qty in ['9' * 309, '9' * 400, '1000001']:
+    r = c.post('/sales/new', data={'product_id': latte, 'quantity': qty})
+    check(f'recipe drink, quantity of {len(qty)} digits: refused with a message, no crash (DEF-47)', r.status_code == 200 and 'at most 1,000,000' in r.get_data(as_text=True))
+r = c.post('/sales/new', data={'product_id': latte, 'quantity': '3'})
+check('recipe drink, normal quantity 3 still added', r.status_code == 302)
+page = open('templates/new_sale.html', encoding='utf-8').read()
+check('both quantity boxes on New Sale (list and drink window) say max="1000000"', page.count('min="1" max="1000000"') == 2)
 finish('LIMITS')

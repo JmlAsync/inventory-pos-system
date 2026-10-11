@@ -566,6 +566,17 @@ def edit_recipe(kind, item_id):
 MAX_LOGIN_FAILURES = 5
 LOCKOUT_MINUTES = 5
 failed_logins = {}   # (username, IP address) -> times of recent wrong passwords
+# v0.19.3 (DEF-50): usernames are at most 50 characters (models.py), so only that much is
+# remembered. Before, a 450 KB "username" was kept in memory at full length.
+MAX_USERNAME_LENGTH = 50
+
+
+def forget_old_failures():
+    """v0.19.3 (DEF-50): drop every username whose wrong passwords are all older than the
+    lockout window, not just the one being checked, so the list can't grow forever."""
+    cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    for key in [k for k, moments in failed_logins.items() if all(m <= cutoff for m in moments)]:
+        del failed_logins[key]
 
 
 def recent_failures(key):
@@ -584,7 +595,8 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        key = (username.strip().lower(), request.remote_addr)
+        key = (username.strip().lower()[:MAX_USERNAME_LENGTH], request.remote_addr)
+        forget_old_failures()
         if len(recent_failures(key)) >= MAX_LOGIN_FAILURES:
             # 429 = "Too Many Requests"
             return render_template('login.html', error=f'Too many failed attempts. Please wait '
@@ -852,6 +864,10 @@ def new_sale():
             return show_sale_page('Please choose a product.')
         if quantity is None or quantity < 1:
             return show_sale_page('Quantity must be a whole number of at least 1.')
+        if quantity > MAX_QUANTITY:
+            # v0.19.3 (DEF-47): a 309-digit quantity crashed the recipe calculation, because a
+            # number that big can't be turned into a decimal. Stop it before any calculation.
+            return show_sale_page(f'Quantity can be at most {MAX_QUANTITY:,}.')
 
         # Size and add-ons (v0.16.0), only for products that offer them
         size_id, addon_ids = None, []

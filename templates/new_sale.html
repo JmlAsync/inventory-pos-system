@@ -65,7 +65,7 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">Quantity</label>
-                <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                <input type="number" name="quantity" class="form-control" min="1" max="1000000" value="1" required>
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to basket</button>
@@ -223,7 +223,7 @@
         <div class="d-flex align-items-end gap-2">
             <div style="width: 6.5rem;">
                 <label class="form-label small" for="optionsQuantity">Quantity</label>
-                <input type="number" class="form-control" name="quantity" id="optionsQuantity" min="1" value="1" required>
+                <input type="number" class="form-control" name="quantity" id="optionsQuantity" min="1" max="1000000" value="1" required>
             </div>
             <button type="submit" class="btn btn-primary flex-grow-1" id="optionsSubmit">Add</button>
         </div>

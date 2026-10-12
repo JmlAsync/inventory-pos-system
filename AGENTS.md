@@ -8,7 +8,7 @@ the project owner changes this file.
 Rules marked **[checked]** are verified by `tests/check_contract.py` on every pull request.
 The others are checked by review.
 
-Last reviewed for v0.20.4 (2026-10-12).
+Last reviewed for v0.20.5 (2026-10-13).
 
 ---
 

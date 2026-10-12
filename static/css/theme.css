@@ -450,15 +450,17 @@ a.low-banner:hover { color: var(--warn-text); filter: brightness(0.97); }
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .sale-tile-price { font-weight: 800; color: var(--app-accent); }
-/* Bar and "24 left" share one line (v0.20.1), so a tile wastes no row */
-.stock-row { display: flex; align-items: center; gap: 0.5rem; }
-.stock-row .stock-bar { flex: 1 1 auto; min-width: 2.5rem; }
-.stock-row .stock-note { flex: 0 1 auto; text-align: right; line-height: 1.15; }
-.stock-bar { display: block; height: 8px; border-radius: 4px; background: var(--stock-track); overflow: hidden; }
-.stock-bar > span { display: block; height: 100%; border-radius: 4px; background: var(--stock-ok); }
-.level-low .stock-bar > span { background: var(--stock-low); }
-.stock-note { font-size: 0.8rem; font-weight: 600; color: var(--app-muted); }
-.level-low .stock-note { color: var(--warn-text); }
+/* Bar and "24 left" share one line (v0.20.1), so a tile wastes no row.
+   Own names (tile-...): v0.20.0 reused "stock-bar", which the Ingredients page already had, and its
+   warn-level tick shrank to a speck (v0.20.5, DEF-58). tests/test_new_sale.py checks no name is shared again. */
+.tile-stock { display: flex; align-items: center; gap: 0.5rem; }
+.tile-stock .tile-bar { flex: 1 1 auto; min-width: 2.5rem; }
+.tile-stock .tile-note { flex: 0 1 auto; text-align: right; line-height: 1.15; }
+.tile-bar { display: block; height: 8px; border-radius: 4px; background: var(--stock-track); overflow: hidden; }
+.tile-bar > span { display: block; height: 100%; border-radius: 4px; background: var(--stock-ok); }
+.level-low .tile-bar > span { background: var(--stock-low); }
+.tile-note { font-size: 0.8rem; font-weight: 600; color: var(--app-muted); }
+.level-low .tile-note { color: var(--warn-text); }
 .level-out { opacity: 0.75; }
 .level-out .sale-tile-name, .level-out .sale-tile-price { color: var(--app-muted); }
 

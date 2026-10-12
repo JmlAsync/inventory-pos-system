@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.20.4** (2026-10-12). Versions v0.8.2–v0.20.4 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.20.5** (2026-10-13). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -105,6 +105,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.2 | Patch: SKUs compared without regard to capitals (DEF-52) | Yes |
 | v0.20.3 | Patch: log-out, a password change and 8 idle hours really end a login (DEF-51) | Yes: a copied cookie is refused |
 | v0.20.4 | Patch: one basket can only be sold once: a one-time sale ticket (DEF-48) | Yes: no double receipts |
+| v0.20.5 | Patch: the Ingredients page's warn-level tick is visible again (DEF-58, side effect of v0.20.0) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -205,6 +206,7 @@ The tag message summarizes what the increment added.
 | v0.20.3 | 2026-10-12 | `6a726b9` | Logins can be ended: new `login_session` table, the cookie carries only a random token; log-out deletes it, a password change ends every login of that user, 8 idle hours end a login. Everyone logs in once more after the upgrade (DEF-51) *(pull request #58)* |
 | v0.20.4 | 2026-10-12 | `f2eda4d` | One sale per basket: each basket gets a one-time sale ticket, the receipt stores it and the database allows it once; a second click, a retry or an old cookie opens the first receipt instead; Complete Sale greys out after the first click (DEF-48) *(pull request #59)* |
 | — | 2026-10-12 | — | Documentation: README.md written (what the app does, quick start, demo accounts, tests, folders, security, contributing); Python version in Section 1 corrected *(pull request #61, no tag)* |
+| v0.20.5 | 2026-10-13 | `efb87ec` | Ingredients page: the warn-level tick on each stock bar is a full line again; the New Sale tile bars got their own class names (`tile-bar`) instead of reusing `stock-bar`, and a test stops New Sale style names from being shared again (DEF-58) *(pull request #62)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -934,6 +936,8 @@ TC-22.1–22.8 are automated in `tests/test_new_sale.py` (49 checks; they fail o
 | TC-22.10 | All earlier tests | `python tests/run_tests.py` | All 19 pass (7 old checks rewritten because the layout changed on purpose: the drink window is gone and sold-out items are shown greyed) | As expected | ✅ |
 | TC-22.11 | v0.20.1 code | `test_new_sale.py` checks the page and the style sheet | New Sale has no 1180 px limit (other pages keep it); tiles fill each row (auto-fill grid); basket 380–460 px; bar and "N left" on one line | **v0.20.0:** 4 checks fail · **v0.20.1:** pass | ❌→✅ DEF-57 |
 | TC-22.12 | Demo menu; Chromium | Open New Sale at 1024, 1280, 1440, 1600, 1920 and 2560 px | No empty bands beside the page; tiles per row grow with the screen (3 at 1280, 4 at 1440–1600, 6+ at 1920); nothing wraps or spills ("+ Iced", Complete Sale, ₱1,000); every button at least 44 px | **v0.20.0 on Yesha's wide screen:** about 200 px empty on each side and 3 tiles per row · **v0.20.1:** as expected | ❌→✅ DEF-57 |
+| TC-22.13 | v0.20.5 code | `test_new_sale.py` lists every class the New Sale part of `theme.css` styles and looks for it in the other templates | None of them is used on another page; nothing else in `theme.css` styles the New Sale bar names | **v0.20.4:** `stock-bar` also used in `_ingredient.html` · **v0.20.5:** none | ❌→✅ DEF-58 |
+| TC-22.14 | Demo data; Chromium, light and dark | Open Ingredients; measure the warn-level tick and the bar; compare with v0.19.4 | Tick 14 px tall, grey, sticking out above and below the bar; bar not clipped; colours the same as v0.19.4; New Sale still passes TC-22.9 and TC-22.12 | **v0.20.0–v0.20.4:** tick 6 px, green, clipped inside the bar · **v0.20.5:** identical to v0.19.4 | ❌→✅ DEF-58 |
 
 **Decision recorded:** cashiers can see the ingredient amounts on New Sale (they still can't open or change the
 Ingredients page). The student chose this because the cashier is the one who warns the customer that something is
@@ -948,6 +952,7 @@ running out.
 | S49 | TC-22.9: dark theme (left) and phone, 390 px (right) | ![Dark and phone](screenshots/v0.20.0_TC-22.9_dark_and_phone.png) |
 | S50 | TC-22.12 (v0.20.1): New Sale on a 1920 px screen, the whole demo menu in view, no empty bands | ![New Sale 1920 px](screenshots/v0.20.1_TC-22.12_new_sale_1920.png) |
 | S51 | TC-22.12 (v0.20.1): the same on a 1280 px laptop, nothing wraps in the basket | ![New Sale 1280 px](screenshots/v0.20.1_TC-22.12_new_sale_1280.png) |
+| S52 | TC-22.14 (v0.20.5): Ingredients bars, dark theme. Top: Yesha's screenshot of v0.20.4 (tick clipped to a speck). Bottom: v0.20.5 | ![Warn-level tick](screenshots/v0.20.5_TC-22.14_ingredient_warn_tick.png) |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
@@ -1021,9 +1026,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
-| `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11 (v0.20.0–v0.20.1): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout | 53 |
+| `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
-| **20 files** | | **450 checks + 58 rule checks** |
+| **20 files** | | **452 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.1)
 
@@ -1051,9 +1056,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F18 Rules + automated tests | 14 | 13 | 0 | 1 |
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
-| F19 New Sale redesign (v0.20.0–v0.20.1) | 12 | 9 → **12** | 3 → **0** | 0 |
+| F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
-| **Total** | **250** | **181 → 247** | **65 → 0** | **4 → 3** |
+| **Total** | **252** | **181 → 249** | **67 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1124,6 +1129,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-55 | Low | New Sale v0.20.0 (before release): on phones "₱1,000" spilled out of its quick-cash button | Measured in Chromium at 390 px, TC-22.9 | Buttons at least 3.9 rem wide; a fifth button wraps to the next row instead | ✅ Fixed before v0.20.0 was published |
 | DEF-56 | Low | New Sale v0.20.0 (before release): on phones the basket line squeezed the name beside the − / + buttons ("1 ×" and "₱140.00" on two lines) | Screenshot review at 390 px, TC-22.9 | On phones the name gets its own row; − / + and the subtotal go below it | ✅ Fixed before v0.20.0 was published |
 | DEF-57 | Low | New Sale v0.20.0 kept the 1180 px page width of the other pages, so on a wide screen about 200 px stayed empty on each side, the menu stopped at 3 tiles per row, and each tile kept a blank line under one-line names | Yesha, on her laptop with the café's menu (2026-10-12) | New Sale only: no width limit; auto-fill tile grid; basket 380–460 px; bar and "N left" on one line | ✅ Fixed v0.20.1 |
+| DEF-58 | Low | v0.20.0 named the New Sale tile bars `stock-bar`, a class the Ingredients page already used. The new rules clipped the Ingredients warn-level tick to a 6 px green speck, so it was hard to see how close a full shelf was to its warning level (side effect of v0.20.0, like DEF-46 was of v0.19.1) | Yesha, on her laptop (2026-10-13); measured in Chromium against v0.19.4 | New Sale bars renamed (`tile-stock`, `tile-bar`, `tile-note`); TC-22.13 now fails if any New Sale style name is used on another page. Lesson: the v0.20.0 browser check measured only New Sale; a style added for one page must be checked on the pages that share the style sheet | ✅ Fixed v0.20.5 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1139,7 +1145,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.20.4** (future increments):
+> **Known limitations after v0.20.5** (future increments):
 > - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
@@ -1486,7 +1492,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (250 cases), screenshots S1–S51 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (252 cases), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1526,7 +1532,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 59 pull requests, one branch per version, tags v0.7.1–v0.20.4, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 62 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

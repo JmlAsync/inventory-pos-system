@@ -1,5 +1,5 @@
 @startuml
-' Use case UC05 Add product - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Use case UC05 Add product - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -46,6 +46,7 @@ usecase "Check permission (role)" as I0
 U ..> I0 : <<include>>
 Admin -- U
 note right of U
-  UC05: Name, SKU, price, quantity, category, picture
+  UC05: Name, SKU, price, quantity, category, picture.
+  SKU unique, ignoring capitals (HC-001 = hc-001)
 end note
 @enduml

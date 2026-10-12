@@ -1,5 +1,5 @@
 @startuml
-' Sequence: log in - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Sequence: log in - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -56,7 +56,8 @@ else fewer than 5
   C -> C : check_password_hash()
   alt correct
     C -> L : clear failures
-    C --> UI : log in, redirect to Products
+    C -> DB : INSERT login_session (random token,\nuser, last seen = now)
+    C --> UI : cookie holds only the token;\nredirect to Products
   else wrong
     C -> L : add a failure (time)
     C --> UI : "Invalid username or password"

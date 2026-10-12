@@ -1,0 +1,70 @@
+@startuml
+' Sequence: change a basket line (design 6a) - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Cashier
+participant "New Sale page\n(browser)" as UI
+participant "change_line_options()\n(app.py)" as C
+participant "Basket\n(session)" as S
+database "Database" as DB
+Cashier -> UI : taps the Cafe Latte line in the basket
+UI -> UI : the line opens: Hot / Iced, add-ons
+Cashier -> UI : taps Sub Oat, then Done (shows the new price)
+UI -> C : POST /sales/line-options (line, serving, add-ons, CSRF)
+C -> S : is this line in the basket?
+C -> DB : drink has options? serving and add-ons offered?
+alt not valid
+  C --> UI : message, nothing changed
+else valid
+  C -> C : new line key "product:serving:add-ons"\n(same as another line? join them)
+  C -> DB : enough stock and ingredients for the whole new basket?
+  alt short
+    C --> UI : "Not enough Oat milk ..." (line unchanged)
+  else enough
+    C -> S : save the changed basket
+    C --> UI : basket shows "Iced, Sub Oat", new total
+  end
+end
+note over Cashier, UI
+  The - and + buttons work the same way
+  (POST /sales/line-quantity, only -1 or +1;
+  "+" is checked against the stock, 0 removes the line).
+end note
+@enduml

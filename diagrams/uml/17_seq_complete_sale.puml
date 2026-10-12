@@ -1,5 +1,5 @@
 @startuml
-' Sequence: complete a sale - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Sequence: complete a sale - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -45,15 +45,19 @@ participant "complete_sale()\n(app.py)" as C
 participant "Basket\n(session)" as S
 database "Database" as DB
 Cashier -> UI : Cash: types cash received\nor GCash: types 13-digit reference
-Cashier -> UI : taps Complete Sale
+Cashier -> UI : taps Complete Sale (button greys out: "Saving...")
 UI -> C : POST /sales/complete (+ CSRF token)
+C -> DB : receipt with this basket's sale ticket already?
+break already sold (second click, retry, old cookie)
+  C --> UI : open that receipt: "already completed,\nnot charged twice"
+end
 C -> S : read basket lines
 C -> DB : check each product, option, stock and ingredient
 alt something missing or short
   C --> UI : message, nothing saved
 else all fine
   C -> C : check payment (cash >= total / reference 13 digits, not used)
-  C -> DB : BEGIN: create Sale and SaleItems
+  C -> DB : BEGIN: create Sale (with the sale ticket) and SaleItems
   loop each product and ingredient
     C -> DB : UPDATE ... SET quantity = quantity - n\nWHERE quantity >= n
     DB --> C : rows changed (1 or 0)
@@ -63,8 +67,13 @@ else all fine
     C --> UI : "was just sold / used up"
   else all updated
     C -> DB : write ingredient history, COMMIT
-    C -> S : empty the basket
-    C --> UI : redirect to the receipt
+    alt same ticket saved a moment ago (unique index)
+      C -> DB : ROLLBACK
+      C --> UI : open the first receipt
+    else saved
+      C -> S : empty the basket, drop the ticket
+      C --> UI : redirect to the receipt
+    end
   end
 end
 @enduml

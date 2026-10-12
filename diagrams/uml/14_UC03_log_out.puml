@@ -1,5 +1,5 @@
 @startuml
-' Use case UC03 Log out - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Use case UC03 Log out - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -42,8 +42,11 @@ hide circle
 left to right direction
 actor "User" as User
 usecase "Log out" as U
+usecase "End this login record" as I0
+U ..> I0 : <<include>>
 User -- U
 note right of U
-  UC03: Empties the basket
+  UC03: Empties the basket; a copy of the cookie stops working.
+  Other tills on the same account stay logged in
 end note
 @enduml

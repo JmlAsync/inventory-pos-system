@@ -1,5 +1,5 @@
 @startuml
-' Class model with attributes and operations - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Class model with attributes and operations - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -43,7 +43,7 @@ class User {
   id : int
   username : str
   password_hash : str
-  role : str  (admin / cashier)
+  {field} role : str  (admin / cashier)
   avatar : str
   --
   initials() : str
@@ -51,7 +51,7 @@ class User {
 class Product {
   id : int
   name : str
-  sku : str  (unique)
+  {field} sku : str  (unique, ignoring capitals)
   price : float
   quantity : int
   category : str
@@ -65,8 +65,9 @@ class Sale {
   total : float
   cash_received : float
   change_due : float
-  payment_method : str  (cash / gcash)
-  payment_reference : str  (unique)
+  {field} payment_method : str  (cash / gcash)
+  {field} payment_reference : str  (unique)
+  {field} ticket : str  (unique: one receipt per basket)
 }
 class SaleItem {
   id : int
@@ -81,7 +82,7 @@ class SaleItem {
 }
 class MenuOption {
   id : int
-  kind : str  (size = serving / addon)
+  {field} kind : str  (size = serving / addon)
   name : str
   price : float
   active : bool
@@ -91,7 +92,7 @@ class MenuOption {
 class Ingredient {
   id : int
   name : str
-  unit : str  (g / ml / pcs)
+  {field} unit : str  (g / ml / pcs)
   quantity : float
   low_at : float
   category : str
@@ -108,10 +109,19 @@ class IngredientMovement {
   id : int
   ingredient_id : int
   change : float
-  reason : str  (sale / restock / count)
+  {field} reason : str  (sale / restock / count)
   sale_id : int
   user_id : int
   created_at : datetime
+}
+class LoginSession {
+  id : int
+  {field} token : str  (unique, 64 random characters)
+  user_id : int
+  created_at : datetime
+  last_seen : datetime
+  --
+  ended after 8 idle hours
 }
 User "1" -- "0..*" Sale
 Sale "1" *-- "1..*" SaleItem
@@ -120,4 +130,5 @@ Ingredient "1" -- "0..*" RecipeItem
 Product "1" -- "0..*" RecipeItem
 MenuOption "1" -- "0..*" RecipeItem
 Ingredient "1" -- "0..*" IngredientMovement
+User "1" *-- "0..*" LoginSession
 @enduml

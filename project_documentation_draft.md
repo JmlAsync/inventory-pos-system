@@ -1149,7 +1149,6 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
-> - **The diagrams in §12 still show the v0.19 New Sale screen** (drink window). The server steps are the same; the "choose options" step now happens on the basket line (v0.20.0). The class model also doesn't show the `login_session` table yet (v0.20.3).
 > - **No "undo" for a tap:** a wrong tap is fixed with − on the basket line (one more tap), not an undo button.
 > - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
@@ -1227,7 +1226,10 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 - UC-05, UC-06, UC-07, UC-08 and UC-10 all **«include»** a hidden step, *Check permission (role)*. «include» means
   "always happens as part of". The `@admin_required` decorator in `app.py` is exactly this.
 - UC-09 **«extend»s** UC-04: the low-stock warning appears on the product list *only when* some stock is low.
-  «extend» means "sometimes adds extra behaviour, under a condition".
+  «extend» means "sometimes adds extra behaviour, under a condition". Since v0.20.0 it also extends UC-08 (the
+  "Running low" banner on New Sale).
+- *(v0.20.0–v0.20.4)* UC-08 is extended by *Change a basket line* and *See the ingredients the order uses*, and
+  includes *One receipt per basket (sale ticket)*. UC-02, UC-03 and UC-13 include *Start / end a login record*.
 
 ### 8.2 Tabular use case descriptions
 
@@ -1239,7 +1241,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Description** | A person enters a username and password to gain access according to their role |
 | **Data** | Username, password; stored User record (username, password hash, role) |
 | **Stimulus** | The visitor submits the login form |
-| **Response** | If the details match: a session starts and the user is sent to the product list, with their name and role in the navbar. If not: "Invalid username or password" is shown |
+| **Response** | If the details match: a login record is created (since v0.20.3: one row in `login_session`; the cookie holds only its random token) and the user is sent to the product list, with their name and role in the sidebar. If not: "Invalid username or password" is shown |
 | **Comments** | The password is checked against a hash and never stored in plain text. The same message is shown for a wrong username or a wrong password, so attackers can't find out which usernames exist |
 
 **UC-03 Log out**
@@ -1250,8 +1252,8 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Description** | The user ends their session |
 | **Data** | The current session |
 | **Stimulus** | The user clicks Logout |
-| **Response** | The session ends and the user is sent to the home page; protected pages now require login again |
-| **Comments** | Important on a shared counter computer, so the next person can't act under someone else's account |
+| **Response** | This browser's login record is deleted and the session (with the basket) is cleared; the user is sent to the home page. A copy of the cookie stops working too (v0.20.3). Other tills logged in with the same account stay logged in |
+| **Comments** | Important on a shared counter computer, so the next person can't act under someone else's account. A login also ends by itself after 8 idle hours (v0.20.3) |
 
 **UC-04 View product list**
 
@@ -1270,7 +1272,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 |---|---|
 | **Actors** | Admin |
 | **Description** | Creates a new product record |
-| **Data** | Name, SKU (unique), price, quantity, category (optional) |
+| **Data** | Name, SKU (unique, ignoring capitals since v0.20.2), price, quantity, category (optional) |
 | **Stimulus** | The admin submits the Add Product form |
 | **Response** | The product is saved and the admin is returned to the updated list |
 | **Comments** | Includes *Check permission*: cashiers get 403. Known defects: DEF-01, 02, 03, 04 |
@@ -1306,7 +1308,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Data** | Basket (in the session): product IDs and quantities. Saved: **Sale** (date and time, user, total, cash received, change due) and one **SaleItem** per line (product, name and unit price *at the time of sale*, quantity) |
 | **Stimulus** | The user adds items to the basket, enters the cash received and clicks Complete Sale |
 | **Response** | Stock and cash are checked; the sale and its items are saved and stock reduced in **one transaction**; the basket is emptied; a printable receipt is shown. Invalid input → message, nothing saved |
-| **Comments** | Includes *Check permission* (must be logged in). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct. Since v0.14.0 products are added by tapping picture tiles (1 per tap, filtered by category) or from the list with a quantity |
+| **Comments** | Includes *Check permission* (must be logged in) and, since v0.20.4, *One receipt per basket* (a one-time sale ticket). Stock can't go negative through normal use; simultaneous sales of the last item are DEF-13 (v0.8.2). Receipts keep a snapshot of names and prices, so old receipts stay correct. Since v0.20.0 each tile has one button per serving (+ Hot / + Iced, or + Add) that adds one with a single tap; two optional steps «extend» this use case: *Change a basket line* (serving, add-ons, − / +) and *See the ingredients the order uses*. Payment has quick cash buttons |
 
 **UC-09 View low-stock warning** *(built v0.9.0)*
 
@@ -1317,7 +1319,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Data** | Product quantities; `LOW_STOCK_THRESHOLD = 5` (one value for all products) |
 | **Stimulus** | Opening the product list when at least one product is low |
 | **Response** | Yellow box listing the 5 most urgent (lowest first) plus "and N more"; red "Out of stock" badge at 0, yellow "Low" badge at 1–5 |
-| **Comments** | «extend»s UC-04 View product list. Updates automatically after sales and restocking |
+| **Comments** | «extend»s UC-04 View product list and, since v0.20.0, UC-08 Process sale (a "Running low" banner and greyed tiles naming the missing ingredient on New Sale). Updates automatically after sales and restocking |
 
 **UC-10 View sales report** *(built v0.10.0)*
 
@@ -1360,7 +1362,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | **Description** | Replaces the user's password, e.g. the default `admin123` |
 | **Data** | Current password, new password typed twice; stored as a hash in `user.password_hash` |
 | **Stimulus** | Avatar menu → Change password, fill in the form, click Change password |
-| **Response** | Password changed with a success message; or a message if the current password is wrong, the two don't match, it equals the username or is shorter than 8 characters |
+| **Response** | Password changed with a success message saying how many other devices were logged out (v0.20.3: every other login of this user ends and this browser gets a new token); or a message if the current password is wrong, the two don't match, it equals the username or is shorter than 8 characters |
 | **Comments** | Includes *Check permission* (must be logged in) and the CSRF token check |
 
 **UC-14 Manage servings and add-ons** *(built v0.16.0, renamed v0.17.2)*
@@ -1429,7 +1431,7 @@ PlantUML text.
 6. Export: **File → Export as → PNG**, set zoom to **200%** or more, leave **Transparent background** *unticked*
    (a white background prints and reads better), and save it into the `diagrams/` folder.
 
-> A preview image made from the same text is already in your folder: **`diagrams/use_case_diagram_draft.png`**.
+> A preview image made from the same text is already in your folder: **`diagrams/use_case_diagram.png`** (redrawn for v0.20.4).
 > Use it to check your version, but draw your own for the report.
 
 > **Catch:** a diagram imported from PlantUML in draw.io is inserted as one *picture*, so you can't move single shapes. That is
@@ -1491,21 +1493,21 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 8 | Structured requirements of each part (L4 p. 42–43) | ✅ §11.5 (4 functions) |
 | 9 | Tabular computation of each function (L4 p. 45) | ✅ §11.6 (5 computations) |
 | 10 | Detailed scenarios (L4 p. 62–63) | ✅ §11.7 (3 scenarios) |
-| 11 | Use case diagram (L4 p. 65) | ✅ §12.3 (+ §9 guide to redraw it in draw.io) |
+| 11 | Use case diagram (L4 p. 65) | ✅ §12.3, redrawn for v0.20.4 (+ §9 guide to redraw it in draw.io) |
 | 12 | Context UML diagram (L5 p. 10) | ✅ §12.1 |
 | 13 | Process model UML diagram (L5 p. 12) | ✅ §12.2 |
 | 14 | Every use case's UML diagram (L5 p. 15) | ✅ §12.3 (15 diagrams) |
 | 15 | Tabular use case descriptions (L5 p. 16) | ✅ §8.2 |
 | 16 | Each agent's use cases (L5 p. 17) | ✅ §12.4 (3 actors) |
-| 17 | Sequence diagrams of every action (L5 p. 19–20) | ✅ §12.5 (8 main actions) |
+| 17 | Sequence diagrams of every action (L5 p. 19–20) | ✅ §12.5 (10 main actions; redrawn for v0.20.4) |
 | 18 | Class associations (L5 p. 23–24) | ✅ §12.6 |
 | 19 | Class models (L5 p. 25) | ✅ §12.6 |
 | 20 | Generalization hierarchy (L5 p. 30–31) | ✅ §12.7 |
 | 21 | Aggregation associations (L5 p. 33) | ✅ §12.8 |
 | 22 | Activity model (L5 p. 36) | ✅ §12.9 |
 | 23 | Application processes (L5 p. 37) | ✅ §12.10 |
-| 24 | State diagram (L5 p. 40) | ✅ §12.11 (sale, ingredient) |
-| 25 | Structured forms of states (L5 p. 41–42) | ✅ §12.12 |
+| 24 | State diagram (L5 p. 40) | ✅ §12.11 (sale, ingredient, login) |
+| 25 | Structured forms of states (L5 p. 41–42) | ✅ §12.12 (6 tables) |
 | 26 | Software architecture (L6 p. 42, 49) | ⬜ (this app follows MVC: Model–View–Controller) |
 | 27 | Context diagram (L7 p. 9) | ⬜ |
 | 28 | High-level architecture (L7 p. 13) | ⬜ |
@@ -1790,7 +1792,8 @@ Bootstrap, the icons and the font; v0.19.4 moved them inside the system so it wo
 
 ### How to read and edit these diagrams
 
-All diagrams below were drawn by Claude on 2026-10-09 from the code of **v0.18.2**, using **PlantUML**, a tool that
+All diagrams below were drawn by Claude on 2026-10-09 from the code of v0.18.2 and **redrawn on 2026-10-12 for
+v0.20.4** (New Sale redesign, basket-line changes, login records, one receipt per basket, SKU rule), using **PlantUML**, a tool that
 turns a short text description into a UML picture. "UML" (Unified Modeling Language) is the standard set of symbols
 software engineers use to draw systems, so a reader from any school or company can understand them.
 
@@ -1810,7 +1813,9 @@ example "Enough?"), where the flow splits into two paths.
 
 > **What it shows about our design:** the System checks stock twice: once when a line is added to the basket and
 > again when the sale is completed. This is because another till may sell the last item in between (see DEF-13, the race
-> condition fixed with an atomic update).
+> condition fixed with an atomic update). Since v0.20.0 a drink is added with one tap and changed afterwards on its
+> basket line only if needed, so the common order is the shortest path; since v0.20.4 the final check also makes
+> sure this basket was not already sold.
 
 ### 12.3 Use case diagrams *(items 11 and 14, L4 p. 65 and L5 p. 15)*
 
@@ -1823,7 +1828,11 @@ An **actor** (the stick figure) is a type of user. Lines join actors to what the
 
 **All use cases together (item 11):**
 
-![Use case diagram](diagrams/use_case_diagram_draft.png)
+![Use case diagram](diagrams/use_case_diagram.png)
+
+*Since v0.20.0–v0.20.4: "Change a basket line" and "See the ingredients the order uses" «extend» Process sale;
+"View low-stock warning" also extends Process sale (the banner on New Sale); Process sale «include»s "One receipt
+per basket"; Log in, Log out and Change password «include» "Start / end a login record".*
 
 *The arrow with a hollow triangle from Cashier and Admin to User means "a Cashier is a kind of User" (generalization,
 §12.7). Whatever a User can do, a Cashier and an Admin can do too.*
@@ -1864,14 +1873,16 @@ while recording the video.
 
 | # | Action | What to notice |
 |---|---|---|
-| a | Log in | The login limit is checked *before* the password, so a guesser is stopped even with the right password after 5 tries. |
-| b | Add a drink to the basket | Ingredients are checked for the *whole basket plus the new line*, not just the new line. |
-| c | Complete a sale | Each stock subtraction only succeeds if enough is still there; if any fails, everything is **rolled back** (undone). |
+| a | Log in | The login limit is checked *before* the password, so a guesser is stopped even with the right password after 5 tries. Since v0.20.3 a correct login creates a record whose random token is the only thing the cookie holds. |
+| b | Add a drink to the basket | One tap on "+ Iced" (v0.20.0). Ingredients are checked for the *whole basket plus the new line*, not just the new line. The first item gives the basket its one-time sale ticket. |
+| c | Complete a sale | A **break** box comes first: if this basket's ticket is already on a receipt, that receipt opens and nothing else happens (v0.20.4). Each stock subtraction only succeeds if enough is still there; if any fails, everything is **rolled back** (undone). |
 | d | Restock an ingredient | One database step adds the amount and writes the history line. |
 | e | View the sales report | Dates are checked to be real and between 2000 and 2100 before the database is asked. |
 | f | Add a product | The picture is checked by its first bytes, not its file name, and saved under a random name. |
-| g | Change password | Four checks; if any fails, nothing changes. |
+| g | Change password | Four checks; if any fails, nothing changes. Since v0.20.3 every login of the user ends and this browser gets a new token, so a stolen copy of the cookie dies too. |
 | h | Upload a profile picture | The old picture file is deleted so the folder does not fill up. |
+| i | Change a basket line (v0.20.0) | The changed basket is checked as a whole; identical lines are joined. The − / + buttons follow the same path. |
+| j | Every request, and log out (v0.20.3) | Each request looks up the login record; no record or 8 idle hours → log-in page. Log out deletes only this browser's record. |
 
 **a. Log in**
 ![Sequence: log in](diagrams/uml/17_seq_log_in.png)
@@ -1897,7 +1908,13 @@ while recording the video.
 **h. Upload a profile picture**
 ![Sequence: upload avatar](diagrams/uml/17_seq_upload_avatar.png)
 
-*Smaller actions (log out, edit and delete product, switch theme) follow the same pattern as (f) and are not drawn
+**i. Change a basket line (design 6a)**
+![Sequence: change a basket line](diagrams/uml/17_seq_change_basket_line.png)
+
+**j. Every request of a logged-in browser, and log out**
+![Sequence: every request and log out](diagrams/uml/17_seq_request_and_log_out.png)
+
+*Smaller actions (edit and delete product, switch theme) follow the same pattern as (f) and are not drawn
 separately: page → function in `app.py` → checks → database → redirect with a message.*
 
 ### 12.6 Class associations and class model *(items 18 and 19, L5 p. 23–25)*
@@ -1918,6 +1935,11 @@ So `User "1" — "0..*" Sale` reads: *one user makes any number of sales, and ea
 the important **operations** (what it can do):
 
 ![Class model](diagrams/uml/19_class_model.png)
+
+> **New in v0.20.2–v0.20.4:** `LoginSession` (one row per logged-in browser, joined to User by a filled diamond
+> because a login record can't exist without its user), `Sale.ticket` (unique, so one basket makes one receipt) and
+> the SKU rule "unique, ignoring capitals". Attributes with a note in brackets are marked `{field}` in the `.puml`
+> source so PlantUML keeps them in the attribute box.
 
 > **Why SaleItem copies the product name and price:** if the admin later renames a product or changes its price, old
 > receipts must still show what the customer actually paid. Copying them at the time of sale keeps history true
@@ -1947,12 +1969,16 @@ Example: a Cashier *is a* User, so a Cashier has a username and password like ev
 
 ![Aggregation and composition](diagrams/uml/21_aggregation.png)
 
+*Two compositions were added for v0.20.3–v0.20.4: a basket owns its sale ticket, and a user owns their login
+records (deleting either the basket or the user leaves no ticket or record behind).*
+
 ### 12.9 Activity model *(item 22, L5 p. 36)*
 
 An **activity diagram** is a flowchart of one activity: the rounded boxes are actions, the diamonds are decisions,
 the black dot is the start and the circled dot is the end. This one shows **every check** the system makes when the
 cashier taps *Complete Sale*, in the order the code (`complete_sale()` in `app.py`) makes them. Every "stop" on the
-side is an error message where **nothing is saved**.
+side is an error message where **nothing is saved**. The two sale-ticket decisions (v0.20.4) are why a double click
+or a retry can never make a second receipt.
 
 ![Activity: complete a sale](diagrams/uml/22_activity_complete_sale.png)
 
@@ -1981,6 +2007,11 @@ causes the change. The black dot is where it starts; the circled dot is where it
 
 ![State diagram: ingredient stock](diagrams/uml/24_state_ingredient.png)
 
+**c. A login (v0.20.3).** "Ended" is the state a copied cookie falls into as soon as its owner logs out: the browser
+still has the cookie, but the server no longer has the record, so the next request goes to the log-in page.
+
+![State diagram: a login](diagrams/uml/24_state_login.png)
+
 ### 12.12 Structured forms of states *(item 25, L5 p. 41–42)*
 
 The same two state diagrams written as tables, the way Lecture 5 shows them: one table describing each **state**,
@@ -1991,7 +2022,7 @@ and one describing each **stimulus**.
 | State | Description |
 |---|---|
 | Empty basket | The New Sale page is open and nothing has been added. The total is ₱0 and *Complete Sale* does nothing useful. |
-| Building | The basket has one or more lines. The cashier can add lines (stock and ingredients are checked each time) or remove them. |
+| Building | The basket has one or more lines and a one-time sale ticket (v0.20.4). The cashier can add lines with one tap, use − / +, change a drink's serving and add-ons on its line (stock and ingredients are checked each time) or remove lines. |
 | Paying | The cashier has chosen Cash and is typing the cash received, or chosen GCash and is typing the 13-digit reference. |
 | Checking | The system re-checks every line (product still exists, option still offered, enough stock and ingredients) and the payment. |
 | Saving | One database **transaction** is open: the Sale and SaleItems are created and stock and ingredients are subtracted. |
@@ -2001,16 +2032,17 @@ and one describing each **stimulus**.
 
 | Stimulus | Description |
 |---|---|
-| Add product | The cashier taps a tile or uses the dropdown and *Add to basket*. Moves Empty basket → Building. |
-| Add / remove line | The cashier changes the basket. Stays in Building (or goes back to Building from Paying). |
+| Add product | The cashier taps + Hot / + Iced / + Add on a tile, or uses *Add several at once*. Moves Empty basket → Building. |
+| Add, − / +, change serving or add-ons | The cashier changes the basket. Stays in Building (or goes back to Building from Paying). |
 | Remove last line / log out | The basket becomes empty. Building → Empty basket. Logging out always empties the basket. |
 | Choose Cash or GCash | The cashier picks the payment method. Building → Paying. |
 | Complete Sale | The cashier taps *Complete Sale*. Paying → Checking. |
 | Payment refused | Cash is less than the total or over ₱1,000,000, or the GCash reference is not 13 digits or was used before. Checking → Paying. |
 | Stock / ingredient short | A product or ingredient no longer has enough. Checking → Building, with a message naming it. |
+| Ticket already on a receipt | This basket was sold a moment ago (second click, retry, old cookie). Checking → Completed, showing that receipt (v0.20.4). |
 | All fine | Every check passed. Checking → Saving. |
 | Another till sold it | A stock update changed 0 rows because another sale took the last item first. The transaction is **rolled back**. Saving → Building. |
-| Committed | The database confirmed the save. Saving → Completed. |
+| Committed | The database confirmed the save (or another request with the same ticket was saved first; this one is rolled back and shows that receipt). Saving → Completed. |
 | Start New Sale | The cashier taps *Start New Sale* on the receipt. Completed → Empty basket. |
 
 **b. Ingredient: states**
@@ -2030,5 +2062,25 @@ and one describing each **stimulus**.
 | Count | The admin types the real amount on the shelf; the system saves the difference in history. Can move to any state. |
 | Edit "warn at" | The admin changes the warning level. The state is recalculated at once (for example OK → Low if the level is raised). |
 
-*Source for all four tables: `stock_status()` and `complete_sale()` in `app.py` (v0.18.2), and test cases TC-7.x,
-TC-15.x, TC-17.x and TC-18.x in §6.*
+**c. Login: states**
+
+| State | Description |
+|---|---|
+| Logged out | This browser has no login record. Only the home page and the log-in page open. |
+| Logged in | A `login_session` row with this browser's token exists and was used in the last 8 hours. |
+| Ended | The row was deleted (log-out elsewhere with a copied cookie, a password change on another device) or is older than 8 idle hours. The browser still holds the cookie, but it no longer works. |
+
+**c. Login: stimuli**
+
+| Stimulus | Description |
+|---|---|
+| Correct password | A new row and a new random token are created. Logged out → Logged in. |
+| Wrong password | Counted by the login limit (5 tries, then wait 5 minutes). Stays Logged out. |
+| Any page within 8 hours | "Last seen" is updated (at most once a minute). Stays Logged in. |
+| Log out | This browser's row is deleted and the basket emptied. Logged in → Logged out. |
+| Password changed on another device | Every row of the user is deleted. Logged in → Ended. |
+| 8 hours without a request | The row is too old. Logged in → Ended. |
+| Next request | The server finds no valid row: the login and basket are forgotten and the log-in page opens. Ended → Logged out. |
+
+*Source for all six tables: `stock_status()`, `complete_sale()` and `load_user()` in `app.py` (v0.20.4), and test cases
+TC-7.x, TC-15.x, TC-17.x, TC-18.x and TC-23.x in §6.*

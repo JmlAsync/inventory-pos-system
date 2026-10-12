@@ -1,5 +1,5 @@
 @startuml
-' Use case UC09 View low-stock warning - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Use case UC09 View low-stock warning - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -47,7 +47,10 @@ Cashier -- U
 Admin -- U
 usecase "View product list" as UC04
 U ..> UC04 : <<extend>>
+usecase "Process sale" as UC08
+U ..> UC08 : <<extend>>
 note right of U
-  UC09: Extends UC04 when stock is low
+  UC09: Extends UC04 and UC08 when stock is low:
+  badges on Products, banner and greyed tiles on New Sale
 end note
 @enduml

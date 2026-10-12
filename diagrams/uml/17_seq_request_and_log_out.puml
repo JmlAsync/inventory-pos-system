@@ -1,0 +1,67 @@
+@startuml
+' Sequence: every request of a logged-in browser, and log out - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor User
+participant "Browser\n(cookie: token)" as UI
+participant "load_user()\n(app.py)" as C
+database "login_session table" as DB
+User -> UI : opens any page
+UI -> C : request + cookie (user id, login token)
+C -> DB : find the row with this token
+alt no row (logged out, password changed, or a copied / forged cookie)
+  C -> UI : forget the login and the basket
+  C --> UI : redirect to the log-in page
+else last seen more than 8 hours ago
+  C -> DB : DELETE the row
+  C --> UI : forget login and basket, log-in page
+else fine
+  C -> DB : last seen = now (at most once a minute)
+  C --> UI : the page
+end
+User -> UI : Log out
+UI -> C : POST /logout (CSRF)
+C -> DB : DELETE this browser's row only
+C --> UI : session cleared (basket too), home page
+note right of DB
+  Other tills logged in with the same
+  account keep their own rows.
+end note
+@enduml

@@ -1,5 +1,5 @@
 @startuml
-' State diagram: a sale at the counter - Inventory & POS System v0.18.2 (report, Lecture 5)
+' State diagram: a sale at the counter - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -41,9 +41,9 @@ hide circle
 
 [*] --> EmptyBasket
 EmptyBasket : nothing to pay
-EmptyBasket --> Building : add product
-Building : basket has lines
-Building --> Building : add / remove line
+EmptyBasket --> Building : tap + Hot / + Iced / + Add
+Building : basket has lines and a sale ticket
+Building --> Building : add, - / +, change serving or add-ons
 Building --> EmptyBasket : remove last line / log out
 Building --> Paying : choose Cash or GCash
 Paying : typing cash or reference
@@ -52,10 +52,11 @@ Paying --> Checking : Complete Sale
 Checking : check stock, ingredients, payment
 Checking --> Paying : payment refused
 Checking --> Building : stock / ingredient short
+Checking --> Completed : ticket already on a receipt\n(opens that receipt)
 Checking --> Saving : all fine
 Saving : one database transaction
 Saving --> Building : another till sold it (rolled back)
-Saving --> Completed : committed
+Saving --> Completed : committed\n(or the same ticket won a moment ago)
 Completed : receipt shown, basket empty
 Completed --> EmptyBasket : Start New Sale
 Completed --> [*]

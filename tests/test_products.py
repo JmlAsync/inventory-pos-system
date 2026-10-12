@@ -41,6 +41,20 @@ with app.app_context():
     p = db.session.get(Product, 1)
     check('edit saves the new price and quantity', (p.price, p.quantity) == (80.0, 20))
 check('edit to an SKU already used refused', c.post('/products/edit/1', data={'name': 'Coke', 'sku': 'FD-001', 'price': '80', 'quantity': '20'}).status_code == 200)
+# DEF-52 (v0.20.2): SKUs are compared without regard to capitals
+r = add(name='Dup', sku='bev-001', price='1', quantity='1')
+check('DEF-52 "bev-001" refused when "BEV-001" exists', r.status_code == 200 and 'already used by' in text(r))
+check('DEF-52 " Bev-001 " (spaces, mixed capitals) refused too', add(name='Dup', sku=' Bev-001 ', price='1', quantity='1').status_code == 200)
+check('DEF-52 edit to another product\'s SKU in small letters refused', c.post('/products/edit/1', data={'name': 'Coke 1.5L', 'sku': 'fd-001', 'price': '80', 'quantity': '20'}).status_code == 200)
+check('DEF-52 a product may change the capitals of its OWN SKU', c.post('/products/edit/1', data={'name': 'Coke 1.5L', 'sku': 'bev-001', 'price': '80', 'quantity': '20', 'category': 'Beverages'}).status_code == 302)
+c.post('/products/edit/1', data={'name': 'Coke 1.5L', 'sku': 'BEV-001', 'price': '80', 'quantity': '20', 'category': 'Beverages'})
+with app.app_context():   # a pair saved before v0.20.2 (only possible then)
+    db.session.add(Product(id=3, name='Old twin', sku='fd-001', price=5, quantity=1)); db.session.commit()
+check('DEF-52 an old "fd-001"/"FD-001" pair can still be edited if the SKU is not changed',
+      c.post('/products/edit/3', data={'name': 'Old twin', 'sku': 'fd-001', 'price': '6', 'quantity': '1'}).status_code == 302)
+with app.app_context():
+    check('DEF-52 ... and the edit was saved', db.session.get(Product, 3).price == 6)
+    db.session.delete(db.session.get(Product, 3)); db.session.commit()
 check('editing a product that does not exist: 404', c.get('/products/edit/999').status_code == 404)
 check('delete by plain link (GET) not allowed: 405', c.get('/products/delete/2').status_code == 405)
 check('delete by button (POST) works', c.post('/products/delete/2').status_code == 302)

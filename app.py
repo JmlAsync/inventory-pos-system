@@ -109,10 +109,14 @@ def validate_product_form(form, current_product_id=None):
         return None, f'Price must be at most ₱{MAX_PRICE:,} and quantity at most {MAX_QUANTITY:,}.'
 
     # 5. SKU must be unique. Look for ANOTHER product that already uses this SKU
-    #    (when editing, the product being edited is allowed to keep its own SKU)
-    existing = Product.query.filter_by(sku=sku).first()
-    if existing and existing.id != current_product_id:
-        return None, f'SKU "{sku}" is already used by "{existing.name}".'
+    #    (when editing, the product being edited is allowed to keep its own SKU).
+    #    v0.20.2 (DEF-52): compared without regard to capitals, so "hc-001" counts as "HC-001".
+    current = db.session.get(Product, current_product_id) if current_product_id else None
+    if current is None or current.sku != sku:   # an unchanged SKU is fine (old look-alike pairs stay editable)
+        existing = (Product.query.filter(db.func.lower(Product.sku) == sku.lower())
+                    .filter(Product.id != current_product_id).first())
+        if existing:
+            return None, f'SKU "{sku}" is already used by "{existing.name}" ({existing.sku}).'
 
     return {'name': name, 'sku': sku, 'price': price,
             'quantity': quantity, 'category': category,

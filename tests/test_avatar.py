@@ -18,6 +18,7 @@ with app.app_context():
     upgrade_database(); upgrade_database()   # twice: must be safe
     cols=lambda t:[x['name'] for x in db.inspect(db.engine).get_columns(t)]
     check("old DB upgraded: user.avatar + sale cash columns added", 'avatar' in cols('user') and 'cash_received' in cols('sale') and 'change_due' in cols('sale'))
+    check("old DB upgraded: sale.ticket (v0.20.4) and the login_session table (v0.20.3) added", 'ticket' in cols('sale') and 'login_session' in db.inspect(db.engine).get_table_names())
     check("existing data kept", User.query.count()==2)
     check("initials admin->AD, maria.santos->MS", (db.session.get(User,1).initials, db.session.get(User,2).initials)==('AD','MS'))
     db.session.add(Product(name='X',sku='X',price=1,quantity=5)); db.session.commit()

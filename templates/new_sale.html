@@ -281,7 +281,7 @@
                        placeholder="13 digits from the customer's GCash receipt" maxlength="20" autocomplete="off">
                 <div class="form-text">Check that the amount on the customer's screen is {{ total|peso }}.</div>
             </div>
-            <button type="submit" class="complete-btn">
+            <button type="submit" class="complete-btn js-complete">
                 <span><i class="bi bi-check2-circle me-2" aria-hidden="true"></i>Complete Sale</span><span>{{ total|peso }}</span>
             </button>
         </form>
@@ -306,6 +306,17 @@
                     cashInput.value = button.dataset.cash;
                     showChange();
                 });
+            });
+            // One click only (v0.20.4, DEF-48): grey out Complete Sale once the form is sent.
+            // The server also refuses to sell the same basket twice; this just stops a second tap.
+            document.querySelector('.pay-form').addEventListener('submit', function () {
+                const button = document.querySelector('.js-complete');
+                button.disabled = true;
+                button.firstElementChild.textContent = 'Saving…';
+            });
+            // Coming back with the browser's Back button shows a fresh, clickable button again
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) { location.reload(); }
             });
             // Cash or GCash (v0.15.0): show only the matching boxes, and only require those
             const referenceInput = document.getElementById('gcash_reference');

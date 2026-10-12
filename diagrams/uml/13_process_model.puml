@@ -1,5 +1,5 @@
 @startuml
-' Process model of a sale at the counter - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Process model of a sale at the counter - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -43,29 +43,34 @@ hide circle
 start
 :Orders drinks and pastries;
 |Cashier|
-:Taps each product on New Sale;
-:Chooses Hot / Iced and add-ons for drinks;
+:Taps + Hot / + Iced (or + Add) on each tile;
 |System|
 :Checks stock and ingredients;
 if (Enough?) then (yes)
-  :Adds the line to the basket;
+  :Adds the line; shows what is left
+and which ingredients the order uses;
 else (no)
-  :Shows "only N more" / names the missing ingredient;
+  :Greys out the tile / names the missing ingredient;
   |Cashier|
   :Tells the customer, changes the order;
   |System|
 endif
+|Cashier|
+:If needed, taps a basket line:
+changes serving / add-ons, - / +;
 |Customer|
 :Pays by cash or GCash;
 |Cashier|
 if (Payment?) then (cash)
-  :Types the cash received;
+  :Taps a quick amount (Exact, 500...)
+or types the cash received;
 else (GCash)
   :Types the 13-digit reference;
 endif
 :Taps Complete Sale;
 |System|
-:Checks everything again;
+:Checks everything again,
+and that this basket was not sold already;
 :Saves the sale, lowers stock and ingredients (one transaction);
 :Shows the receipt;
 |Cashier|

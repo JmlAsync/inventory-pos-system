@@ -1,5 +1,5 @@
 @startuml
-' Application process: keeping ingredients stocked - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Application process: keeping ingredients stocked - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -43,7 +43,7 @@ hide circle
 start
 :Sales use up ingredients;
 :Marks ingredients Low / Out;
-:Shows the warning on Home;
+:Shows the warning on Home\nand the "Running low" banner on New Sale;
 |Admin|
 :Opens Ingredients (Low or out);
 :Counts the shelf;

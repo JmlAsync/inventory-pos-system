@@ -1,5 +1,5 @@
 @startuml
-' Sequence: add a drink to the basket - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Sequence: add a drink to the basket - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -45,10 +45,8 @@ participant "new_sale()\n(app.py)" as C
 participant "Recipes / can_make()" as R
 participant "Basket\n(session)" as S
 database "Database" as DB
-Cashier -> UI : taps a drink tile
-UI -> UI : opens the drink window
-Cashier -> UI : chooses Iced + Sub Oat, quantity 1
-UI -> C : POST /sales/new (product, serving, add-ons, quantity)
+Cashier -> UI : taps "+ Iced" on the Cafe Latte tile
+UI -> C : POST /sales/new (product, quantity 1, serving)
 C -> DB : product, serving and add-ons offered?
 DB --> C : yes
 C -> S : what is already in the basket?
@@ -57,7 +55,8 @@ R -> DB : ingredients on hand
 R --> C : enough / short (which ingredient)
 alt enough
   C -> S : add to the line "product:serving:add-ons"
-  C --> UI : New Sale with the basket updated
+  C -> S : first item? give the basket a one-time sale ticket
+  C --> UI : New Sale: basket, tiles' "N left",\n"Uses N ingredients" panel
 else short
   C --> UI : "Not enough Fresh milk ..." (nothing added)
 end

@@ -1,5 +1,5 @@
 @startuml
-' Activity model: complete a sale - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Activity model: complete a sale - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -40,9 +40,13 @@ skinparam swimlaneWidth same
 hide circle
 
 start
-:Cashier taps Complete Sale;
+:Cashier taps Complete Sale\n(button greys out: "Saving...");
 if (Basket empty?) then (yes)
   :Show "The basket is empty";
+  stop
+endif
+if (This basket's sale ticket already on a receipt?) then (yes)
+  :Open that receipt:\n"already completed, not charged twice";
   stop
 endif
 :Check every line;
@@ -74,7 +78,11 @@ if (Every update succeeded?) then (no)
 endif
 :Write ingredient history;
 :Commit;
-:Empty the basket;
+if (Same ticket saved a moment ago\nby another request?) then (yes)
+  :Roll back; open the first receipt;
+  stop
+endif
+:Empty the basket, drop the ticket;
 :Show the receipt;
 stop
 @enduml

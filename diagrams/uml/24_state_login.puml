@@ -1,0 +1,57 @@
+@startuml
+' State diagram: a login (v0.20.3) - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+[*] --> LoggedOut
+LoggedOut : no login record for this browser
+LoggedIn : login record exists,\nused in the last 8 hours
+Ended : record deleted or too old;\nthe browser still has the cookie
+LoggedOut --> LoggedIn : correct password\n(new record, new token)
+LoggedOut --> LoggedOut : wrong password\n(5 tries = wait 5 minutes)
+LoggedIn --> LoggedIn : any page within 8 hours\n(last seen updated)
+LoggedIn --> LoggedOut : Log out (record deleted)
+LoggedIn --> Ended : password changed on another device
+LoggedIn --> Ended : 8 hours without a request
+Ended --> LoggedOut : next request\n(sent to log in, basket emptied)
+note right of Ended
+  A copied cookie is in this state
+  as soon as its owner logs out.
+end note
+@enduml

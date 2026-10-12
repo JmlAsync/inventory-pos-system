@@ -1,5 +1,5 @@
 @startuml
-' Use case UC08 Process sale - Inventory & POS System v0.18.2 (report, Lecture 5)
+' Use case UC08 Process sale - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -47,9 +47,15 @@ usecase "Check permission (role)" as I0
 U ..> I0 : <<include>>
 usecase "Use up ingredients" as I1
 U ..> I1 : <<include>>
+usecase "One receipt per basket (sale ticket)" as I2
+U ..> I2 : <<include>>
 Cashier -- U
 Admin -- U
+usecase "Change a basket line\n(serving, add-ons, - / +)" as E1
+usecase "See the ingredients\nthe order uses" as E2
+E1 ..> U : <<extend>>
+E2 ..> U : <<extend>>
 note right of U
-  UC08: Basket, Cash or GCash, receipt
+  UC08: One tap per serving; Cash (quick amounts) or GCash; receipt
 end note
 @enduml

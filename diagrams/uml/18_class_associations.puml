@@ -1,5 +1,5 @@
 @startuml
-' UML classes and associations - Inventory & POS System v0.18.2 (report, Lecture 5)
+' UML classes and associations - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -47,7 +47,9 @@ class MenuOption
 class RecipeItem
 class Ingredient
 class IngredientMovement
+class LoginSession
 User "1" -- "0..*" Sale : makes >
+User "1" -- "0..*" LoginSession : logged in as >
 Sale "1" -- "1..*" SaleItem : contains >
 Product "1" -- "0..*" SaleItem : sold as >
 Product "1" -- "0..*" RecipeItem : recipe >

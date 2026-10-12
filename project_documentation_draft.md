@@ -36,7 +36,7 @@
 | Type | Web application |
 | Developer | Solo project |
 | Business purpose | Help a small store keep track of its products and stock and record sales at the counter. From v0.14.0 the demo shop is a **café** (coffee and pastries), because a café owner is interested in the project. From v0.15.0–v0.17.0 it handles what that café needs: **GCash payments, Hot / Iced and add-ons, and ingredient stock with recipes**. The café's real menu and photos are loaded only on the student's computer (`local_demo/`, not on GitHub) |
-| Language / framework | Python 3.11.9, Flask 3.1.3 |
+| Language / framework | Python 3.11 or newer (developed on 3.11.9; the GitHub checks use 3.13), Flask 3.1.3 |
 | Database | SQLite, accessed through Flask-SQLAlchemy 3.1.1 |
 | Login and security | Flask-Login 0.6.3; passwords hashed with Werkzeug (scrypt); CSRF tokens, login attempt limit, secret key outside the code (v0.13.1–v0.13.5) |
 | User interface | HTML templates (Jinja2) styled with Bootstrap 5.3.3 |
@@ -204,6 +204,7 @@ The tag message summarizes what the increment added.
 | v0.20.2 | 2026-10-12 | `6b2b4f5` | SKUs are compared without regard to capitals, so `hc-001` can't be added next to `HC-001`; an unchanged SKU stays editable (DEF-52) *(pull request #57)* |
 | v0.20.3 | 2026-10-12 | `6a726b9` | Logins can be ended: new `login_session` table, the cookie carries only a random token; log-out deletes it, a password change ends every login of that user, 8 idle hours end a login. Everyone logs in once more after the upgrade (DEF-51) *(pull request #58)* |
 | v0.20.4 | 2026-10-12 | `f2eda4d` | One sale per basket: each basket gets a one-time sale ticket, the receipt stores it and the database allows it once; a second click, a retry or an old cookie opens the first receipt instead; Complete Sale greys out after the first click (DEF-48) *(pull request #59)* |
+| — | 2026-10-12 | — | Documentation: README.md written (what the app does, quick start, demo accounts, tests, folders, security, contributing); Python version in Section 1 corrected *(pull request #61, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*

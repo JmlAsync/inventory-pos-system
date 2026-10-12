@@ -111,4 +111,57 @@ with app.app_context():
     used = -sum(m.change for m in IngredientMovement.query.filter_by(ingredient_id=1))
 check(f'20 lattes at once, milk for 5: exactly 5 sold, milk 0, beans 10000 - 5 × 18, history agrees ({results.count(302)} sold)',
       results.count(302) == 5 and milk == 0 and beans == 10000 - 5 * 18 and used == 1000)
+
+# ---- DEF-48 (v0.20.4): the SAME basket sent several times at once must make only one sale
+import time
+def same_basket_twice(copies):
+    """One cashier's basket; `copies` Complete Sale requests carrying the same cookie arrive together
+    (a double-click on a slow network, a browser retry, or a script). Returns (statuses, sales, stock)."""
+    with app.app_context():
+        db.drop_all(); db.create_all()
+        db.session.add_all([User(username='d', password_hash=g('p'), role='cashier'),
+                            Product(name='Ensaymada', sku='E', price=65, quantity=12)]); db.session.commit()
+    base, server = start_server(app)
+    till = Browser(base); till.post('/login', {'username': 'd', 'password': 'p'})
+    till.post('/sales/new', {'product_id': '1', 'quantity': '2'})
+    def slow_update(self, *args, **kwargs):   # widen the moment between "checked" and "saved"
+        time.sleep(0.3); return real_update(self, *args, **kwargs)
+    sqlalchemy.orm.Query.update = slow_update
+    barrier, results = threading.Barrier(copies), []
+    def press():
+        barrier.wait(); results.append(till.post('/sales/complete', {'cash_received': '200'}))
+    threads = [threading.Thread(target=press) for _ in range(copies)]
+    [t.start() for t in threads]; [t.join() for t in threads]
+    sqlalchemy.orm.Query.update = real_update
+    replay = till.post('/sales/complete', {'cash_received': '200'})   # pressed again after it finished
+    server.shutdown()
+    with app.app_context():
+        return results, replay, Sale.query.count(), db.session.get(Product, 1).quantity
+
+results, replay, sales, stock = same_basket_twice(2)
+check(f'DEF-48 the same basket sent twice at once: ONE sale, stock 12 -> 10 ({sales} sale(s), stock {stock}, answers {results})',
+      sales == 1 and stock == 10 and sorted(results) == [302, 302])
+check('DEF-48 pressing Complete Sale again afterwards makes no new sale', sales == 1 and replay in (200, 302))
+results, replay, sales, stock = same_basket_twice(5)
+check(f'DEF-48 five copies at once: still one sale, stock 10, nobody sees an error ({sales} sale(s), answers {results})',
+      sales == 1 and stock == 10 and all(r == 302 for r in results))
+
+# The second request is told what happened instead of an error
+with app.app_context():
+    db.drop_all(); db.create_all()
+    db.session.add_all([User(username='e', password_hash=g('p'), role='cashier'),
+                        Product(name='Croissant', sku='C', price=95, quantity=5)]); db.session.commit()
+e = app.test_client(); e.post('/login', data={'username': 'e', 'password': 'p'})
+e.post('/sales/new', data={'product_id': '1', 'quantity': '1'})
+stolen = e.get_cookie('session').value                     # the cookie as it was before the sale
+first = e.post('/sales/complete', data={'cash_received': '100'})
+again = app.test_client(); again.set_cookie('session', stolen)
+r = again.post('/sales/complete', data={'cash_received': '100'}, follow_redirects=True)
+with app.app_context():
+    check('DEF-48 an old copy of the basket (cookie from before the sale) is not sold again; it opens the receipt with a message',
+          Sale.query.count() == 1 and db.session.get(Product, 1).quantity == 4 and 'already completed' in text(r)
+          and f'/sales/{Sale.query.first().id}' in first.headers['Location'])
+page = open('templates/new_sale.html', encoding='utf-8').read()
+check('DEF-48 the Complete Sale button is greyed out after the first click (browser side)', 'js-complete' in page and 'disabled = true' in page)
+
 finish('RACE')

@@ -144,11 +144,13 @@ NEW_COLUMNS = [
     ('menu_option', 'scale', 'FLOAT NOT NULL DEFAULT 1'),    # v0.17.0
     ('ingredient', 'category', "VARCHAR(30) NOT NULL DEFAULT 'Other'"),   # v0.18.0
     ('ingredient', 'full_at', 'FLOAT NOT NULL DEFAULT 0'),   # v0.18.0
+    ('sale', 'ticket', 'VARCHAR(32)'),                       # v0.20.4 (DEF-48)
 ]
 # ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
 # (Empty values don't count as duplicates, so cash sales without a reference are fine.)
 NEW_INDEXES = [
     'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_payment_reference ON sale (payment_reference)',
+    'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_ticket ON sale (ticket)',   # v0.20.4: one receipt per basket
     # v0.17.1: remove recipe lines left behind by products deleted in v0.17.0
     'DELETE FROM recipe_item WHERE product_id IS NOT NULL AND product_id NOT IN (SELECT id FROM product)',
 ]
@@ -800,6 +802,24 @@ def get_basket():
 
 def save_basket(basket):
     session['basket'] = basket
+    # v0.20.4 (DEF-48): a basket gets a one-time "sale ticket" when its first item goes in.
+    # The receipt keeps the ticket and the database allows each ticket once, so the same basket
+    # sent twice (double-click on a slow network, a retry, an old copy of the cookie) is sold once.
+    if basket and 'sale_ticket' not in session:
+        session['sale_ticket'] = secrets.token_hex(16)
+
+
+def already_sold(ticket):
+    """The receipt that already used this basket's ticket, or None (v0.20.4)."""
+    return Sale.query.filter_by(ticket=ticket).first() if ticket else None
+
+
+def show_existing_receipt(sale):
+    """This basket was already sold: empty it and open that receipt instead of selling it again."""
+    session['basket'] = {}
+    session.pop('sale_ticket', None)
+    flash(f'This sale was already completed (receipt #{sale.id}); it was not charged twice.', 'info')
+    return redirect(url_for('receipt', sale_id=sale.id))
 
 
 def make_line_key(product_id, size_id=None, addon_ids=()):
@@ -1165,6 +1185,13 @@ def complete_sale():
     basket = get_basket()
     if not basket:
         return show_sale_page('The basket is empty.')
+    # v0.20.4 (DEF-48): was this very basket already sold (a second click, a retry, an old cookie)?
+    if 'sale_ticket' not in session:
+        session['sale_ticket'] = secrets.token_hex(16)   # a basket from before v0.20.4
+    ticket = session['sale_ticket']
+    done = already_sold(ticket)
+    if done:
+        return show_existing_receipt(done)
 
     # Step 1: check EVERY line first and work out the total. Stock may have changed
     # since it was added (for example, another cashier sold the last one).
@@ -1215,7 +1242,7 @@ def complete_sale():
     # Step 3: everything is fine, so create the sale and deduct stock
     sale = Sale(user_id=current_user.id, total=total,
                 cash_received=round(cash, 2), change_due=round(cash - total, 2),
-                payment_method=method, payment_reference=reference)
+                payment_method=method, payment_reference=reference, ticket=ticket)
     for product, quantity in units.items():
         name = product.name
         # Deduct stock in ONE database step that only succeeds if enough is still left
@@ -1258,9 +1285,13 @@ def complete_sale():
         # Two sales with the same GCash reference at the same moment: the unique rule
         # in the database stops the second one; nothing of it is saved (v0.15.0)
         db.session.rollback()
+        done = already_sold(ticket)   # v0.20.4: the same basket finished a moment ago in another request
+        if done:
+            return show_existing_receipt(done)
         return show_sale_page(f'GCash reference {reference} was just used by another sale. '
                               f'Check the number on the customer\'s screen.')
     save_basket({})       # empty the basket for the next customer
+    session.pop('sale_ticket', None)   # the next basket gets a new ticket (v0.20.4)
     return redirect(url_for('receipt', sale_id=sale.id))
 
 

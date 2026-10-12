@@ -62,6 +62,8 @@ class Sale(db.Model):
     # number from the customer's GCash receipt; unique, so one payment can't be used twice.
     payment_method = db.Column(db.String(10), nullable=False, default='cash')
     payment_reference = db.Column(db.String(20), unique=True)
+    # The basket's one-time sale ticket (v0.20.4, DEF-48): unique, so one basket makes one receipt
+    ticket = db.Column(db.String(32), unique=True)
 
     # Relationships: let us write sale.items and sale.user in Python
     items = db.relationship('SaleItem', backref='sale', lazy=True)

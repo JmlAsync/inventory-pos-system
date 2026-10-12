@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.20.3** (2026-10-12). Versions v0.8.2–v0.20.3 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.20.4** (2026-10-12). Versions v0.8.2–v0.20.4 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -104,6 +104,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.1 | Patch: New Sale uses the whole screen width; as many tiles per row as fit (DEF-57) | Yes |
 | v0.20.2 | Patch: SKUs compared without regard to capitals (DEF-52) | Yes |
 | v0.20.3 | Patch: log-out, a password change and 8 idle hours really end a login (DEF-51) | Yes: a copied cookie is refused |
+| v0.20.4 | Patch: one basket can only be sold once: a one-time sale ticket (DEF-48) | Yes: no double receipts |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -202,6 +203,7 @@ The tag message summarizes what the increment added.
 | v0.20.1 | 2026-10-12 | `9e183f2` | New Sale uses the whole screen: no 1180 px limit on that page, as many tiles per row as fit, basket 380–460 px, bar and "N left" on one line, "Other" cash button replaced by an "Other amount" box (DEF-57) *(pull request #56)* |
 | v0.20.2 | 2026-10-12 | `6b2b4f5` | SKUs are compared without regard to capitals, so `hc-001` can't be added next to `HC-001`; an unchanged SKU stays editable (DEF-52) *(pull request #57)* |
 | v0.20.3 | 2026-10-12 | `6a726b9` | Logins can be ended: new `login_session` table, the cookie carries only a random token; log-out deletes it, a password change ends every login of that user, 8 idle hours end a login. Everyone logs in once more after the upgrade (DEF-51) *(pull request #58)* |
+| v0.20.4 | 2026-10-12 | `f2eda4d` | One sale per basket: each basket gets a one-time sale ticket, the receipt stores it and the database allows it once; a second click, a retry or an old cookie opens the first receipt instead; Complete Sale greys out after the first click (DEF-48) *(pull request #59)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -963,6 +965,12 @@ Wednesday, they were fixed one per version, smallest first, each with a test tha
 | TC-23.8 | Cashier logged in with items in the basket | Wait 7 idle hours, then 9 (clock moved in the test); then log in again from the log-in page | 7 h: still in, and the visit counts as activity; 9 h: logged out and the basket emptied; logging in again works | **v0.20.2:** never timed out · **v0.20.3:** as expected | ❌→✅ DEF-51 |
 | TC-23.9 | Several logins | Log out; leave an admin login idle for 30 h, then someone logs in | The log-out removes its row; rows idle more than 8 h are removed | As expected | ✅ |
 | TC-23.10 | A login row | Look at what is stored | A 64-character random token; no password or user data in it | As expected | ✅ |
+| TC-23.11 | One basket (2 × Ensaymada, stock 12); server slowed by 0.3 s per stock update | Send Complete Sale twice at the same moment with the same cookie | One receipt, stock 10; both requests end on that receipt | **v0.20.3:** 2 receipts, stock 8 · **v0.20.4:** one | ❌→✅ DEF-48 |
+| TC-23.12 | Same | Five copies at the same moment | Still one receipt, stock 10, no error page | **v0.20.3:** 5 receipts · **v0.20.4:** one | ❌→✅ DEF-48 |
+| TC-23.13 | A sale just completed | Press Complete Sale again; send an old copy of the cookie (from before the sale) | No new sale; the receipt opens with "This sale was already completed … not charged twice" | **v0.20.3:** the old copy was sold again · **v0.20.4:** as expected | ❌→✅ DEF-48 |
+| TC-23.14 | Chromium, demo menu | Double-click Complete Sale | The button turns grey ("Saving…") after the first click; one receipt; Back shows an empty basket and a working page | **v0.20.3:** no greying · **v0.20.4:** as expected | ❌→✅ DEF-48 |
+| TC-23.15 | A database made by v0.20.1 (demo data) | Start v0.20.4 | `sale.ticket` and the `login_session` table are added; data kept; log-in works (also automated in test_avatar.py) | As expected | ✅ |
+| TC-23.16 | All earlier tests | `python tests/run_tests.py` | All 20 pass | As expected | ✅ |
 
 ### How Claude tested v0.8.2 – v0.20.1
 
@@ -997,11 +1005,11 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `check_contract.py` | The AGENTS.md rules marked [checked] (58 checks since v0.20.0): every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 58 rule checks |
 | `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 40 |
 | `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
-| `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
+| `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients); DEF-48 (v0.20.4): the same basket sent 2 and 5 times at once, an old cookie | 11 |
 | `test_limits.py` | DEF-14, DEF-15, DEF-17, DEF-47: nan, infinity, huge numbers and ids, long text, huge drink quantities | 23 |
 | `test_low_stock.py` | F8, DEF-18 | 8 |
 | `test_report.py` | F9: dates, midnight, totals, top products | 11 |
-| `test_avatar.py` | F10 / TC-11.x | 17 |
+| `test_avatar.py` | F10 / TC-11.x | 18 |
 | `test_security.py` | F12 / TC-13.x, TC-20.3–20.5: secret key, CSRF, login limit (incl. DEF-50), headers, passwords, Werkzeug version (DEF-49) | 42 |
 | `test_product_pictures.py` | F13 / TC-14.x | 25 |
 | `test_payment.py` | F14 / TC-15.x | 19 |
@@ -1014,7 +1022,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11 (v0.20.0–v0.20.1): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout | 53 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
-| **20 files** | | **444 checks + 58 rule checks** |
+| **20 files** | | **450 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.1)
 
@@ -1043,8 +1051,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.1) | 12 | 9 → **12** | 3 → **0** | 0 |
-| Last open defects (v0.20.2–v0.20.4) | 10 | 4 → **10** | 6 → **0** | 0 |
-| **Total** | **244** | **179 → 241** | **61 → 0** | **4 → 3** |
+| Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
+| **Total** | **250** | **181 → 247** | **65 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1105,7 +1113,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-45 | Low (cosmetic) | In the Products table SKUs broke after the dash ("HC-" / "001") and "100 can make" took two lines | Screenshot review for the documentation (TC-18.15) | SKU and count cells keep their text on one line | ✅ Fixed v0.18.2 |
 | DEF-46 | Low (cosmetic) | Avatar menu: "Change picture" and "Change password" ran past the menu's right edge and "Signed in as Admin" took two lines. Side effect of v0.19.1: the menu was set to the name button's width (`w-100`), and the button became narrower when the theme icon moved into its row | Hand testing by Yesha (screenshot), confirmed by measuring in Chromium at 100 %, 110 %, 125 % and phone width (TC-12.13) | Menu is at least the button's width but grows to fit its longest line (`min-width: 100%; width: max-content`), lines never wrap | ✅ Fixed v0.19.2 |
 | DEF-47 | Medium | A 309-digit quantity for a drink made from a recipe crashed New Sale (500, `OverflowError` in `Recipes.usage`); neither quantity box has a maximum | Security audit 2026-10-11 (fuzzing, audit A1) | Refuse quantities above `MAX_QUANTITY` before calculating | ✅ Fixed v0.19.3 |
-| DEF-48 | Medium | Two *Complete Sale* requests sent at the same moment with the same basket both succeed: two receipts, stock taken twice (the basket is in the cookie both carry) | Security audit 2026-10-11 (audit A2; a real double-click in Chromium made only 1 sale) | One-time sale ticket checked by the server + disable the button after the first click | ⏳ Open |
+| DEF-48 | Medium | Two *Complete Sale* requests sent at the same moment with the same basket both succeed: two receipts, stock taken twice (the basket is in the cookie both carry) | Security audit 2026-10-11 (audit A2; a real double-click in Chromium made only 1 sale) | One-time sale ticket per basket, stored on the receipt with a unique index (same idea as the GCash reference); the second request opens the first receipt with a message. Complete Sale greys out after the first click | ✅ Fixed v0.20.4 |
 | DEF-49 | Medium (Windows) | Werkzeug 3.1.8 has CVE-2026-102598: on Windows a static-file request for a device name like `NUL:` hangs | `pip-audit`, security audit 2026-10-11 (audit A3) | `Werkzeug==3.1.9` (all 17 test files pass with it) | ✅ Fixed v0.19.3 |
 | DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ✅ Fixed v0.19.3 |
 | DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | New `login_session` table (one row per logged-in browser, the cookie holds only its random token): log-out deletes the row, a password change ends all of the user's logins and gives this browser a new token, 8 idle hours end a login. Chosen over a per-user "session version" so that logging out on one till doesn't log out another till sharing the same account | ✅ Fixed v0.20.3 |
@@ -1130,7 +1138,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.20.3** (future increments):
+> **Known limitations after v0.20.4** (future increments):
 > - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
@@ -1475,7 +1483,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (244 cases), screenshots S1–S51 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (250 cases), screenshots S1–S51 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1515,7 +1523,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 58 pull requests, one branch per version, tags v0.7.1–v0.20.3, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 59 pull requests, one branch per version, tags v0.7.1–v0.20.4, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

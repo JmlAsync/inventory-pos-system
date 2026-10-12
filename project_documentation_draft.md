@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.20.1** (2026-10-12). Versions v0.8.2–v0.20.1 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.20.2** (2026-10-12). Versions v0.8.2–v0.20.2 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -102,6 +102,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.19.4 | Works without internet: Bootstrap, icons and the Inter font stored in the project (DEF-53) | Yes: tested with the internet blocked |
 | v0.20.0 | New Sale redesign: one-tap Hot / Iced tiles with stock bars, − / + and add-ons on the basket line, "Uses N ingredients" panel, quick cash | Yes: tested with the counter flow in a real browser |
 | v0.20.1 | Patch: New Sale uses the whole screen width; as many tiles per row as fit (DEF-57) | Yes |
+| v0.20.2 | Patch: SKUs compared without regard to capitals (DEF-52) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -198,6 +199,7 @@ The tag message summarizes what the increment added.
 | v0.19.4 | 2026-10-11 | `4821094` | Pages work without internet: Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and Inter stored in `static/vendor/` (DEF-53) *(pull request #54)* |
 | v0.20.0 | 2026-10-12 | `6f42f1e` | New Sale redesign "Rush Hour + Stock Aware": + Hot / + Iced on each tile, stock bar and the missing ingredient, running-low banner, − / + and add-ons changed on the basket line (design 6a), "Uses N ingredients" panel, quick cash *(pull request #55)*. A feature chosen by the student before the open patches DEF-48/51/52: a recorded exception to the stabilization rule |
 | v0.20.1 | 2026-10-12 | `9e183f2` | New Sale uses the whole screen: no 1180 px limit on that page, as many tiles per row as fit, basket 380–460 px, bar and "N left" on one line, "Other" cash button replaced by an "Other amount" box (DEF-57) *(pull request #56)* |
+| v0.20.2 | 2026-10-12 | `6b2b4f5` | SKUs are compared without regard to capitals, so `hc-001` can't be added next to `HC-001`; an unchanged SKU stays editable (DEF-52) *(pull request #57)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -942,6 +944,17 @@ running out.
 | S50 | TC-22.12 (v0.20.1): New Sale on a 1920 px screen, the whole demo menu in view, no empty bands | ![New Sale 1920 px](screenshots/v0.20.1_TC-22.12_new_sale_1920.png) |
 | S51 | TC-22.12 (v0.20.1): the same on a 1280 px laptop, nothing wraps in the basket | ![New Sale 1280 px](screenshots/v0.20.1_TC-22.12_new_sale_1280.png) |
 
+### Last open defects closed *(v0.20.2–v0.20.4)*
+
+The security audit of 2026-10-11 left three defects open (DEF-48, DEF-51, DEF-52). With the checking moved to
+Wednesday, they were fixed one per version, smallest first, each with a test that fails on the old code.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-23.1 | Product `BEV-001` exists | Add a product with SKU `bev-001`, then ` Bev-001 ` | Both refused: "SKU … is already used by Coke 1.5L (BEV-001)" | **v0.20.1:** `bev-001` saved as a second product · **v0.20.2:** refused | ❌→✅ DEF-52 |
+| TC-23.2 | `BEV-001` and `FD-001` exist | Edit BEV-001 to `fd-001`; then edit it to `bev-001` (its own SKU, new capitals) | First refused; second allowed | **v0.20.1:** first allowed · **v0.20.2:** as expected | ❌→✅ DEF-52 |
+| TC-23.3 | A look-alike pair saved before v0.20.2 (`FD-001`, `fd-001`) | Change the price of `fd-001` without touching its SKU | Saved (old data is not locked) | As expected | ✅ |
+
 ### How Claude tested v0.8.2 – v0.20.1
 
 **Method.** Each version was built in a separate copy of the repository and tested before it was published:
@@ -973,7 +986,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Test file | Covers | Checks |
 |---|---|---|
 | `check_contract.py` | The AGENTS.md rules marked [checked] (58 checks since v0.20.0): every page protected, CSRF tokens, no debug or secret in code, allowed packages and CDN files, no private files in Git | 58 rule checks |
-| `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 34 |
+| `test_products.py` | F1–F6: product forms, login, roles, DEF-01–DEF-04 | 40 |
 | `test_sales.py` | F7: basket, cash and change, receipts, upgrade from v0.7.1, DEF-09, DEF-10, DEF-21 | 40 |
 | `test_race.py` | DEF-13: two tills at once; 20 cashiers on a real server (products and ingredients) | 6 |
 | `test_limits.py` | DEF-14, DEF-15, DEF-17, DEF-47: nan, infinity, huge numbers and ids, long text, huge drink quantities | 23 |
@@ -991,7 +1004,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11 (v0.20.0–v0.20.1): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout | 53 |
-| **19 files** | | **422 checks + 58 rule checks** |
+| **19 files** | | **428 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.1)
 
@@ -1020,7 +1033,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.1) | 12 | 9 → **12** | 3 → **0** | 0 |
-| **Total** | **234** | **175 → 231** | **55 → 0** | **4 → 3** |
+| Last open defects (v0.20.2–v0.20.4) | 3 | 1 → **3** | 2 → **0** | 0 |
+| **Total** | **237** | **176 → 234** | **57 → 0** | **4 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1085,7 +1099,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-49 | Medium (Windows) | Werkzeug 3.1.8 has CVE-2026-102598: on Windows a static-file request for a device name like `NUL:` hangs | `pip-audit`, security audit 2026-10-11 (audit A3) | `Werkzeug==3.1.9` (all 17 test files pass with it) | ✅ Fixed v0.19.3 |
 | DEF-50 | Medium | The login limit keeps every wrong username in memory, at full length, and never forgets untried ones: 50 tries with 450 KB usernames kept 33 MB | Security audit 2026-10-11 (audit A4) | Cut usernames to 80 characters before counting; clear old entries for everyone | ✅ Fixed v0.19.3 |
 | DEF-51 | Medium | A copied session cookie still works after log-out and after a password change; sessions never time out while the browser is open | Security audit 2026-10-11 (audit A6) | Session version per user + idle timeout | ⏳ Open |
-| DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals | ⏳ Open |
+| DEF-52 | Low | SKUs that differ only in capitals (`HC-001`, `hc-001`) are both accepted | Security audit 2026-10-11 (audit A9) | Compare SKUs ignoring capitals (`lower()` on both sides); a product keeping its own SKU is not re-checked, so pairs saved earlier stay editable | ✅ Fixed v0.20.2 |
 | DEF-53 | Medium (demo) | Without internet the pages lost their layout, icons and font, and the avatar and phone menus stayed open, because Bootstrap, its icons and Inter loaded from jsDelivr and Google Fonts | Offline test in Chromium with the internet blocked (2026-10-10); security audit R4 | Store the three in `static/vendor/` with their licences; AGENTS.md rule D2 changed | ✅ Fixed v0.19.4 |
 | DEF-54 | Low | New Sale v0.20.0 (before release): product names broke in the middle of a word ("Cappuccin / o") because the picture took space beside the name | Screenshot review, TC-22.9 | Picture and price on the top row, the name across the whole tile, wrapping only at spaces | ✅ Fixed before v0.20.0 was published |
 | DEF-55 | Low | New Sale v0.20.0 (before release): on phones "₱1,000" spilled out of its quick-cash button | Measured in Chromium at 390 px, TC-22.9 | Buttons at least 3.9 rem wide; a fifth button wraps to the next row instead | ✅ Fixed before v0.20.0 was published |
@@ -1106,7 +1120,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > column) needs a **migration**: a small, deliberate script run once, after a backup. Real projects use a migration
 > tool (e.g. Flask-Migrate) to keep these in order.
 
-> **Known limitations after v0.20.1** (future increments):
+> **Known limitations after v0.20.2** (future increments):
 > - **Browser tests are not automatic yet:** `tests/` covers the server; clicking through pages in a real browser is still done before each release (needs Playwright).
 > - **Ingredient groups are a fixed list** (Coffee, Milk & cream, Syrups & sauces, Toppings, Bakery, Cups & packaging, Other); a new group needs a code change.
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
@@ -1451,7 +1465,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F17) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (234 cases), screenshots S1–S51 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (237 cases), screenshots S1–S51 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1491,7 +1505,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 56 pull requests, one branch per version, tags v0.7.1–v0.20.1, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 57 pull requests, one branch per version, tags v0.7.1–v0.20.2, automatic checks on every pull request (v0.19.0)
 - ⬜ README describing the project and how to run it
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

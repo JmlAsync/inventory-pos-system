@@ -58,7 +58,7 @@ Every finding below was **reproduced** (made to happen on purpose) unless it say
 | **A11** | Low | A crash shows the plain default *Internal Server Error* page, not a friendly one. | Seen with A1 | Add a `500.html` like `403.html`. **Very small** |
 | **A12** | Info | **Any logged-in user can open any receipt** by its number (`/sales/5`), including another cashier's GCash reference. | Reproduced | A decision: normal for a small café, or limit cashiers to their own receipts. |
 
-**Status:** A1 (DEF-47), A3 (DEF-49) and A4 (DEF-50) were fixed in **v0.19.3** on 2026-10-11 and the attacks re-run (test cases TC-20.1–20.5). A5 needs the passwords changed on the demo laptop.
+**Status:** A1 (DEF-47), A3 (DEF-49) and A4 (DEF-50) were fixed in **v0.19.3** on 2026-10-11 and the attacks re-run (test cases TC-20.1–20.5). A9 (DEF-52) in **v0.20.2** (2026-10-12). A5 needs the passwords changed on the demo laptop.
 
 **Before Monday's demo:** A1, A3 and A5 are the quickest and matter most, because the professor will try to break
 the system on a Windows laptop. A2 and A4 are the next patch. This follows the stabilization rule: fix as v0.19.x

@@ -186,6 +186,31 @@ check('TC-22.11 New Sale has no 1180px width limit (other pages keep it)',
 check('TC-22.11 as many tiles per row as fit (auto-fill grid), not a fixed 3', 'class="tile-grid"' in h and 'row-cols-sm-3' not in h
       and re.search(r'\.tile-grid\s*\{[^}]*repeat\(auto-fill', css) is not None)
 check('TC-22.11 the basket gets a fixed share (380-460px) and the menu takes the rest', 'clamp(380px, 30%, 460px)' in css and '<div class="sale-side">' in h)
-check('TC-22.11 bar and "N left" share one line in the tile', '<div class="stock-row">' in h)
+check('TC-22.11 bar and "N left" share one line in the tile', '<div class="tile-stock">' in h)
+
+# ---- TC-22.13 (v0.20.5, DEF-58) New Sale styles don't leak onto other pages
+# v0.20.0 reused the name "stock-bar", which the Ingredients page already had: its warn-level tick shrank to a speck.
+import glob
+block = css[css.index('New Sale (v0.20.0)'):css.index('/* Phone basket bar (v0.14.3) */')]
+SHARED_ON_PURPOSE = {'app-content', 'btn-check'}   # only ever used together with a New Sale name (":has(.sale-page)", "+ .toggle-btn")
+leading = set()
+for selector_list in re.findall(r'(?m)^([^{}@/][^{]*)\{', block):
+    for selector in selector_list.split(','):
+        first = re.match(r'\s*(?:\[[^\]]*\]\s*)?\.([a-z][a-z0-9-]*)', selector)   # the first class of the selector
+        if first:
+            leading.add(first.group(1))
+leading -= SHARED_ON_PURPOSE
+clashes = {}
+for path in glob.glob('templates/*.html'):
+    if path.endswith('new_sale.html'):
+        continue
+    page = open(path, encoding='utf-8').read()
+    for name in leading:
+        if re.search(r'class="[^"]*(?<![\w-])' + re.escape(name) + r'(?![\w-])', page):
+            clashes.setdefault(name, []).append(path)
+check(f'TC-22.13 no New Sale style name ({len(leading)} checked) is used on another page {clashes or ""}', not clashes and len(leading) > 30)
+rest = css.replace(block, '')
+check('TC-22.13 ... and no other part of theme.css styles the New Sale bar names',
+      not re.search(r'\.(tile-bar|tile-note|tile-stock)\b', rest))
 
 finish('NEW SALE')

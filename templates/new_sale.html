@@ -64,10 +64,11 @@
                         <span class="sale-tile-price">{{ product.price|peso }}</span>
                     </div>
                     <span class="sale-tile-name" title="{{ product.name }}">{{ product.name }}</span>
-                    {# Stock bar: full at 20 or more left (STOCK_BAR_FULL); amber when low, grey when out #}
-                    <div class="stock-row">
-                        <div class="stock-bar" aria-hidden="true"><span style="width: {{ tile.percent }}%"></span></div>
-                        <span class="stock-note">
+                    {# Stock bar: full at 20 or more left (STOCK_BAR_FULL); amber when low, grey when out.
+                       Named tile-bar, not stock-bar: the Ingredients page already uses stock-bar (v0.20.5, DEF-58) #}
+                    <div class="tile-stock">
+                        <div class="tile-bar" aria-hidden="true"><span style="width: {{ tile.percent }}%"></span></div>
+                        <span class="tile-note">
                             {% if tile.level == 'out' %}{% if tile.short %}Out of {{ tile.short.name }}{% else %}Out of stock{% endif %}
                             {% elif tile.level == 'low' %}Only {{ '{:,}'.format(tile.available) }} left
                             {% else %}{{ '{:,}'.format(tile.available) }} left{% endif %}

@@ -37,6 +37,17 @@ class User(db.Model, UserMixin):
         return self.username[:2].upper()
 
 
+class LoginSession(db.Model):
+    """One logged-in browser (v0.20.3, DEF-51). The login cookie only carries this row's random token.
+    Logging out deletes the row, so a copied cookie stops working; a password change deletes the
+    user's other rows; a row that has been idle for 8 hours no longer counts."""
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False)   # 64 random characters, nothing secret about the user
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    last_seen = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+
 class Sale(db.Model):
     """One customer purchase (one 'receipt'). A Sale contains one or more SaleItems."""
     id = db.Column(db.Integer, primary_key=True)

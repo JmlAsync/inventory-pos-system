@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession
 from functools import wraps
 import math
 import os
@@ -225,9 +225,50 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# ---------------- Logins that can be ended (v0.20.3, DEF-51) ----------------
+# The login cookie is signed but kept by the browser, so before v0.20.3 a copied cookie kept
+# working after log-out and after a password change. Now each login is a row in the
+# login_session table and the cookie only carries that row's random token.
+IDLE_TIMEOUT = timedelta(hours=8)          # a login unused for this long ends by itself
+LAST_SEEN_EVERY = timedelta(minutes=1)     # write "last seen" at most once a minute (fewer database writes)
+
+
+def start_login_session(user):
+    """Called right after a correct password: remember this browser's login (v0.20.3)."""
+    now = datetime.now()
+    LoginSession.query.filter(LoginSession.last_seen < now - IDLE_TIMEOUT).delete()   # tidy up old logins
+    token = secrets.token_hex(32)
+    db.session.add(LoginSession(token=token, user_id=user.id, created_at=now, last_seen=now))
+    db.session.commit()
+    session['login_token'] = token
+
+
+def forget_login():
+    """Forget an ended login in this browser: who it was and the basket. The form token
+    (_csrf_token) is kept, so a login page already on screen still works."""
+    for key in ('_user_id', '_fresh', '_id', 'login_token', 'basket'):
+        session.pop(key, None)
+
+
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    """Runs on every request of a logged-in browser. The user only counts as logged in if the
+    cookie's token is still in the login_session table and was used in the last 8 hours."""
+    token = session.get('login_token')
+    row = LoginSession.query.filter_by(token=token).first() if token else None
+    if row is None or str(row.user_id) != str(user_id):
+        forget_login()    # logged out elsewhere, or a copied/forged cookie: forget it, basket included
+        return None
+    now = datetime.now()
+    if now - row.last_seen > IDLE_TIMEOUT:
+        db.session.delete(row)
+        db.session.commit()
+        forget_login()    # the next person at this computer starts with an empty basket (like DEF-09)
+        return None
+    if now - row.last_seen > LAST_SEEN_EVERY:
+        row.last_seen = now
+        db.session.commit()
+    return db.session.get(User, row.user_id)
 
 @app.route('/')
 def home():
@@ -608,6 +649,8 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
             failed_logins.pop(key, None)   # a correct password resets the count
+            session.clear()                # nothing from a previous login on this browser is kept
+            start_login_session(user)      # v0.20.3: a login that log-out can really end
             login_user(user)
             return redirect(url_for('products'))
         failed_logins.setdefault(key, []).append(datetime.now())
@@ -1411,8 +1454,15 @@ def change_password():
         flash('The new password is the same as the current one.', 'danger')
     else:
         current_user.password_hash = generate_password_hash(new)   # stored scrambled, never as plain text
-        db.session.commit()
-        flash('Password changed. Use the new one next time you log in.', 'success')
+        # v0.20.3 (DEF-51): end EVERY login of this user, including this browser's current token
+        # (a stolen copy of this cookie carries the same token), then give this browser a new one.
+        ended = (LoginSession.query.filter(LoginSession.user_id == current_user.id,
+                                           LoginSession.token != session.get('login_token', ''))
+                 .count())
+        LoginSession.query.filter_by(user_id=current_user.id).delete()
+        start_login_session(current_user)   # commits the new password and the new token together
+        others = f'{ended} other device(s) logged in as you were logged out.' if ended else 'Other devices logged in as you would have been logged out.'
+        flash('Password changed. Use the new one next time you log in. ' + others, 'success')
     return redirect(url_for('profile'))
 
 
@@ -1467,8 +1517,12 @@ def forbidden(e):
 @app.route('/logout', methods=['POST'])   # a button, not a link, so other sites can't log you out (v0.13.2)
 @login_required
 def logout():
-    session.pop('basket', None)  # empty the basket so the next user starts fresh
+    # v0.20.3 (DEF-51): delete this browser's login row, so a copy of the cookie stops working too.
+    # Other tills logged in with the same account stay logged in.
+    LoginSession.query.filter_by(token=session.get('login_token', '')).delete()
+    db.session.commit()
     logout_user()
+    session.clear()              # empties the basket too, so the next user starts fresh
     return redirect(url_for('home'))
 
 if __name__ == '__main__':

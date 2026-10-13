@@ -8,7 +8,7 @@ the project owner changes this file.
 Rules marked **[checked]** are verified by `tests/check_contract.py` on every pull request.
 The others are checked by review.
 
-Last reviewed for v0.20.5 (2026-10-13).
+Last reviewed for v0.20.5 (2026-10-14, full documentation check).
 
 ---
 
@@ -34,14 +34,16 @@ can follow them.
 | Path | What it holds | Notes |
 |---|---|---|
 | `app.py` | Every page (route), the checks on every form, start-up and database upgrade | One file on purpose (course scope) |
-| `models.py` | The database tables (Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement) | |
+| `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement) | |
 | `templates/` | The HTML pages; `base.html` is the shared layout; files starting with `_` are pieces | |
 | `static/css/theme.css` | All custom styling, light and dark theme | |
+| `static/vendor/` | Bootstrap, Bootstrap Icons and the Inter font, stored locally | Rule D2: nothing loads from the internet |
 | `seed_demo_data.py` | Fills the database with demo data; `--fresh` backs up first | |
 | `add_users.py`, `add_test_product.py` | Small helper scripts from the first versions | |
 | `tests/` | Automated tests and the contract check | See section 9 |
 | `project_documentation_draft.md` | The living project report (versions, tests, defects, UML) | MUST be updated with every change (W4) |
 | `diagrams/` | UML diagrams: `.puml` source + `.png` | |
+| `docs/` | Other reports and guides: security audit, running on another computer | |
 | `screenshots/` | Screenshots used in the report | |
 
 ## 3. Security boundaries

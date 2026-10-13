@@ -4,7 +4,7 @@ A web app for a **small café**: it keeps track of products, ingredients and sto
 the cashier sell at the counter and print a receipt. It was built as a university final project
 (Software Engineering 1), written in Python with Flask, and it works **without internet**.
 
-Current version: **v0.20.4**
+Current version: **v0.20.5**
 
 ![New Sale page](screenshots/v0.20.0_TC-22.1_new_sale_light.png)
 
@@ -14,8 +14,8 @@ Current version: **v0.20.4**
 
 **Cashiers** (at the counter)
 
-- Sell from a menu of picture tiles: tap **+ Hot** or **+ Iced**, choose add-ons, change the
-  amount with − / + on the basket line.
+- Sell from a menu of picture tiles: tap **+ Hot** or **+ Iced**. On the basket line, change the
+  amount with − / +, or tap the line to choose add-ons.
 - Take payment in **cash** (change is worked out for you) or **GCash** (13-digit reference number).
 - Print a receipt. A receipt never changes later, even if a product is renamed or its price changes.
 - See which items are running low or can't be made because an ingredient has run out.
@@ -35,7 +35,9 @@ that also work on a phone.
 
 ## Quick start (Windows)
 
-You need **Python 3.11 or newer** (the GitHub checks use 3.13) and **Git**.
+You need **Python 3.11 or newer** (tested on 3.11 and 3.13) and **Git**, plus internet for the
+`pip install` step. Setting up on another computer, such as a school lab, without Git or without
+internet? Follow **[docs/run_on_another_computer.md](docs/run_on_another_computer.md)**.
 
 ```powershell
 # 1. Get the code
@@ -46,6 +48,9 @@ cd inventory-pos-system
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+# If PowerShell says "running scripts is disabled", skip Activate.ps1 and put
+# .\venv\Scripts\python in front of each command instead, for example:
+#   .\venv\Scripts\python -m pip install -r requirements.txt
 
 # 3. Fill the database with a demo café menu, the demo accounts and a week of sales
 python seed_demo_data.py
@@ -103,7 +108,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `tests/` | Automated tests and the contract check |
 | `project_documentation_draft.md` | The full project report: version history, user stories, test cases, defects, requirements and UML |
 | `diagrams/` | UML diagrams (PlantUML source and pictures) |
-| `docs/` | Other reports, such as the security audit |
+| `docs/` | Other reports and guides: the security audit, running on another computer |
 | `screenshots/` | Screenshots used in the report |
 
 **Built with:** Python 3.11+, Flask 3.1, Flask-Login, Flask-SQLAlchemy, SQLite, Jinja2 and

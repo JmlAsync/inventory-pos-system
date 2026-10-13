@@ -207,6 +207,7 @@ The tag message summarizes what the increment added.
 | v0.20.4 | 2026-10-12 | `f2eda4d` | One sale per basket: each basket gets a one-time sale ticket, the receipt stores it and the database allows it once; a second click, a retry or an old cookie opens the first receipt instead; Complete Sale greys out after the first click (DEF-48) *(pull request #59)* |
 | — | 2026-10-12 | — | Documentation: README.md written (what the app does, quick start, demo accounts, tests, folders, security, contributing); Python version in Section 1 corrected *(pull request #61, no tag)* |
 | v0.20.5 | 2026-10-13 | `efb87ec` | Ingredients page: the warn-level tick on each stock bar is a full line again; the New Sale tile bars got their own class names (`tile-bar`) instead of reusing `stock-bar`, and a test stops New Sale style names from being shared again (DEF-58) *(pull request #62)* |
+| — | 2026-10-13 | — | Documentation: new guide `docs/run_on_another_computer.md` (set the app up on another computer such as a school lab: with or without Git, without activating the venv, with an optional USB copy of the shop's own menu, no-internet install, troubleshooting, cleaning up a shared computer); README wording fixes and a link to the guide; security audit A5 closed (demo passwords changed on the demo laptop) *(pull request #63, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*

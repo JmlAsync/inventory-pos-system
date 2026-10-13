@@ -1,0 +1,57 @@
+@startuml
+' Software architecture: Model-View-Controller for the web - Inventory & POS System v0.20.5 (report, Lecture 6; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+left to right direction
+actor "Cashier / Admin" as person
+rectangle "Browser\n(Chrome, Edge or Firefox\non the counter laptop or a phone)" as browser
+package "Flask application (python app.py)" {
+  rectangle "<b>Controller</b>\nRoutes in app.py\n(23 pages and actions:\nnew_sale, complete_sale,\ningredients, sales_report ...)\n+ checks: login, admin, CSRF,\nform values, stock" as controller
+  rectangle "<b>View</b>\nJinja2 templates\n(templates/*.html)\n+ theme.css, Bootstrap,\nicons, Inter font\n(static/vendor)" as view
+  rectangle "<b>Model</b>\nSQLAlchemy classes\n(models.py: Product, Sale,\nSaleItem, User, LoginSession,\nMenuOption, Ingredient,\nRecipeItem, IngredientMovement)" as model
+}
+database "SQLite\ninstance/inventory.db" as db
+person --> browser : taps, types
+browser --> controller : 1. HTTP request\n(GET page / POST form\nwith CSRF token)
+controller --> model : 2. read / change data
+model --> db : 3. SQL (one transaction\nper sale)
+controller --> view : 4. render page\nwith the data
+view --> browser : 5. HTML page\n(or redirect)
+@enduml

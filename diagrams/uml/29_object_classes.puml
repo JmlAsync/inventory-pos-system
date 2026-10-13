@@ -1,0 +1,141 @@
+@startuml
+' Object classes with attributes and operations - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+class Product {
+  name, sku, price
+  quantity, category
+  image, has_options
+  --
+  validate_product_form()
+  can_make()
+  menu_tile()
+  product_image_url()
+}
+class Basket <<kept in the session>> {
+  lines: key -> quantity
+  sale_ticket
+  --
+  get_basket() / save_basket()
+  new_sale() (add a line)
+  change_line_quantity()
+  change_line_options()
+  remove_line()
+  basket_lines()
+}
+class Sale {
+  created_at, total
+  cash_received, change_due
+  payment_method
+  payment_reference, ticket
+  --
+  complete_sale()
+  already_sold()
+  receipt()
+}
+class SaleItem {
+  product_name, unit_price
+  quantity, options
+}
+class Recipes {
+  RecipeItem rows: amount of
+  an ingredient per product,
+  serving and add-on
+  --
+  has()
+  usage()
+  (helpers: add_usage(), shortages())
+}
+class Ingredient {
+  name, unit, category
+  quantity, low_at, full_at
+  --
+  ingredients() (restock, count, edit)
+  stock_status()
+  stock_percent()
+}
+class IngredientMovement {
+  change, reason
+  created_at
+}
+class MenuOption {
+  kind (serving / add-on)
+  name, price, active
+  sort_order, scale
+  --
+  manage_options()
+  read_chosen_options()
+}
+class User {
+  username, password_hash
+  role, avatar
+  --
+  login() / logout()
+  change_password()
+  profile()
+}
+class LoginSession {
+  token, created_at
+  last_seen
+  --
+  start_login_session()
+  load_user()
+}
+class SalesReport <<page, no table>> {
+  start, end dates
+  --
+  sales_report()
+}
+Basket ..> Product : lines name
+Basket ..> Sale : becomes
+Sale *-- SaleItem
+Sale --> User : cashier
+Sale *-- IngredientMovement
+Recipes ..> Product
+Recipes ..> Ingredient
+Recipes ..> MenuOption
+User *-- LoginSession
+SalesReport ..> Sale
+@enduml

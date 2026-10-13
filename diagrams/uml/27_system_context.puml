@@ -1,0 +1,65 @@
+@startuml
+' System context (associations with other systems) - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+hide empty members
+class "Inventory & POS system" as pos <<system>>
+class "Counter laptop / phone\n(browser)" as till <<device>>
+class "Printer" as printer <<device>>
+class "Customer's GCash app" as gcash <<external system>>
+class "Supplier" as supplier <<external organisation>>
+class "Shop computer's disk\n(database and picture files)" as files <<storage>>
+class "GitHub" as github <<external system>>
+till "1..n" -- "1" pos : uses >
+pos "1" -- "0..n" printer : prints receipts through the browser >
+gcash "0..n" .. "1" pos : reference number typed by the cashier >
+supplier "1..n" .. "1" pos : deliveries recorded as Restock >
+pos "1" -- "1" files : database, pictures, secret key >
+github "1" .. "1" pos : code, tests and versions (development only) >
+note bottom of gcash
+  Not connected: the system never talks to GCash;
+  it only stores the 13-digit reference.
+end note
+@enduml

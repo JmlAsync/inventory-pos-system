@@ -19,7 +19,7 @@ with app.app_context():
     full = {i.name: i.full_at for i in Ingredient.query.all()}
     check('full level starts at what is on hand (0 when already low/out)', full['Oat milk'] == 2000 and full['Ice'] == 0 and full['Lotus biscuits'] == 0)
     db.session.add_all([User(username='admin', password_hash=g('a'), role='admin'), User(username='cashier', password_hash=g('c'), role='cashier'),
-                        Product(name='Sea Salt', sku='S1', price=180, quantity=0, category='Coffee')]); db.session.commit()
+                        Product(name='Honey Latte', sku='S1', price=180, quantity=0, category='Coffee')]); db.session.commit()
     db.session.add(RecipeItem(ingredient_id=1, product_id=1, amount=180)); db.session.commit()
 a = app.test_client(); a.post('/login', data={'username': 'admin', 'password': 'a'})
 c = app.test_client(); c.post('/login', data={'username': 'cashier', 'password': 'c'})
@@ -47,7 +47,7 @@ with app.app_context(): v = Ingredient.query.filter_by(name='Vanilla syrup').fir
 post(action='add', name='Paper straws', unit='pcs', low_at='50')
 with app.app_context(): check('new ingredient without a group gets a guess', Ingredient.query.filter_by(name='Paper straws').first().category == 'Cups & packaging')
 d = a.get('/ingredients/1').get_data(as_text=True)
-check('detail page: name, Restock/Count/Edit, used in Sea Salt', 'Oat milk' in d and 'Add to stock' in d and 'Save count' in d and 'Save changes' in d and 'Sea Salt' in d)
+check('detail page: name, Restock/Count/Edit, used in Honey Latte', 'Oat milk' in d and 'Add to stock' in d and 'Save count' in d and 'Save changes' in d and 'Honey Latte' in d)
 check('detail page: number boxes have no thousands separator (value="4000", not "4,000")', 'name="full_at" min="0" step="any" value="4000"' in d)
 check('detail page: "Fill up to full (+2,000)"', 'Fill up to full (+<span class="js-refill-amount">2,000' in d)
 r = a.post('/ingredients', data={'action': 'restock', 'ingredient_id': '1', 'amount': '500', 'return_to': 'detail'})

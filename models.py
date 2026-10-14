@@ -81,7 +81,7 @@ class SaleItem(db.Model):
     product_name = db.Column(db.String(100), nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    # Size and add-ons chosen, copied as text, e.g. "16oz, Sub Oat" (v0.16.0).
+    # Size and add-ons chosen, copied as text, e.g. "16oz, Oat Milk" (v0.16.0).
     # unit_price already includes their extra cost.
     options = db.Column(db.String(200))
 
@@ -91,7 +91,7 @@ class SaleItem(db.Model):
 
 
 class MenuOption(db.Model):
-    """A size (e.g. 16oz) or an add-on (e.g. Sub Oat) that drinks can have (v0.16.0).
+    """A size (e.g. 16oz) or an add-on (e.g. Oat Milk) that drinks can have (v0.16.0).
     price is the EXTRA cost on top of the product's own price (0 for the base size)."""
     __tablename__ = 'menu_option'
     id = db.Column(db.Integer, primary_key=True)
@@ -121,7 +121,7 @@ class Ingredient(db.Model):
 class RecipeItem(db.Model):
     """How much of one ingredient ONE product (at the default size) or ONE option uses (v0.17.0).
     Exactly one of product_id / option_id is set. Option amounts may be negative to
-    replace an ingredient, e.g. Sub Oat: fresh milk -180 ml, oat milk +180 ml."""
+    replace an ingredient, e.g. Oat Milk: fresh milk -180 ml, oat milk +180 ml."""
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))

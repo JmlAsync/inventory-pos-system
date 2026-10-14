@@ -212,6 +212,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-13 | — | Documentation: new guide `docs/run_on_another_computer.md` (set the app up on another computer such as a school lab: with or without Git, without activating the venv, with an optional USB copy of the shop's own menu, no-internet install, troubleshooting, cleaning up a shared computer); README wording fixes and a link to the guide; security audit A5 closed (demo passwords changed on the demo laptop) *(pull request #63, no tag)* |
 | — | 2026-10-14 | — | Documentation check against v0.20.5: actors, requirements (UR-1, 2, 3, 5, 8; NFR-12 offline; parts S5, S6, U4), structured specifications (sale ticket, login record), two new computation tables (quick cash, tile stock bar), scenario 1 with the one-tap flow, metrics measured again on v0.20.5, known limitations (BIR registration, senior/PWD discount, X/Z reading, dark-mode bar colour, tab icon), checklist and AGENTS.md folder list *(pull request #64, no tag)* |
 | — | 2026-10-14 | — | Report items 26–39 written from the v0.20.5 code: §13 architecture (MVC, layers, system context, subsystems, object classes, usage scenario) and §14 dependability and security (reliability, safety and security terminology, vulnerability avoidance, risk classification, fault tree, safety and reliability requirements, threat and control analysis); 6 new diagrams *(pull request #65, no tag)* |
+| — | 2026-10-14 | — | Generic names: the café's own add-on and drink names that had slipped into the code comments, tests, test menu, report and one diagram were replaced with generic ones (Oat Milk, Sweetener, Honey Latte, Mocha), and erased from 8 screenshots, because the owners' consent covers only their photos and prices *(pull request #66, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -355,7 +356,7 @@ laptop; on his phone a bar at the bottom shows *"2 items · ₱190.00 — Pay"* 
 For an exact quantity he can still use the product list and the Quantity box below the menu.
 
 ### Story F14 — Paying by GCash *(v0.15.0)*
-A customer orders a Sea Salt and a croffle (₱340.00) and wants to pay by GCash. Juan taps **GCash** in the payment box:
+A customer orders a Honey Latte and a croffle (₱340.00) and wants to pay by GCash. Juan taps **GCash** in the payment box:
 the cash fields disappear and a box asks for the **reference number**. The customer pays in the GCash app and shows the
 receipt; Juan types its 13-digit reference (`1023 456 789012`) and checks that the amount is ₱340.00, then clicks
 **Complete Sale**. The receipt says *Paid by GCash* with the reference and no change. If he types a reference that was
@@ -364,17 +365,17 @@ should be in the drawer) and GCash.
 
 ### Story F15 — Hot / Iced and add-ons *(v0.16.0–v0.16.1, wording v0.17.2)*
 Maria sets up the servings (**Hot** and **Iced**, same price; v0.16.0 called them sizes, and a shop can still use
-12oz / 16oz +₱20) and the café's upgrades (Espresso +₱30, Sub Oat +₱40, Cold Foam +₱30…) on the **Servings & Add-ons**
+12oz / 16oz +₱20) and the café's upgrades (Espresso +₱30, Oat Milk +₱40, Cold Foam +₱30…) on the **Servings & Add-ons**
 page, and ticks "Drink" on each latte. The Iced serving has its own recipe: 150 g of ice and an iced cup. When Juan
-taps **Sea Salt**, a small window opens: he picks **Iced** and **Sub Oat**, and the button shows *Add 1 · ₱220.00*
-*(since v0.20.0 he taps **+ Iced** on the tile and adds Sub Oat on the basket line instead; see F19)*.
-The basket shows the line as *Sea Salt — Iced, Sub Oat*, separate from a Hot Sea Salt, and the receipt keeps the
+taps **Honey Latte**, a small window opens: he picks **Iced** and **Oat Milk**, and the button shows *Add 1 · ₱220.00*
+*(since v0.20.0 he taps **+ Iced** on the tile and adds Oat Milk on the basket line instead; see F19)*.
+The basket shows the line as *Honey Latte — Iced, Oat Milk*, separate from a Hot Honey Latte, and the receipt keeps the
 options and the price paid, even if the add-on price changes later.
 
 ### Story F16 — Ingredients and recipes *(v0.17.0–v0.17.1)*
 Maria enters what is in the stock room on the **Ingredients** page (espresso beans 3,000 g, fresh milk 10,000 ml, oat milk
-2,000 ml, croissant dough 24 pcs…) and a **recipe** for each product: one Sea Salt uses 18 g of beans, 160 ml of milk and
-40 ml of cream; Sub Oat replaces the fresh milk with oat milk; a 16oz uses 1.33 times as much. The menu now shows how
+2,000 ml, croissant dough 24 pcs…) and a **recipe** for each product: one Honey Latte uses 18 g of beans, 160 ml of milk and
+40 ml of cream; Oat Milk replaces the fresh milk with oat milk; a 16oz uses 1.33 times as much. The menu now shows how
 many of each drink can still be made. When the oat milk runs low, Home warns her; when a delivery arrives she clicks
 **Restock** (+2,000 ml), and after counting the shelf at night she uses **Count**. Every change (each sale, delivery
 and count) appears in the ingredient history with who did it and which receipt it belongs to.
@@ -399,7 +400,7 @@ anyone merges.
 ### Story F19 — Serving a queue quickly *(v0.20.0)*
 It is 3 PM and six customers are waiting. Juan taps **+ Iced** on the Cafe Latte tile: one Iced latte is in the basket,
 no window to close. The next customer wants oat milk, so he taps the latte's line in the basket; it opens in place with
-**Hot / Iced** and the add-ons, he taps **Sub Oat** and **Done · ₱180.00 each**. A second croffle is one tap on **+**.
+**Hot / Iced** and the add-ons, he taps **Oat Milk** and **Done · ₱180.00 each**. A second croffle is one tap on **+**.
 Each tile shows a bar and "49 left", so he sees before he promises that only *3 Iced* drinks are left (the iced cups are
 low), and the Matcha tile is greyed with "Out of Matcha powder". Under the basket, "Uses 4 ingredients · Iced cups will
 be low" has opened by itself. The customer hands over ₱500: Juan taps **₱500**, sees *Change ₱190.00*, and taps the big
@@ -773,7 +774,7 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-16.1 | Database from v0.15 | Start the app | `menu_option` table, `has_options`, `options` columns added | As expected | ✅ |
 | TC-16.2 | Admin | Add sizes and add-ons; duplicate name, negative/nan price, 51-char name, unknown kind | Saved / each refused with a message | As expected | ✅ |
 | TC-16.3 | Cashier | Open or post to Sizes & Add-ons | 403 | 403 | ✅ |
-| TC-16.4 | Sea Salt ₱180 | 2 × 16oz + Sub Oat + Espresso | One line, ₱270.00 each, ₱540.00 | As expected | ✅ |
+| TC-16.4 | Honey Latte ₱180 | 2 × 16oz + Oat Milk + Espresso | One line, ₱270.00 each, ₱540.00 | As expected | ✅ |
 | TC-16.5 | Same choice ticked in another order | Add | Joins the same line | As expected | ✅ |
 | TC-16.6 | 3 in stock, 2 in basket (any sizes) | Add 2 more | Refused: only 1 more | As expected | ✅ |
 | TC-16.7 | — | Size id of an add-on, unknown size, size as add-on, non-number add-on | Refused | As expected | ✅ |
@@ -781,7 +782,7 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-16.9 | Two lines of one product | Remove one line | Only that line removed | As expected | ✅ |
 | TC-16.10 | Basket with options | Complete; then raise the add-on price | Receipt keeps options + price paid; stock reduced by all lines; report counts the product once | As expected | ✅ |
 | TC-16.11 | Line in basket | Admin unticks "sizes and add-ons" on that product | Line taken out with a message | **v0.16.0:** sold as "16oz" at the size price · **v0.16.1:** taken out | ❌→✅ DEF-38 |
-| TC-16.13 | Servings Hot and Iced (₱0); Iced recipe: 150 g ice + 1 iced cup | Iced Sea Salt + Sub Oat, and a Hot Campfire Latte; complete | ₱220.00 and ₱190.00; ice −150 g, iced cups −1, hot cups −1, oat milk −180 ml, fresh milk unchanged | As expected (v0.17.2) | ✅ |
+| TC-16.13 | Servings Hot and Iced (₱0); Iced recipe: 150 g ice + 1 iced cup | Iced Honey Latte + Oat Milk, and a Hot Mocha; complete | ₱220.00 and ₱190.00; ice −150 g, iced cups −1, hot cups −1, oat milk −180 ml, fresh milk unchanged | As expected (v0.17.2) | ✅ |
 | TC-16.14 | Café menu | Look at the tiles and the drink window | Tiles say "Hot / Iced · add-ons"; window says "Serving"; admin page "Servings & Add-ons" | **v0.16.0–v0.17.1:** "Size" · **v0.17.2:** as expected | ❌→✅ DEF-41 |
 | TC-16.12 | 6 add-ons with 50-character names | Complete the sale | Options text fits the 200-character column | **v0.16.0:** 316 characters saved · **v0.16.1:** shortened with "…" | ❌→✅ DEF-39 |
 
@@ -790,8 +791,8 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 
 | # | Test | Screenshot |
 |---|---|---|
-| S29 | TC-16.13: the drink window: Iced + Sub Oat, live price ₱180.00 | ![Drink window](screenshots/v0.16.0_TC-16.13_drink_window.png) |
-| S30 | TC-16.13: basket lines "Iced, Sub Oat" and "Hot" with their own prices | ![Basket with options](screenshots/v0.16.0_TC-16.13_basket_with_options.png) |
+| S29 | TC-16.13: the drink window: Iced + Oat Milk, live price ₱180.00 | ![Drink window](screenshots/v0.16.0_TC-16.13_drink_window.png) |
+| S30 | TC-16.13: basket lines "Iced, Oat Milk" and "Hot" with their own prices | ![Basket with options](screenshots/v0.16.0_TC-16.13_basket_with_options.png) |
 | S31 | TC-16.14 (v0.17.2): the Servings & Add-ons page with Hot / Iced and the upgrades | ![Servings and add-ons](screenshots/v0.17.2_TC-16.14_servings_and_addons.png) |
 
 ### F16 — Ingredients and recipes *(v0.17.0, v0.17.1)*
@@ -802,10 +803,10 @@ Each row is an attack or misuse tried on purpose (on the code published as v0.13
 | TC-17.2 | Ingredient | Restock +1000; restock 0, -5, nan, abc, 1e12 | Added and written in the history / refused | As expected | ✅ |
 | TC-17.3 | Cream 400 ml | Count = 380 | Set to 380, history shows -20 | As expected | ✅ |
 | TC-17.4 | Recipes | Product: negative amount, same ingredient twice / add-on: negative amount | Refused, refused / allowed (replaces milk) | As expected | ✅ |
-| TC-17.5 | Milk 1,000 ml; Sea Salt uses 180 ml | Products list and New Sale | "5 can make", Low badge; tile "5 left" | As expected | ✅ |
+| TC-17.5 | Milk 1,000 ml; Honey Latte uses 180 ml | Products list and New Sale | "5 can make", Low badge; tile "5 left" | As expected | ✅ |
 | TC-17.6 | 2 × 16oz (scale 1.5) in the basket | New Sale | "2 left" (460 ml ÷ 180) | As expected | ✅ |
 | TC-17.7 | Not enough milk for 2 more | Add | Message names the ingredient and amounts | "Not enough Fresh milk … 1,080 ml, only 1,000 ml on hand" | ✅ |
-| TC-17.8 | Basket: 2 × 16oz, 1 × Sub Oat, 1 croffle | Complete | Milk 460, oat 1,820, beans 928, cream 220; croffle 3 → 2; history lines linked to the receipt | As expected | ✅ |
+| TC-17.8 | Basket: 2 × 16oz, 1 × Oat Milk, 1 croffle | Complete | Milk 460, oat 1,820, beans 928, cream 220; croffle 3 → 2; history lines linked to the receipt | As expected | ✅ |
 | TC-17.9 | Milk drops to 100 ml before checkout | Complete | Refused, nothing saved | As expected | ✅ |
 | TC-17.10 | Another till uses up every ingredient between the check and the save | Complete | Whole sale cancelled, croffle stock restored | As expected | ✅ |
 | TC-17.11 | 20 cashiers sell a latte at the same moment, milk for 5 | Complete all | Exactly 5 sold, milk 0, never negative, history adds up | 5 completed, 15 refused, 0 errors | ✅ |
@@ -932,7 +933,7 @@ TC-22.1–22.8 are automated in `tests/test_new_sale.py` (49 checks; they fail o
 | TC-22.1 | Cafe Latte with 2 iced cups and no hot cups; Matcha with no powder; Croffle 3 in stock | Open New Sale | Latte: "+ Iced" works, "+ Hot" greyed with "no Hot cups", "Only 2 left", bar 10 %; Matcha greyed "Out of Matcha powder", no add button; Croffle "+ Add", "Only 3 left" | As expected | ✅ |
 | TC-22.2 | Iced cups low, Hot cups and Matcha powder at 0 | Open New Sale as cashier, then as admin | Banner "Running low: Iced cups · Hot cups, Matcha powder are out"; only the admin's banner links to Ingredients | As expected | ✅ |
 | TC-22.3 | 1 Iced latte in the basket | +, + again, then −, −; also send change = 5, −3, abc; an unknown line; + on a line already at 1,000,000 | 2; refused "Not enough Iced cups" (basket stays 2); 1; line removed. Anything other than −1/+1 changes nothing; unknown line harmless; maximum quantity kept | As expected | ✅ |
-| TC-22.4 | Iced latte in the basket | Tap the line, tick Sub Oat, Done; add a plain Iced latte and change it to Sub Oat (oat milk short, then restocked); switch to Hot (no hot cups); send an add-on as the serving, an unknown serving, a serving as an add-on, "x", a hidden add-on; change a croffle | "Iced, Sub Oat" ₱180.00 and the ingredient panel shows oat milk; merge refused "Not enough Oat milk", then one line "2 × ₱180.00"; Hot refused; every bad input refused with a message; croffle "has no servings or add-ons to change" | As expected | ✅ |
+| TC-22.4 | Iced latte in the basket | Tap the line, tick Oat Milk, Done; add a plain Iced latte and change it to Oat Milk (oat milk short, then restocked); switch to Hot (no hot cups); send an add-on as the serving, an unknown serving, a serving as an add-on, "x", a hidden add-on; change a croffle | "Iced, Oat Milk" ₱180.00 and the ingredient panel shows oat milk; merge refused "Not enough Oat milk", then one line "2 × ₱180.00"; Hot refused; every bad input refused with a message; croffle "has no servings or add-ons to change" | As expected | ✅ |
 | TC-22.5 | 1 Iced latte in the basket | Look at "Uses N ingredients"; add the last cup | "Uses 4 ingredients", each with − amount, before → after and "for Cafe Latte"; opens by itself with "Iced cups will be low"; Low rows first; link only for the admin; then "Iced cups will run out" | As expected | ✅ |
 | TC-22.6 | Basket ₱310 / ₱600 / ₱1,000 / ₱150 | Look at the quick cash buttons; tap one | Exact + the next ₱100, ₱500 and ₱1,000 (310 → 400, 500, 1,000; 600 → 700, 1,000); never above ₱1,000,000; the tap fills Cash received and shows the change | As expected | ✅ |
 | TC-22.7 | Latte + 2 croffles added with the new buttons | Complete Sale with ₱500 | Sale ₱440.00, change ₱60.00; iced cups 2 → 1, croffles 3 → 1 | As expected | ✅ |
@@ -953,7 +954,7 @@ running out.
 | # | Test | Screenshot |
 |---|---|---|
 | S47 | TC-22.1 / TC-22.6: tiles with stock bars, basket with − / +, "Uses 4 ingredients", ₱400 tapped (change ₱90.00) | ![New Sale v0.20.0](screenshots/v0.20.0_TC-22.1_new_sale_light.png) |
-| S48 | TC-22.4: the Cafe Latte line opened to change it (Iced ✓, Sub Oat ✓, Done · ₱180.00 each) | ![Change on the basket line](screenshots/v0.20.0_TC-22.4_change_on_basket_line.png) |
+| S48 | TC-22.4: the Cafe Latte line opened to change it (Iced ✓, Oat Milk ✓, Done · ₱180.00 each) | ![Change on the basket line](screenshots/v0.20.0_TC-22.4_change_on_basket_line.png) |
 | S49 | TC-22.9: dark theme (left) and phone, 390 px (right) | ![Dark and phone](screenshots/v0.20.0_TC-22.9_dark_and_phone.png) |
 | S50 | TC-22.12 (v0.20.1): New Sale on a 1920 px screen, the whole demo menu in view, no empty bands | ![New Sale 1920 px](screenshots/v0.20.1_TC-22.12_new_sale_1920.png) |
 | S51 | TC-22.12 (v0.20.1): the same on a 1280 px laptop, nothing wraps in the basket | ![New Sale 1280 px](screenshots/v0.20.1_TC-22.12_new_sale_1280.png) |
@@ -1541,7 +1542,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 65 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 66 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
 - ✅ README describing the project and how to run it (pull request #61), plus `docs/run_on_another_computer.md`, a step-by-step guide for setting it up on another computer such as a school lab (#63)
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)
@@ -1566,7 +1567,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | **UR-2** The system shall accept cash and GCash payments. | **2.1** For cash, the cashier shall type the amount received; the system shall refuse amounts below the total or above ₱1,000,000 and shall show the change; buttons shall offer the next ₱100, ₱500 and ₱1,000 above the total. **2.2** For GCash, the cashier shall type the 13-digit reference number; the system shall refuse anything else and any reference already used. **2.3** The Sales Report shall show cash and GCash revenue separately. |
 | **UR-3** The admin shall keep the list of products up to date. | **3.1** Only an admin shall add, edit or delete products (name, SKU, price, quantity, category, optional picture). **3.2** SKUs shall be unique, without regard to capitals (`hc-001` = `HC-001`); prices and quantities shall be numbers from 0 to 1,000,000. **3.3** A product with sales history shall not be deleted (its quantity can be set to 0). **3.4** Pictures shall be PNG, JPG or WebP up to 2 MB, checked by their content. |
 | **UR-4** Staff shall be warned before something runs out. | **4.1** Products with 5 or fewer left shall get a *Low* badge (0: *Out of stock*) and be listed in a warning box. **4.2** Ingredients at or below their *warn at* level shall be marked *Low* (0: *Out*), listed first under *Needs attention*, and counted in a warning on Home. |
-| **UR-5** A café shall be able to sell drinks Hot or Iced, with upgrades. | **5.1** The admin shall keep a list of *servings* (choose exactly one, e.g. Hot / Iced) and *add-ons* (any number, e.g. Sub Oat +₱40), each with an extra price. **5.2** One tap on a serving button shall add the drink with that serving; tapping the basket line shall let the cashier change the serving and add-ons, showing the new price before saving; the basket shall keep one line per product + serving + add-ons (equal lines are merged). **5.3** Receipts shall keep the options and the price paid even if prices change later. |
+| **UR-5** A café shall be able to sell drinks Hot or Iced, with upgrades. | **5.1** The admin shall keep a list of *servings* (choose exactly one, e.g. Hot / Iced) and *add-ons* (any number, e.g. Oat Milk +₱40), each with an extra price. **5.2** One tap on a serving button shall add the drink with that serving; tapping the basket line shall let the cashier change the serving and add-ons, showing the new price before saving; the basket shall keep one line per product + serving + add-ons (equal lines are merged). **5.3** Receipts shall keep the options and the price paid even if prices change later. |
 | **UR-6** The café shall know how much of each ingredient it has. | **6.1** The admin shall record ingredients (name, unit g/ml/pcs, group, on hand, warn at, full level). **6.2** Each product, serving and add-on may have a recipe; every sale shall use up its ingredients in the same transaction as the sale. **6.3** *Restock* shall add a delivery; *Count* shall set what is really on the shelf; every change shall be written to the ingredient history with user, time and receipt. |
 | **UR-7** The owner shall see how the business is doing. | **7.1** An admin shall see revenue, number of sales, items sold, top 5 products and every sale for any dates from 2000 to 2100 (default: today). **7.2** Home shall show today's sales and revenue, products, low stock and low ingredients. |
 | **UR-8** Only the right people shall use each part. | **8.1** Users shall log in with a username and password; passwords shall be stored hashed. **8.2** Cashiers shall get *403 Forbidden* on admin pages (products editing, report, servings and add-ons, ingredients, recipes). **8.3** After 5 wrong passwords for a username from one computer, that computer shall wait 5 minutes. **8.4** Every form shall carry a CSRF token; a form without it shall be refused. **8.5** Users shall be able to change their password (8+ characters, not the username) and their profile picture. **8.6** A login shall end on log-out, on a password change (every other login of that user) and after 8 idle hours; a copied cookie shall then be refused. |
@@ -1791,7 +1792,7 @@ In the form of Sommerville's "collecting medical history" scenario.
 | | |
 |---|---|
 | **Initial assumption** | The café is open. Juan (cashier) is logged in on the counter laptop. Milk, beans and pastries are in stock. |
-| **Normal** | A customer orders an iced café latte with oat milk and a butter croissant. Juan opens **New Sale** and taps **+ Iced** on the *Cafe Latte* tile, then **+ Add** on the croissant. He taps the latte's basket line, ticks **Sub Oat** (the button shows the new price) and taps **Done**. The basket shows both lines and the total. The customer pays with GCash; Juan taps **GCash**, types the 13-digit reference from the customer's screen and taps **Complete Sale**. The receipt shows "Paid by GCash" and the reference; Juan prints it. |
+| **Normal** | A customer orders an iced café latte with oat milk and a butter croissant. Juan opens **New Sale** and taps **+ Iced** on the *Cafe Latte* tile, then **+ Add** on the croissant. He taps the latte's basket line, ticks **Oat Milk** (the button shows the new price) and taps **Done**. The basket shows both lines and the total. The customer pays with GCash; Juan taps **GCash**, types the 13-digit reference from the customer's screen and taps **Complete Sale**. The receipt shows "Paid by GCash" and the reference; Juan prints it. |
 | **What can go wrong** | The reference has 12 digits or was already used: the sale is refused with a message and Juan asks the customer to show the receipt again. The oat milk ran out between adding and paying (another till): the whole sale is cancelled with "was just used up" and Juan takes the line out. Juan taps Complete Sale twice because the screen seemed slow: the button greys out ("Saving…") and the basket can only be sold once, so there is one receipt (v0.20.4). The Wi-Fi is down: nothing changes, because every page, font and icon is stored on the laptop (v0.19.4). |
 | **Other activities** | Other cashiers can sell at the same time; stock is protected by atomic updates. |
 | **System state on completion** | A new Sale with 2 SaleItems; croissant stock −1; beans −18 g, oat milk −200 ml, ice −150 g, iced cups −1; history lines linked to the receipt; the sale appears in today's report and on Home. |
@@ -2226,7 +2227,7 @@ security steps were also tried by hand by Yesha in her attack drill (2026-10-13)
 > **Scenario: a busy Saturday afternoon.** Maria owns a small café; Jun is her cashier. At 3 PM Jun logs in on the
 > counter laptop. The New Sale page shows a "Running low: Iced cups" banner. A customer orders two iced lattes, one
 > with oat milk, and an ensaymada. Jun taps **+ Iced** on the Cafe Latte tile, taps the new basket line, ticks
-> **Sub Oat** and taps **Done**; the line now shows the extra ₱40. He taps **+ Iced** again for the plain latte
+> **Oat Milk** and taps **Done**; the line now shows the extra ₱40. He taps **+ Iced** again for the plain latte
 > (a second line, because its add-ons differ) and **+ Add** on the ensaymada. The "Uses N ingredients" panel has
 > opened by itself because the iced cups will go low. The customer hands over a ₱500 bill; Jun taps the **₱500**
 > quick-cash button, the change appears, and he taps **Complete Sale**. The laptop is slow, so he
@@ -2260,7 +2261,7 @@ security steps were also tried by hand by Yesha in her attack drill (2026-10-13)
 > (`docs/security_audit_2026-10-11.md`) and the attack drill of 2026-10-13. **Honest scope:** this is not a
 > safety-critical system like Sommerville's insulin pump. Nobody is physically hurt if it fails; the harm is
 > mostly to **money, stock records and personal data**. One hazard can reach a customer's health: a lost
-> *Sub Oat* or other milk option, because a barista who reads "Cafe Latte" without the option may use dairy milk
+> *Oat Milk* or other milk option, because a barista who reads "Cafe Latte" without the option may use dairy milk
 > for a customer who cannot have it. The tables below use Sommerville's terms with these café examples.
 
 ### 14.1 Reliability terminology *(item 31, L11 p. 25)*
@@ -2281,7 +2282,7 @@ was sold twice and stock showed −1 (DEF-13, fixed in v0.8.2 with an atomic upd
 | Term | Definition | Example in this system |
 |---|---|---|
 | **Accident (or mishap)** | An unplanned event that results in human death or injury, damage to property or to the environment | A customer with a milk allergy is served dairy milk; or the café loses a day's sales records |
-| **Hazard** | A condition with the potential to cause or contribute to an accident | A drink line loses its *Sub Oat* option between the basket and the receipt; the only copy of the database is on one laptop |
+| **Hazard** | A condition with the potential to cause or contribute to an accident | A drink line loses its *Oat Milk* option between the basket and the receipt; the only copy of the database is on one laptop |
 | **Damage** | A measure of the loss resulting from an accident | From a refund and an apology (wrong change) to a customer's health (allergen) or a day of lost records |
 | **Hazard severity** | An assessment of the worst possible damage that could result from a hazard | Allergen: *high* (health). Lost database: *high* (business). Wrong change: *low* |
 | **Hazard probability** | The probability of the events occurring which create a hazard | Option lost: *very low* (options are copied as text onto each receipt line, TC-16.x). Laptop disk failure: *low* |

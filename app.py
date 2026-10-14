@@ -660,7 +660,7 @@ def login():
     return render_template('login.html')
 
 # ---------------- Ingredients and recipes (v0.17.0) ----------------
-# A product WITH a recipe takes its stock from its ingredients: one Sea Salt uses 18 g of
+# A product WITH a recipe takes its stock from its ingredients: one Honey Latte uses 18 g of
 # beans, 180 ml of milk... so "how many can we still make" is worked out from what is on
 # hand. A product WITHOUT a recipe keeps its own quantity, as before.
 INGREDIENT_UNITS = ['g', 'ml', 'pcs']
@@ -794,7 +794,7 @@ app.jinja_env.filters['plain_amount'] = lambda amount: fmt_amount(amount).replac
 # A line key is the product id, plus the chosen size and add-ons for drinks (v0.16.0):
 #   "7"          -> product 7, no options
 #   "7:2:1.4"    -> product 7, size option 2, add-on options 1 and 4
-# So "Sea Salt 16oz + Oat" and "Sea Salt 12oz" are separate basket lines.
+# So "Honey Latte 16oz + Oat" and "Honey Latte 12oz" are separate basket lines.
 # Nothing is saved to the database until the sale is completed.
 
 def get_basket():
@@ -857,7 +857,7 @@ def read_line(key, quantity):
         return None, (f'{product.name} no longer has servings or add-ons, so that line was taken out '
                       f'of the basket. Please add it again.')
     unit_price = round(product.price + (size.price if size else 0) + sum(a.price for a in addons), 2)
-    options_text = ', '.join(([size.name] if size else []) + [a.name for a in addons])   # e.g. "16oz, Sub Oat"
+    options_text = ', '.join(([size.name] if size else []) + [a.name for a in addons])   # e.g. "16oz, Oat Milk"
     if len(options_text) > 200:   # the receipt column holds 200 characters (v0.16.1)
         options_text = options_text[:199] + '…'
     return {'key': key, 'product': product, 'size': size, 'addons': addons, 'quantity': quantity,

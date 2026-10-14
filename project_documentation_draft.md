@@ -25,6 +25,8 @@
 10. Report checklist (professor's Section B)
 11. Requirements (Lecture 4, items 4–10)
 12. System models (Lecture 5, items 11–25)
+13. Architecture and design (Lectures 6–8, items 26–30)
+14. Dependability and security (Lectures 11–12, items 31–39)
 
 ---
 
@@ -209,6 +211,7 @@ The tag message summarizes what the increment added.
 | v0.20.5 | 2026-10-13 | `efb87ec` | Ingredients page: the warn-level tick on each stock bar is a full line again; the New Sale tile bars got their own class names (`tile-bar`) instead of reusing `stock-bar`, and a test stops New Sale style names from being shared again (DEF-58) *(pull request #62)* |
 | — | 2026-10-13 | — | Documentation: new guide `docs/run_on_another_computer.md` (set the app up on another computer such as a school lab: with or without Git, without activating the venv, with an optional USB copy of the shop's own menu, no-internet install, troubleshooting, cleaning up a shared computer); README wording fixes and a link to the guide; security audit A5 closed (demo passwords changed on the demo laptop) *(pull request #63, no tag)* |
 | — | 2026-10-14 | — | Documentation check against v0.20.5: actors, requirements (UR-1, 2, 3, 5, 8; NFR-12 offline; parts S5, S6, U4), structured specifications (sale ticket, login record), two new computation tables (quick cash, tile stock bar), scenario 1 with the one-tap flow, metrics measured again on v0.20.5, known limitations (BIR registration, senior/PWD discount, X/Z reading, dark-mode bar colour, tab icon), checklist and AGENTS.md folder list *(pull request #64, no tag)* |
+| — | 2026-10-14 | — | Report items 26–39 written from the v0.20.5 code: §13 architecture (MVC, layers, system context, subsystems, object classes, usage scenario) and §14 dependability and security (reliability, safety and security terminology, vulnerability avoidance, risk classification, fault tree, safety and reliability requirements, threat and control analysis); 6 new diagrams *(pull request #65, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1521,24 +1524,24 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 23 | Application processes (L5 p. 37) | ✅ §12.10 |
 | 24 | State diagram (L5 p. 40) | ✅ §12.11 (sale, ingredient, login) |
 | 25 | Structured forms of states (L5 p. 41–42) | ✅ §12.12 (6 tables) |
-| 26 | Software architecture (L6 p. 42, 49) | ⬜ (this app follows MVC: Model–View–Controller) |
-| 27 | Context diagram (L7 p. 9) | ⬜ |
-| 28 | High-level architecture (L7 p. 13) | ⬜ |
-| 29 | All object classes (L7 p. 19) | ⬜ |
-| 30 | Detailed usage scenario (L8 p. 53) | ⬜ |
-| 31 | Reliability terminology (L11 p. 25) | ⬜ |
-| 32 | Safety terminology (L11 p. 35) | ⬜ |
-| 33 | Security terminology (L11 p. 42) | 🟡 §7 Security review + `docs/security_audit_2026-10-11.md` §5 (threat, vulnerability, control, attack) |
-| 34 | Vulnerability avoidance techniques (L11 p. 45) | 🟡 server-side validation, hashing, POST-only delete, 403 checks, upload checks (file content, 2 MB limit, random names), CSRF tokens, login limit, security headers |
-| 35 | Risk classification table (L12 p. 15) | ⬜ |
-| 36 | Software fault tree (L12 p. 18) | ⬜ |
-| 37 | Safety requirements (L12 p. 23) | ⬜ |
-| 38 | Functional reliability requirements (L12 p. 39) | ⬜ |
-| 39 | Threat and control analysis (L12 p. 46) | 🟡 §7 Security review table + security audit findings rated by severity (`docs/security_audit_2026-10-11.md` §3–4) |
+| 26 | Software architecture (L6 p. 42, 49) | ✅ §13.1 (MVC + layered, 2 diagrams) |
+| 27 | Context diagram (L7 p. 9) | ✅ §13.2 |
+| 28 | High-level architecture (L7 p. 13) | ✅ §13.3 (7 subsystems) |
+| 29 | All object classes (L7 p. 19) | ✅ §13.4 |
+| 30 | Detailed usage scenario (L8 p. 53) | ✅ §13.5 (+ features tested by it) |
+| 31 | Reliability terminology (L11 p. 25) | ✅ §14.1 |
+| 32 | Safety terminology (L11 p. 35) | ✅ §14.2 |
+| 33 | Security terminology (L11 p. 42) | ✅ §14.3 (+ §7 Security review, security audit §5) |
+| 34 | Vulnerability avoidance techniques (L11 p. 45) | ✅ §14.4 (avoidance, detection, exposure limitation) |
+| 35 | Risk classification table (L12 p. 15) | ✅ §14.5 (10 hazards) |
+| 36 | Software fault tree (L12 p. 18) | ✅ §14.6 |
+| 37 | Safety requirements (L12 p. 23) | ✅ §14.7 (SR1–SR7) |
+| 38 | Functional reliability requirements (L12 p. 39) | ✅ §14.8 (RR1–RR7) |
+| 39 | Threat and control analysis (L12 p. 46) | ✅ §14.9 (11 threats) |
 
 **Other submission requirements (Section C/D):**
 - 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 64 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 65 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
 - ✅ README describing the project and how to run it (pull request #61), plus `docs/run_on_another_computer.md`, a step-by-step guide for setting it up on another computer such as a school lab (#63)
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)
@@ -2126,3 +2129,296 @@ and one describing each **stimulus**.
 
 *Source for all six tables: `stock_status()`, `complete_sale()` and `load_user()` in `app.py` (v0.20.4), and test cases
 TC-7.x, TC-15.x, TC-17.x, TC-18.x and TC-23.x in §6.*
+
+
+---
+
+## 13. Architecture and design (Lectures 6–8, report items 26–30)
+
+> Written on 2026-10-14 from the code of **v0.20.5** (`app.py`, `models.py`, `templates/`, `static/`). Every name in
+> the diagrams is a real function, class or file. Sources: `diagrams/uml/26_*.puml` to `29_*.puml` (same editing
+> instructions as §12).
+
+### 13.1 Software architecture *(item 26, L6 p. 42 and 49)*
+
+**Words used:** the *architecture* of a system is its overall structure: which big parts it has and how they talk to
+each other. An *architectural pattern* is a well-known structure that has worked before, like a floor plan that
+builders reuse.
+
+The system uses two patterns from Lecture 6 at the same time:
+
+**a. Model–View–Controller (MVC), the pattern for web applications.** Each request from the browser goes to a
+*controller* (a route in `app.py`), which reads or changes data through the *model* (the classes in `models.py`)
+and then asks a *view* (a template in `templates/`) to build the page. Flask, SQLAlchemy and Jinja2 are built for
+exactly this split.
+
+![MVC architecture](diagrams/uml/26_architecture_mvc.png)
+
+| MVC part | In this project | Example: completing a sale |
+|---|---|---|
+| **Model** | `models.py`: 9 classes, one table each, kept in SQLite (`instance/inventory.db`) | `Sale`, `SaleItem`, `Product.quantity`, `Ingredient.quantity`, `IngredientMovement` |
+| **View** | `templates/*.html` (Jinja2) + `static/css/theme.css` + Bootstrap, icons and font in `static/vendor/` | `new_sale.html` (basket, payment), `receipt.html` |
+| **Controller** | the 23 routes in `app.py`, with their checks | `complete_sale()`: checks the ticket, stock and payment, saves everything in one transaction, then redirects to the receipt |
+
+**b. Layered architecture.** Each layer offers services to the layer above and uses only the layer below. In the code
+the layers are *logical*: layers 2 and 3 are both in `app.py`, separated into commented blocks, because the course
+keeps the app in one file (AGENTS.md, §2). Splitting `app.py` into Flask *blueprints* is listed as a future-goal risk
+in the security audit (§4 there).
+
+![Layered architecture](diagrams/uml/26_architecture_layers.png)
+
+**Why these patterns?** MVC keeps the look (templates) apart from the rules (routes), so v0.13.0 and v0.20.0 could
+change the whole look without touching the database. The layers put every security check in one place (layer 2),
+before any business rule runs. **Client–server** is also present: the browser is the client and the Flask app the
+server; several tills (browsers) can use one server at the same time, and SQLite lets one of them write at a time.
+
+### 13.2 System context *(item 27, L7 p. 9)*
+
+Lecture 7 draws the context as boxes joined by *associations* with *multiplicities* (how many of each: `1`,
+`0..n`, `1..n`). It complements the Lecture 5 context model in §12.1, which shows the data that flows.
+
+![System context](diagrams/uml/27_system_context.png)
+
+| Other system | Multiplicity | Relationship |
+|---|---|---|
+| Counter laptop / phone (browser) | 1..n tills use 1 system | Every page is used through a browser; nothing is installed on the till |
+| Printer | 0..n | Receipts are printed with the browser's Print; the receipt page hides the menus when printing |
+| Customer's GCash app | 0..n | **Not connected** (dashed line): the cashier types the 13-digit reference from the customer's screen |
+| Supplier | 1..n | **Not connected**: a delivery is entered by the admin as a *Restock* |
+| Shop computer's disk | 1 | The database, the secret key and the picture files live here; backing it up is the owner's job |
+| GitHub | 1 | Only for development: code, tests, versions. The running shop does not need GitHub or the internet |
+
+### 13.3 High-level architecture *(item 28, L7 p. 13)*
+
+Like the weather station's subsystems joined by a communication link, the system has seven subsystems joined by
+Flask's request handling.
+
+![High-level architecture](diagrams/uml/28_high_level_architecture.png)
+
+| Subsystem | Routes / functions in `app.py` | Data (`models.py`) |
+|---|---|---|
+| Web interface | `base.html` and the page templates, `theme.css` | — |
+| Accounts and security | `login`, `logout`, `profile`, `remove_avatar`, `change_password`, `load_user`, `start_login_session`, `check_csrf_token`, `admin_required`, `add_security_headers` | `User`, `LoginSession` |
+| Sales | `new_sale`, `change_line_quantity`, `change_line_options`, `remove_from_basket`, `remove_line`, `complete_sale`, `receipt` | `Sale`, `SaleItem` (basket in the session) |
+| Product catalogue | `products`, `add_product`, `edit_product`, `delete_product`, `manage_options` | `Product`, `MenuOption` |
+| Ingredients | `ingredients`, `ingredient_detail`, `ingredients_history`, `edit_recipe`, `Recipes`, `can_make` | `Ingredient`, `RecipeItem`, `IngredientMovement` |
+| Reporting | `home`, `sales_report`, low-stock box on `products`, banner on New Sale | reads `Sale`, `Product`, `Ingredient` |
+| Data storage | `upgrade_database`, `load_secret_key`, `save_picture` | SQLite file and picture folders |
+
+### 13.4 Object classes *(item 29, L7 p. 19)*
+
+Lecture 7's object classes show each class with its **attributes** (what it knows) and **operations** (what it can
+do). The attributes are the real database columns. The operations are the real functions in `app.py`, grouped by
+the object they work on: Flask code is mostly functions, not methods, so this is the *design* view of the code.
+`Basket` and `SalesReport` have no table: the basket lives in the browser's signed session cookie, and the report
+is calculated each time.
+
+![Object classes](diagrams/uml/29_object_classes.png)
+
+The full class model with every column and association is in §12.6.
+
+### 13.5 Detailed usage scenario *(item 30, L8 p. 53)*
+
+Lecture 8 uses a *usage scenario* for **scenario testing**: a realistic story is played through the system, and
+every feature it touches is tested at once. Each step below is covered by the test cases in the table; the
+security steps were also tried by hand by Yesha in her attack drill (2026-10-13).
+
+> **Scenario: a busy Saturday afternoon.** Maria owns a small café; Jun is her cashier. At 3 PM Jun logs in on the
+> counter laptop. The New Sale page shows a "Running low: Iced cups" banner. A customer orders two iced lattes, one
+> with oat milk, and an ensaymada. Jun taps **+ Iced** on the Cafe Latte tile, taps the new basket line, ticks
+> **Sub Oat** and taps **Done**; the line now shows the extra ₱40. He taps **+ Iced** again for the plain latte
+> (a second line, because its add-ons differ) and **+ Add** on the ensaymada. The "Uses N ingredients" panel has
+> opened by itself because the iced cups will go low. The customer hands over a ₱500 bill; Jun taps the **₱500**
+> quick-cash button, the change appears, and he taps **Complete Sale**. The laptop is slow, so he
+> taps it again; the button already says "Saving…", and only one receipt is made. He prints it.
+>
+> At 4 PM the Wi-Fi drops. Nothing changes on screen, and Jun keeps selling. At 5 PM Maria's supplier delivers
+> iced cups; on her phone she opens **Ingredients**, filters *Low or out*, and adds the delivery with **Restock**.
+> The banner on Jun's screen disappears at his next tap. At closing, Maria opens the **Sales Report** for today and
+> compares the cash total with the drawer, then changes her password, which logs out the other phone she had used.
+> Jun logs out; the next morning a new cashier finds an empty basket.
+
+| Feature tested by the scenario | Where it is specified and tested |
+|---|---|
+| Log in, login record, log out empties the basket | UC-02, UC-03; TC-5.x, TC-23.4–23.9 |
+| Running-low banner, stock bars on tiles | UC-09; TC-22.1, TC-22.2, TC-22.9 |
+| One-tap serving buttons, − / + on a line, equal lines merged | UC-08; TC-22.1, TC-22.3 |
+| Change add-ons on the basket line, live price | UC-08, UC-14; TC-22.4, TC-16.x |
+| "Uses N ingredients" panel opens when something goes low | TC-22.5 |
+| Quick cash, change preview | TC-22.6, TC-22.7, TC-7.x |
+| One receipt per basket, "Saving…" | TC-23.11–23.14 |
+| Works without internet | TC-21.1–21.5 |
+| Restock adds safely, history line | UC-15; TC-17.x, TC-18.x |
+| Sales Report: cash vs GCash | UC-10; TC-9.x, TC-15.x |
+| Password change ends other logins | UC-13; TC-23.6 |
+
+---
+
+## 14. Dependability and security (Lectures 11–12, report items 31–39)
+
+> Written on 2026-10-14 from the code of v0.20.5, the defect list (§7), the security audit
+> (`docs/security_audit_2026-10-11.md`) and the attack drill of 2026-10-13. **Honest scope:** this is not a
+> safety-critical system like Sommerville's insulin pump. Nobody is physically hurt if it fails; the harm is
+> mostly to **money, stock records and personal data**. One hazard can reach a customer's health: a lost
+> *Sub Oat* or other milk option, because a barista who reads "Cafe Latte" without the option may use dairy milk
+> for a customer who cannot have it. The tables below use Sommerville's terms with these café examples.
+
+### 14.1 Reliability terminology *(item 31, L11 p. 25)*
+
+| Term | Description | Example in this system |
+|---|---|---|
+| **Human error or mistake** | Human behaviour that results in a fault being put into the system | When v0.20.0 was written, the New Sale tile bars were given the class name `stock-bar`, which the Ingredients page already used (DEF-58) |
+| **System fault** | A characteristic of the software that can lead to a system error | The new style rules for `stock-bar` (`overflow: hidden`) also matched the Ingredients bars |
+| **System error** | An erroneous system state that can lead to behaviour the user does not expect | The Ingredients page was drawn with the warn-level tick clipped to a 6 px green speck |
+| **System failure** | An event that occurs when the system does not deliver a service as expected by its users | Yesha could no longer see how close an ingredient was to its warning level (reported 2026-10-13; fixed in v0.20.5) |
+
+A second example of the same chain: *mistake* — the stock check and the stock update were written as two steps;
+*fault* — another sale could run between them; *error* — two sales both saw "1 left"; *failure* — the last item
+was sold twice and stock showed −1 (DEF-13, fixed in v0.8.2 with an atomic update).
+
+### 14.2 Safety terminology *(item 32, L11 p. 35)*
+
+| Term | Definition | Example in this system |
+|---|---|---|
+| **Accident (or mishap)** | An unplanned event that results in human death or injury, damage to property or to the environment | A customer with a milk allergy is served dairy milk; or the café loses a day's sales records |
+| **Hazard** | A condition with the potential to cause or contribute to an accident | A drink line loses its *Sub Oat* option between the basket and the receipt; the only copy of the database is on one laptop |
+| **Damage** | A measure of the loss resulting from an accident | From a refund and an apology (wrong change) to a customer's health (allergen) or a day of lost records |
+| **Hazard severity** | An assessment of the worst possible damage that could result from a hazard | Allergen: *high* (health). Lost database: *high* (business). Wrong change: *low* |
+| **Hazard probability** | The probability of the events occurring which create a hazard | Option lost: *very low* (options are copied as text onto each receipt line, TC-16.x). Laptop disk failure: *low* |
+| **Risk** | The probability that the system will cause an accident: hazard probability × hazard severity × chance the hazard leads to an accident | Allergen: low (very low probability, high severity, barista also asks the customer). Lost database: **medium**, because there is no automatic backup yet |
+
+### 14.3 Security terminology *(item 33, L11 p. 42)*
+
+| Term | Definition | Example in this system |
+|---|---|---|
+| **Asset** | Something of value which has to be protected | The sales and stock records (`inventory.db`), the users' accounts, the secret key that signs cookies, the GCash reference numbers on receipts |
+| **Attack** | An exploitation of a system's vulnerability, usually from outside and on purpose | Copying the admin's session cookie into another browser (Yesha's drill, round 3) |
+| **Control** | A protective measure that reduces a system's vulnerability | Login records (v0.20.3): log-out or a password change deletes the record, so the copied cookie stops working |
+| **Exposure** | Possible loss or harm to a computing system | Someone with a copied admin cookie could read every sale and change prices |
+| **Threat** | Circumstances that have the potential to cause loss or harm | A cashier, or anyone who uses the counter laptop, tries the admin pages or a copied cookie |
+| **Vulnerability** | A weakness in a system that may be exploited to cause loss or harm | Before v0.20.3: a cookie kept working after log-out (DEF-51, audit A6) |
+
+Full list of attacks tried and their results: §7 *Security review* and the security audit, §3.
+
+### 14.4 Vulnerability avoidance techniques *(item 34, L11 p. 45)*
+
+Sommerville names three ways to make a system secure. All three are used:
+
+**a. Vulnerability avoidance** (design the weakness out, so it can't be attacked):
+
+| Technique | How | Version |
+|---|---|---|
+| Passwords never stored | Only scrypt hashes (Werkzeug); minimum 8 characters, not the username | v0.6.0, v0.13.5 |
+| Secret key not in the code | Made once and kept in `instance/secret_key.txt` (not in Git), or set with `SECRET_KEY` | v0.13.1 |
+| Every value checked on the server | Numbers must be finite and between 0 and 1,000,000; ids too big for the database count as "not found"; text fits the columns | v0.7.1, v0.8.3–v0.8.6, v0.19.3 |
+| SQL injection impossible | All database access goes through SQLAlchemy with parameters; no SQL text is built from user input | v0.2.0 |
+| Script injection impossible | Jinja2 escapes every value shown on a page | v0.3.0 |
+| Uploaded pictures can't be run | Checked by their first bytes (PNG, JPG, WebP), at most 2 MB, saved under a random name, sent with `nosniff` | v0.12.0, v0.14.0 |
+| No outside code | Bootstrap, icons and font are stored in the project; nothing loads from the internet | v0.19.4 |
+| Only the needed packages, kept up to date | Exact versions in `requirements.txt`; Werkzeug updated for a known weakness | v0.19.3 |
+| Changes can't remove a protection by accident | AGENTS.md rules + `tests/check_contract.py` (58 rule checks) run on every pull request | v0.19.0 |
+
+**b. Attack detection and elimination** (notice an attack and stop it):
+
+| Technique | How | Version |
+|---|---|---|
+| Wrong-password limit | 5 wrong passwords for a username from one computer → that computer waits 5 minutes | v0.13.3, v0.19.3 |
+| Forged form requests | Every form carries a random CSRF token; a POST without it is refused (400) | v0.13.2 |
+| Forged or copied cookies | The user only counts as logged in if the cookie's token has a login record on the server | v0.20.3 |
+| Wrong role | Admin pages answer 403 to cashiers, even when the address is typed | v0.7.0 |
+| Same basket sent twice | The sale ticket is unique in the database; the second request opens the first receipt | v0.20.4 |
+
+**c. Exposure limitation and recovery** (if an attack works, keep the damage small and recover):
+
+| Technique | How | Version |
+|---|---|---|
+| Logins end | Log-out, a password change (ends every other login of the user) or 8 idle hours | v0.20.3 |
+| Least privilege | Cashiers can sell and see receipts only; the shared "cashier" account cannot change data | v0.7.0 |
+| All-or-nothing sales | A sale and all its stock changes are one transaction; if one part fails, nothing is saved | v0.8.2 |
+| History of every ingredient change | Who changed what, when, and on which receipt | v0.17.0 |
+| Debug console off | The in-browser Python console of debug mode can't be reached unless `FLASK_DEBUG=1` | v0.13.4 |
+| Nothing is deleted when starting over | `--fresh` renames the old database instead of deleting it | v0.14.0 |
+| Clickjacking blocked | `X-Frame-Options: DENY`; `Referrer-Policy: same-origin` | v0.13.4 |
+
+### 14.5 Risk classification *(item 35, L12 p. 15)*
+
+The same columns as Sommerville's insulin pump table. *Acceptability:* **Intolerable** = must be fixed before use;
+**ALARP** = "as low as reasonably practical", reduce it if the cost is reasonable; **Acceptable** = no action needed.
+
+| Identified hazard | Hazard probability | Accident severity | Estimated risk | Acceptability |
+|---|---|---|---|---|
+| 1. The last item sold twice by two tills (stock −1) | Medium before v0.8.2; now very low (atomic update, TC-7.26) | Medium | Low | Acceptable |
+| 2. One basket charged twice (double-click, retry) | Medium before v0.20.4; now very low (sale ticket, TC-23.11–23.13) | Medium | Low | Acceptable |
+| 3. Wrong change given (cash below total or `nan` accepted) | Very low (server checks, DEF-14) | Low | Low | Acceptable |
+| 4. A drink's milk option lost on the way to the barista (allergen) | Very low (options copied onto each receipt line) | High | Medium | ALARP: the barista should still read the receipt and ask |
+| 5. Database lost (disk failure, file deleted) | Low | High | **Medium** | **ALARP**: no automatic backup yet; the owner should copy `instance/` regularly |
+| 6. Someone uses an admin login copied from the till | Low (login records, 8-hour limit, v0.20.3) | High | Medium | ALARP: use separate accounts, log out, change the demo passwords (done 2026-10-12) |
+| 7. Stock count overwrites a sale made at the same second | Low | Low | Low | Acceptable (known limitation; Restock adds safely) |
+| 8. GCash reference recorded but the money was never received | Low | Medium | Medium | ALARP: the cashier checks the customer's screen; automatic checks would need a GCash merchant account |
+| 9. Server error page (HTTP 500) during a sale | Very low (0 crashes in 6,417 fuzzing requests) | Low (nothing is saved half-way) | Low | Acceptable |
+| 10. Using this system as the shop's official cash register | Medium (it looks like a POS) | High (tax penalties: not BIR-registered) | **High** | **Intolerable**: receipts are order slips only; official invoices must come from the café's registered POS |
+
+### 14.6 Software fault tree *(item 36, L12 p. 18)*
+
+A *fault tree* starts from one bad event at the top and asks "what could cause this?" until it reaches basic causes
+at the bottom. An **OR** gate means any one of the causes below is enough. In italics under each basic cause: the
+code or test that now prevents it, or why it can't be prevented by code.
+
+![Software fault tree](diagrams/uml/36_fault_tree.png)
+
+Reading the tree: of the ten basic causes, eight are blocked by code and tested; *a wrong recipe amount* can only be
+prevented by the owner checking the recipes (they are still estimates, §7), and *a stock edit at the same moment as a
+sale* is a known limitation (Restock is safe; Count and the product Edit form overwrite).
+
+### 14.7 Safety requirements *(item 37, L12 p. 23)*
+
+Written like Sommerville's insulin pump requirements (SR1–SR6), from the hazards in §14.5. ✅ = met by v0.20.5 and
+tested; ⏳ = not yet met.
+
+| ID | Requirement | Status |
+|---|---|---|
+| SR1 | The system shall not complete a sale for which there is not enough stock or ingredient at the moment of saving. | ✅ atomic updates, TC-7.26, TC-17.11 |
+| SR2 | The system shall not save the same basket as more than one sale. | ✅ sale ticket, TC-23.11–23.13 |
+| SR3 | The system shall not accept a cash amount below the total, or a value that is not a finite number. | ✅ TC-7.28 |
+| SR4 | The system shall print every chosen serving and add-on on the receipt line of the drink it belongs to, and shall keep it unchanged if options are later renamed or hidden. | ✅ TC-16.x |
+| SR5 | The system shall save a sale and all its stock and ingredient changes together, or none of them. | ✅ one transaction, rollback, TC-7.27 |
+| SR6 | The receipt shall not be presented as an official sales invoice. | ⏳ the receipt does not yet say "Not an official receipt"; small template change for a later version |
+| SR7 | The owner shall be able to restore the sales and stock records after the computer fails. | ⏳ manual only (copy `instance/`); an automatic backup is a future increment |
+
+### 14.8 Functional reliability requirements *(item 38, L12 p. 39)*
+
+Like Sommerville's RR1–RR4. In brackets, the type of requirement: *checking*, *recovery* or *redundancy*.
+
+| ID | Requirement | Status |
+|---|---|---|
+| RR1 | A pre-defined range shall be set for every number a user types (prices, quantities, cash: 0 to 1,000,000; GCash reference: exactly 13 digits; dates: 2000 to 2100), and the server shall check every input against it. *(Checking)* | ✅ TC-2.7, TC-7.28, TC-15.x, TC-20.1 |
+| RR2 | The system shall check stock and ingredients again at the moment of saving a sale, even if they were checked when the item was added. *(Checking)* | ✅ TC-7.24–7.27 |
+| RR3 | When the database refuses a change (stock too low, duplicate ticket or GCash reference), the system shall roll back the whole sale and show a message instead of an error page. *(Recovery)* | ✅ TC-15.x, TC-23.11 |
+| RR4 | When a new version starts with a database made by an older version, it shall add the missing columns and indexes by itself without losing data. *(Recovery)* | ✅ TC-23.15, test_avatar.py |
+| RR5 | Starting over with demo data shall keep the old database under a new name instead of deleting it. *(Recovery)* | ✅ test_seed.py |
+| RR6 | Every change to the code shall pass the automatic tests (20 files, 452 checks + 58 rule checks) before it is merged. *(Checking)* | ✅ GitHub Checks on every pull request |
+| RR7 | A copy of the database shall be kept on a second device. *(Redundancy)* | ⏳ not yet (see SR7) |
+
+### 14.9 Threat and control analysis *(item 39, L12 p. 46)*
+
+As in Sommerville's preliminary risk assessment for the MHC-PMS: each threat, how likely it is, the control, and
+whether the control is feasible (cost and effort).
+
+| Threat | Probability | Control | Feasibility |
+|---|---|---|---|
+| Unauthorised user gets in as the admin by guessing the password | Low | Passwords hashed; 5-try limit per username and computer; demo passwords changed | Done (v0.13.3, v0.19.3, 2026-10-12). Low cost |
+| Someone copies a logged-in cookie from the till | Low | Login records; log-out and password change end it; 8 idle hours end it | Done (v0.20.3). Low cost |
+| A cashier opens admin pages by typing the address | Medium | 403 on every admin page; contract check makes sure every page is listed as public, user or admin | Done (v0.7.0, v0.19.0) |
+| Another website makes the browser submit a form (CSRF) | Low | Random token on every form; SameSite=Lax cookie | Done (v0.13.2) |
+| Someone guesses the current password on the change-password page with a stolen login | Low | *Not yet:* reuse the login attempt limit there (audit A7) | Feasible, small change |
+| Someone finds which usernames exist by timing the login | Low | *Not yet:* check a dummy hash for unknown users (audit A8) | Feasible, small; low value (2 accounts) |
+| A malicious file uploaded as a picture | Low | Content check, 2 MB limit, random names, `nosniff` | Done (v0.12.0, v0.14.0) |
+| Script injected through a product name | Low | Jinja2 escaping; *later:* Content-Security-Policy (audit A10) | Escaping done; CSP needs the inline scripts moved to files |
+| Any logged-in user opens another cashier's receipt by number | Medium | Decision for the owner: normal in a small café, or limit cashiers to their own receipts (audit A12) | Feasible if wanted |
+| The database file is copied off the laptop | Low | The file is not on GitHub (.gitignore, rule P1); passwords are hashed | Done; disk encryption is the owner's choice (Windows BitLocker) |
+| Laptop lost or broken: records gone | Low | *Not yet:* automatic backup to a second device (RR7) | Feasible; a copy of `instance/` to a USB drive each week costs nothing |
+
+**Words used in §14:** *atomic update* — a database change that happens completely or not at all;
+*rollback* — undoing every change of an unfinished transaction; *scrypt* — a slow hashing method that makes guessing
+passwords expensive; *CSRF* — Cross-Site Request Forgery, another website making your browser send one of our forms;
+*Content-Security-Policy (CSP)* — a header that tells the browser which scripts it may run.

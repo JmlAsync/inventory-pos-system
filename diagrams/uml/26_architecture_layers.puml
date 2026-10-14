@@ -1,0 +1,59 @@
+@startuml
+' Software architecture: layers of the system - Inventory & POS System v0.20.5 (report, Lecture 6; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+rectangle "<b>1. User interface</b>\nHTML pages (Jinja2 templates), theme.css (light / dark), Bootstrap 5.3.3,\nBootstrap Icons, Inter font, small scripts (change preview, quick cash, Saving...)" as ui
+rectangle "<b>2. User communication and security</b>\nFlask routes and forms, Flask-Login (login records, 8-hour idle limit), admin_required (403),\nCSRF token check, login attempt limit, security headers, file upload checks" as sec
+rectangle "<b>3. Application logic</b>\nBasket and sale ticket, stock and recipe checks (Recipes, can_make), payments (cash, GCash),\natomic stock updates, ingredient history, low-stock rules, sales report, quick cash" as logic
+rectangle "<b>4. Data access</b>\nSQLAlchemy models (models.py), upgrade_database() adds new columns and indexes" as data
+rectangle "<b>5. Storage</b>\nSQLite file instance/inventory.db, secret key file, pictures in static/products and static/avatars" as store
+ui -down-> sec
+sec -down-> logic
+logic -down-> data
+data -down-> store
+note right of sec
+  Each layer only uses
+  the layer below it.
+end note
+@enduml

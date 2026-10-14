@@ -1,0 +1,89 @@
+@startuml
+' Software fault tree: wrong sale record - Inventory & POS System v0.20.5 (report, Lecture 12; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor #F2F2F2
+  BorderColor Black
+}
+rectangle "<b>Customer charged the wrong amount</b>\n<b>or stock left wrong after a sale</b>" as top
+usecase "OR" as g0
+rectangle "Wrong total\ncalculated" as e1
+rectangle "Payment recorded\nwrongly" as e2
+rectangle "Sale saved\ntwice" as e3
+rectangle "Stock lowered\nwrongly" as e4
+usecase "OR" as g1
+usecase "OR" as g2
+usecase "OR" as g3
+usecase "OR" as g4
+rectangle "Wrong unit price\n(serving or add-on\nprice not added)\n<i>read_line, TC-16.x</i>" as l11
+rectangle "Option hidden or\nproduct deleted\nwhile in the basket\n<i>basket_lines, DEF-16</i>" as l12
+rectangle "Wrong quantity\n(double tap, lines\nnot merged)\n<i>− / + by one, TC-22.x</i>" as l13
+rectangle "Cash below total\nor nan / inf accepted\n<i>DEF-14, TC-7.28</i>" as l21
+rectangle "GCash reference\nmistyped or reused\n<i>13 digits + unique,</i>\n<i>TC-15.x</i>" as l22
+rectangle "Double-click or\nslow network retry\n<i>sale ticket, DEF-48</i>" as l31
+rectangle "Old copy of the\ncookie sent again\n<i>sale ticket, TC-23.13</i>" as l32
+rectangle "Two tills sell the\nlast item at once\n<i>atomic update, DEF-13</i>" as l41
+rectangle "Recipe amount wrong\nor missing\n<i>admin edits recipe;</i>\n<i>not checkable by code</i>" as l42
+rectangle "Stock edited while\na sale completes\n<i>known limitation:</i>\n<i>Count / product edit</i>" as l43
+top -down- g0
+g0 -down- e1
+g0 -down- e2
+g0 -down- e3
+g0 -down- e4
+e1 -down- g1
+e2 -down- g2
+e3 -down- g3
+e4 -down- g4
+g1 -down- l11
+g1 -down- l12
+g1 -down- l13
+g2 -down- l21
+g2 -down- l22
+g3 -down- l31
+g3 -down- l32
+g4 -down- l41
+g4 -down- l42
+g4 -down- l43
+@enduml

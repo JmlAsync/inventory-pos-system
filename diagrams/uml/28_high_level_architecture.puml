@@ -1,0 +1,61 @@
+@startuml
+' High-level architecture: subsystems - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+skinparam package {
+  BackgroundColor White
+  BorderColor Black
+}
+rectangle "Web interface\n(templates, theme, menus)" <<subsystem>> as web
+rectangle "Accounts and security\n(log in/out, roles, CSRF,\nlogin records, passwords,\nprofile pictures)" <<subsystem>> as acc
+rectangle "Sales\n(New Sale, basket, sale ticket,\npayments, receipts)" <<subsystem>> as sales
+rectangle "Product catalogue\n(products, pictures,\nservings and add-ons)" <<subsystem>> as cat
+rectangle "Ingredients\n(ingredients, recipes,\nrestock, count, history)" <<subsystem>> as ing
+rectangle "Reporting\n(Home numbers, low-stock\nwarnings, Sales Report)" <<subsystem>> as rep
+rectangle "Data storage\n(SQLAlchemy + SQLite,\npicture files)" <<subsystem>> as store
+rectangle "Flask request handling (routes in app.py)" as link
+web -down- link
+acc -up- link
+sales -up- link
+cat -up- link
+ing -up- link
+rep -up- link
+link -down- store
+@enduml

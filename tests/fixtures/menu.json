@@ -146,7 +146,7 @@
    30
   ],
   [
-   "Sub Oat",
+   "Oat Milk",
    40
   ],
   [
@@ -158,7 +158,7 @@
    20
   ],
   [
-   "0 Cal Sweetener",
+   "Sweetener",
    5
   ]
  ],
@@ -228,7 +228,7 @@
    2000
   ],
   [
-   "0 Cal sweetener sachets",
+   "Sweetener sachets",
    "pcs",
    100,
    20,
@@ -395,7 +395,7 @@
     18
    ]
   ],
-  "addon:Sub Oat": [
+  "addon:Oat Milk": [
    [
     "Fresh milk",
     -200
@@ -417,9 +417,9 @@
     15
    ]
   ],
-  "addon:0 Cal Sweetener": [
+  "addon:Sweetener": [
    [
-    "0 Cal sweetener sachets",
+    "Sweetener sachets",
     1
    ]
   ]

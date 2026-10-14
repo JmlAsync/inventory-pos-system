@@ -22,18 +22,18 @@ a = app.test_client(); a.post('/login', data={'username': 'admin', 'password': '
 c = app.test_client(); c.post('/login', data={'username': 'cashier', 'password': 'c'})
 def opt(**d): return a.post('/options', data=d, follow_redirects=True).get_data(as_text=True)
 opt(kind='size', name='12oz', price='0'); opt(kind='size', name='16oz', price='20')
-opt(kind='addon', name='Sub Oat', price='40'); opt(kind='addon', name='Espresso', price='30'); opt(kind='addon', name='Syrup', price='20')
+opt(kind='addon', name='Oat Milk', price='40'); opt(kind='addon', name='Espresso', price='30'); opt(kind='addon', name='Syrup', price='20')
 with app.app_context():
     ids = {o.name: o.id for o in MenuOption.query.all()}
 check('admin adds 2 sizes and 3 add-ons', len(ids) == 5)
-check('duplicate name refused (any capitals)', 'already a add-on' in opt(kind='addon', name='sub oat', price='1') or 'already an add-on' in opt(kind='addon', name='SUB OAT', price='1') or 'already a' in opt(kind='addon', name='sub oat', price='1'))
+check('duplicate name refused (any capitals)', 'already a add-on' in opt(kind='addon', name='oat milk', price='1') or 'already an add-on' in opt(kind='addon', name='OAT MILK', price='1') or 'already a' in opt(kind='addon', name='oat milk', price='1'))
 check('negative price refused', 'from 0 to' in opt(kind='addon', name='X', price='-5'))
 check('nan price refused', 'from 0 to' in opt(kind='addon', name='Y', price='nan'))
 check('name longer than 50 refused', '1 to 50' in opt(kind='addon', name='Z' * 51, price='1'))
 check('unknown kind refused', a.post('/options', data={'kind': 'colour', 'name': 'Red', 'price': '1'}).status_code == 400)
 check('cashier cannot open or change options (403)', c.get('/options').status_code == 403 and c.post('/options', data={'kind': 'size', 'name': 'x', 'price': '0'}).status_code == 403)
 # products
-a.post('/products/add', data={'name': 'Sea Salt', 'sku': 'D1', 'price': '180', 'quantity': '3', 'category': 'Lattes', 'has_options': '1'})
+a.post('/products/add', data={'name': 'Honey Latte', 'sku': 'D1', 'price': '180', 'quantity': '3', 'category': 'Lattes', 'has_options': '1'})
 with app.app_context(): sea = Product.query.filter_by(sku='D1').first(); check('product form tick box saves has_options', sea.has_options); sid = sea.id
 h = c.get('/sales/new').get_data(as_text=True)
 # v0.20.0: a drink tile has one button per serving (each sends size_id); the croffle tile has one "+ Add" without
@@ -42,16 +42,16 @@ plain_form = re.search(r'name="product_id" value="1">\s*<input type="hidden" nam
 check('drink tile has a button per serving; croffle tile has "+ Add" (v0.20.0)', drink_form is not None and plain_form is not None and 'optionsDialog' not in h)
 def line_options(h): return re.findall(r'basket-options">([^<]*)<', h)   # the options text of each basket line
 def basket(): return c.get('/sales/new').get_data(as_text=True)
-c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso'], ids['Sub Oat']]})
+c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso'], ids['Oat Milk']]})
 h = basket()
-check('16oz + Sub Oat + Espresso: one line, ₱270.00 each, ₱540.00', 'Sea Salt' in h and '16oz, Sub Oat, Espresso' in h and '2 × ₱270.00' in h and '₱540.00' in h)
-r = c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Sub Oat'], ids['Espresso']]}, follow_redirects=True)
+check('16oz + Oat Milk + Espresso: one line, ₱270.00 each, ₱540.00', 'Honey Latte' in h and '16oz, Oat Milk, Espresso' in h and '2 × ₱270.00' in h and '₱540.00' in h)
+r = c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Oat Milk'], ids['Espresso']]}, follow_redirects=True)
 check('stock counts every line: 3 in stock, 2 in basket -> only 1 more', 'Not enough stock' not in r.get_data(as_text=True))
 h = basket(); check('same choice in another order joins the same line (3 ×)', '3 × ₱270.00' in h)
 r = c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['12oz']})
-check('a 4th Sea Salt (any size) refused: stock 3', 'only 0 more' in r.get_data(as_text=True))
+check('a 4th Honey Latte (any size) refused: stock 3', 'only 0 more' in r.get_data(as_text=True))
 c.post('/sales/remove/' + str(sid))
-for data, why in [({'size_id': ids['Sub Oat']}, 'add-on used as size'), ({'size_id': '9999'}, 'unknown size'),
+for data, why in [({'size_id': ids['Oat Milk']}, 'add-on used as size'), ({'size_id': '9999'}, 'unknown size'),
                   ({'size_id': ids['12oz'], 'addon_ids': [ids['16oz']]}, 'size used as add-on'), ({'size_id': ids['12oz'], 'addon_ids': ['x']}, 'non-number add-on')]:
     r = c.post('/sales/new', data=dict(product_id=sid, quantity='1', **data))
     check(f'refused: {why}', r.status_code == 200 and (('sizes offered' in r.get_data(as_text=True) or 'servings offered' in r.get_data(as_text=True)) or 'add-ons from the list' in r.get_data(as_text=True)))
@@ -60,24 +60,24 @@ check('list form / no size chosen -> smallest size (12oz), base price', '12oz' i
 c.post('/sales/new', data={'product_id': '1', 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso']]})
 check('product without options ignores size/add-ons', '1 × ₱150.00' in basket())
 c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Syrup']]})
-h = basket(); check('two Sea Salt lines with different options', h.count('product-name">Sea Salt</span>') == 2)
+h = basket(); check('two Honey Latte lines with different options', h.count('product-name">Honey Latte</span>') == 2)
 keys = re.findall(r'name="line" value="([^"]+)"', h)
 c.post('/sales/remove-line', data={'line': [k for k in keys if k.startswith(f'{sid}:') and k.endswith(str(ids['Syrup']))][0]})
-h = basket(); check('remove-line removes only that line', h.count('product-name">Sea Salt</span>') == 1 and not any('Syrup' in o for o in line_options(h)))
-c.post('/sales/remove-line', data={'line': 'does-not-exist'}); check('removing an unknown line is harmless', basket().count('product-name">Sea Salt</span>') == 1)
+h = basket(); check('remove-line removes only that line', h.count('product-name">Honey Latte</span>') == 1 and not any('Syrup' in o for o in line_options(h)))
+c.post('/sales/remove-line', data={'line': 'does-not-exist'}); check('removing an unknown line is harmless', basket().count('product-name">Honey Latte</span>') == 1)
 # complete
-c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Sub Oat']]})
+c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': ids['16oz'], 'addon_ids': [ids['Oat Milk']]})
 r = c.post('/sales/complete', data={'cash_received': '1000'})
 with app.app_context():
     s = Sale.query.order_by(Sale.id.desc()).first(); items = sorted((i.product_name, i.options, i.unit_price, i.quantity) for i in s.items)
     check('sale saved: total 180 + 150 + 2×240 = ₱810.00', r.status_code == 302 and s.total == 810.0)
-    check('receipt lines keep options text and full unit price', items == [('Old Croffle', None, 150.0, 1), ('Sea Salt', '12oz', 180.0, 1), ('Sea Salt', '16oz, Sub Oat', 240.0, 2)])
-    check('stock: Sea Salt 3 -> 0, Croffle 10 -> 9', db.session.get(Product, sid).quantity == 0 and db.session.get(Product, 1).quantity == 9)
+    check('receipt lines keep options text and full unit price', items == [('Honey Latte', '12oz', 180.0, 1), ('Honey Latte', '16oz, Oat Milk', 240.0, 2), ('Old Croffle', None, 150.0, 1)])
+    check('stock: Honey Latte 3 -> 0, Croffle 10 -> 9', db.session.get(Product, sid).quantity == 0 and db.session.get(Product, 1).quantity == 9)
     sale_id = s.id
-h = c.get(f'/sales/{sale_id}').get_data(as_text=True); check('receipt shows "16oz, Sub Oat" under the name', '16oz, Sub Oat' in h)
-opt(option_id=ids['Sub Oat'], name='Sub Oat', price='55', active='1')
+h = c.get(f'/sales/{sale_id}').get_data(as_text=True); check('receipt shows "16oz, Oat Milk" under the name', '16oz, Oat Milk' in h)
+opt(option_id=ids['Oat Milk'], name='Oat Milk', price='55', active='1')
 h = c.get(f'/sales/{sale_id}').get_data(as_text=True); check('changing an add-on price later does not change old receipts', '₱240.00' in h and '₱810.00' in h)
-a2 = a.get('/reports/sales').get_data(as_text=True); check('report: Sea Salt counted once with 3 units', re.search(r'Sea Salt</td>\s*<td>3</td>', a2) is not None)
+a2 = a.get('/reports/sales').get_data(as_text=True); check('report: Honey Latte counted once with 3 units', re.search(r'Honey Latte</td>\s*<td>3</td>', a2) is not None)
 # option hidden while in basket
 with app.app_context(): p = db.session.get(Product, sid); p.quantity = 5; db.session.commit()
 c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': ids['16oz'], 'addon_ids': [ids['Espresso']]})

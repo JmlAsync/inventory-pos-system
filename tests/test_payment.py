@@ -7,9 +7,9 @@ CREATE TABLE user (id INTEGER PRIMARY KEY, username VARCHAR(80) NOT NULL UNIQUE,
 CREATE TABLE product (id INTEGER PRIMARY KEY, name VARCHAR(100) NOT NULL, sku VARCHAR(50) NOT NULL UNIQUE, price FLOAT NOT NULL, quantity INTEGER, category VARCHAR(50));
 CREATE TABLE sale (id INTEGER PRIMARY KEY, created_at DATETIME NOT NULL, user_id INTEGER NOT NULL, total FLOAT NOT NULL);
 CREATE TABLE sale_item (id INTEGER PRIMARY KEY, sale_id INTEGER NOT NULL, product_id INTEGER NOT NULL, product_name VARCHAR(100) NOT NULL, unit_price FLOAT NOT NULL, quantity INTEGER NOT NULL);
-INSERT INTO product VALUES (1,'Sea Salt','D1',180,20,'Coffee');
+INSERT INTO product VALUES (1,'Honey Latte','D1',180,20,'Coffee');
 INSERT INTO sale VALUES (1,'2026-10-01 10:00:00',1,180);
-INSERT INTO sale_item VALUES (1,1,1,'Sea Salt',180,1);"""); c.commit(); c.close()
+INSERT INTO sale_item VALUES (1,1,1,'Honey Latte',180,1);"""); c.commit(); c.close()
 from app import app, upgrade_database
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Product, Sale

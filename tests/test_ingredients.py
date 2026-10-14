@@ -10,10 +10,10 @@ with app.app_context():
     db.drop_all(); upgrade_database()
     check('scale column on sizes', 'scale' in [c['name'] for c in db.inspect(db.engine).get_columns('menu_option')])
     db.session.add_all([User(username='admin', password_hash=g('a'), role='admin'), User(username='cashier', password_hash=g('c'), role='cashier'),
-        Product(name='Sea Salt', sku='D1', price=180, quantity=0, category='Lattes', has_options=True),
+        Product(name='Honey Latte', sku='D1', price=180, quantity=0, category='Lattes', has_options=True),
         Product(name='Croffle', sku='C1', price=150, quantity=3, category='Croffles'),
         MenuOption(kind='size', name='12oz', price=0, sort_order=1), MenuOption(kind='size', name='16oz', price=20, sort_order=2),
-        MenuOption(kind='addon', name='Sub Oat', price=40, sort_order=1)]); db.session.commit()
+        MenuOption(kind='addon', name='Oat Milk', price=40, sort_order=1)]); db.session.commit()
     o = {m.name: m.id for m in MenuOption.query.all()}
 a = app.test_client(); a.post('/login', data={'username': 'admin', 'password': 'a'})
 c = app.test_client(); c.post('/login', data={'username': 'cashier', 'password': 'c'})
@@ -41,28 +41,28 @@ with app.app_context(): sid = Product.query.filter_by(sku='D1').first().id; cid 
 rec('product', sid, ingredient_id=I['Espresso beans'], amount='18'); rec('product', sid, ingredient_id=I['Fresh milk'], amount='180'); rec('product', sid, ingredient_id=I['Cream'], amount='40')
 check('negative amount refused in a product recipe', 'more than 0' in rec('product', sid, ingredient_id=I['Oat milk'], amount='-5'))
 check('same ingredient twice refused', 'already in this recipe' in rec('product', sid, ingredient_id=I['Cream'], amount='5'))
-rec('option', o['Sub Oat'], ingredient_id=I['Fresh milk'], amount='-180'); rec('option', o['Sub Oat'], ingredient_id=I['Oat milk'], amount='180')
-with app.app_context(): check('negative amount allowed for an add-on (replace milk)', RecipeItem.query.filter_by(option_id=o['Sub Oat']).count() == 2)
+rec('option', o['Oat Milk'], ingredient_id=I['Fresh milk'], amount='-180'); rec('option', o['Oat Milk'], ingredient_id=I['Oat milk'], amount='180')
+with app.app_context(): check('negative amount allowed for an add-on (replace milk)', RecipeItem.query.filter_by(option_id=o['Oat Milk']).count() == 2)
 a.post('/options', data={'option_id': o['16oz'], 'name': '16oz', 'price': '20', 'scale': '1.5', 'active': '1'})
 with app.app_context(): check('16oz recipe scale saved (1.5)', db.session.get(MenuOption, o['16oz']).scale == 1.5)
 a.post('/options', data={'option_id': o['12oz'], 'name': '12oz', 'price': '0', 'scale': '-3', 'active': '1'})
 with app.app_context(): check('silly scale (-3) falls back to 1', db.session.get(MenuOption, o['12oz']).scale == 1.0)
 h = a.get('/products').get_data(as_text=True)
-check('products list: Sea Salt "5 can make" (milk 1000/180) with Low badge', re.search(r'5\s*<span[^>]*>can make</span>\s*<span class="badge[^"]*text-bg-warning', h) is not None)
-check('product quantity field is not used for recipe products (still 0, but sellable)', 'Sea Salt' in c.get('/sales/new').get_data(as_text=True))
-check('New Sale tile: "5 left"', re.search(r'Sea Salt</span>.*?5 left', c.get('/sales/new').get_data(as_text=True), re.S) is not None)
+check('products list: Honey Latte "5 can make" (milk 1000/180) with Low badge', re.search(r'5\s*<span[^>]*>can make</span>\s*<span class="badge[^"]*text-bg-warning', h) is not None)
+check('product quantity field is not used for recipe products (still 0, but sellable)', 'Honey Latte' in c.get('/sales/new').get_data(as_text=True))
+check('New Sale tile: "5 left"', re.search(r'Honey Latte</span>.*?5 left', c.get('/sales/new').get_data(as_text=True), re.S) is not None)
 c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': o['16oz']})   # 2 x 270 ml = 540 ml milk
-check('after 2 × 16oz in the basket: "2 left" (460 ml / 180)', re.search(r'Sea Salt</span>.*?2 left', c.get('/sales/new').get_data(as_text=True), re.S) is not None)
+check('after 2 × 16oz in the basket: "2 left" (460 ml / 180)', re.search(r'Honey Latte</span>.*?2 left', c.get('/sales/new').get_data(as_text=True), re.S) is not None)
 r = c.post('/sales/new', data={'product_id': sid, 'quantity': '2', 'size_id': o['16oz']})
 check('too much for the milk on hand -> clear message', 'Not enough Fresh milk' in r.get_data(as_text=True) and '1,080 ml' in r.get_data(as_text=True))
-c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': o['12oz'], 'addon_ids': [o['Sub Oat']]})
+c.post('/sales/new', data={'product_id': sid, 'quantity': '1', 'size_id': o['12oz'], 'addon_ids': [o['Oat Milk']]})
 c.post('/sales/new', data={'product_id': cid, 'quantity': '1'})
 r = c.post('/sales/complete', data={'cash_received': '2000'})
 with app.app_context():
     q = {n: db.session.get(Ingredient, i).quantity for n, i in I.items()}
     s = Sale.query.order_by(Sale.id.desc()).first()
     check('sale saved', r.status_code == 302 and s is not None)
-    check('milk 1000 - 540 = 460 (Sub Oat used no fresh milk)', q['Fresh milk'] == 460)
+    check('milk 1000 - 540 = 460 (Oat Milk used no fresh milk)', q['Fresh milk'] == 460)
     check('oat milk 2000 - 180 = 1820; beans 1000 - 2×27 - 18 = 928; cream 380 - 2×60 - 40 = 220', (q['Oat milk'], q['Espresso beans'], q['Cream']) == (1820, 928, 220))
     check('each ingredient change is in the history, linked to the receipt', IngredientMovement.query.filter_by(reason='sale', sale_id=s.id).count() == 4)
     check('croffle (no recipe) still uses its own quantity: 3 -> 2', db.session.get(Product, cid).quantity == 2)
@@ -87,7 +87,7 @@ r = c.post('/sales/complete', data={'cash_received': '2000'}); sqlalchemy.orm.Qu
 with app.app_context():
     check('ingredient used up mid-sale -> whole sale cancelled, croffle stock restored', 'just used up' in r.get_data(as_text=True) and Sale.query.count() == 1 and db.session.get(Product, cid).quantity == 2)
 check('cashier cannot open Ingredients or recipes (403)', c.get('/ingredients').status_code == 403 and c.get(f'/recipe/product/{sid}').status_code == 403)
-with app.app_context(): other = RecipeItem.query.filter_by(option_id=o['Sub Oat']).first().id
+with app.app_context(): other = RecipeItem.query.filter_by(option_id=o['Oat Milk']).first().id
 check("can't edit another recipe's line through this page (404)", a.post(f'/recipe/product/{sid}', data={'line_id': other, 'amount': '1'}).status_code == 404)
 check('unknown recipe kind -> 404', a.get('/recipe/banana/1').status_code == 404)
 check('home shows the low-ingredients warning to the admin', 'running low' in a.get('/').get_data(as_text=True))

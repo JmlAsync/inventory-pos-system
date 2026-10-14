@@ -46,7 +46,7 @@ participant "Basket\n(session)" as S
 database "Database" as DB
 Cashier -> UI : taps the Cafe Latte line in the basket
 UI -> UI : the line opens: Hot / Iced, add-ons
-Cashier -> UI : taps Sub Oat, then Done (shows the new price)
+Cashier -> UI : taps Oat Milk, then Done (shows the new price)
 UI -> C : POST /sales/line-options (line, serving, add-ons, CSRF)
 C -> S : is this line in the basket?
 C -> DB : drink has options? serving and add-ons offered?
@@ -59,7 +59,7 @@ else valid
     C --> UI : "Not enough Oat milk ..." (line unchanged)
   else enough
     C -> S : save the changed basket
-    C --> UI : basket shows "Iced, Sub Oat", new total
+    C --> UI : basket shows "Iced, Oat Milk", new total
   end
 end
 note over Cashier, UI

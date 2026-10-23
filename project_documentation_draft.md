@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.21.0** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.21.1** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -110,6 +110,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.5 | Patch: the Ingredients page's warn-level tick is visible again (DEF-58, side effect of v0.20.0) | Yes |
 | v0.20.6 | Patch: after login the user goes back to the page they first asked for (DEF-06, the last open defect) | Yes |
 | v0.21.0 | Cozy layout: warm cream / espresso theme, roomier spacing, sidebar that folds to an icon strip (F20) | Yes |
+| v0.21.1 | Patch: the fold button is an icon beside the system name instead of a "Fold menu" row (F20) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -217,6 +218,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-14 | — | Generic names: the café's own add-on and drink names that had slipped into the code comments, tests, test menu, report and one diagram were replaced with generic ones (Oat Milk, Sweetener, Honey Latte, Mocha), and erased from 8 screenshots, because the owners' consent covers only their photos and prices *(pull request #66, no tag)* |
 | v0.20.6 | 2026-10-23 | — | Login goes back to the page the user first asked for, but only a page on this site (`page_after_login()`); a link to another website, `//host` or `/` + backslash is ignored. Last open defect closed (DEF-06). Short comments added above the 11 older routes (v0.3–v0.20) that had none; new `docs/defense_preparation.md` (demo script and question list for the one-to-one session) *(finishing touches, branch `docs/finishing-touches`)* |
 | v0.21.0 | 2026-10-23 | — | Cozy layout (F20): new warm palette (cream and caramel in the light theme, espresso and amber in the dark theme), bigger text, softer corners and wider gaps on every page, roomier New Sale tiles and basket, and a **Fold menu** button that shrinks the sidebar to an icon strip on wide screens (choice saved in the browser, like the theme). Only `theme.css`, `base.html` and a new test; no database or server change *(branch `feature/cozy-layout`)* |
+| v0.21.1 | 2026-10-23 | — | The fold button moved to the top row, as an icon beside the system name (requested after seeing v0.21.0); folded, the logo and the icon sit one above the other. No "Fold menu" words any more; the tooltip and screen-reader label stay *(branch `fix/fold-button-beside-brand`)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -969,7 +971,7 @@ running out.
 
 ### F20 — Cozy layout and foldable sidebar *(v0.21.0)*
 
-Colours, sizes and the fold button only; no server rule changed. Automated in `tests/test_layout.py` (9 checks);
+Colours, sizes and the fold button only; no server rule changed. Automated in `tests/test_layout.py` (10 checks);
 the look was checked by hand in Chromium on a demo copy (light and dark theme, folded and open, phone width 375 px).
 
 | TC | Precondition | Steps | Expected | Actual | Result |
@@ -979,6 +981,7 @@ the look was checked by hand in Chromium on a demo copy (light and dark theme, f
 | TC-25.3 | Sidebar folded, reload | Reload the page | Still folded, no flash of the open sidebar (choice applied before drawing) | As expected | ✅ |
 | TC-25.4 | Sidebar folded | Hover an icon | The tooltip shows the page name | As expected | ✅ |
 | TC-25.5 | Phone width (375 px) | Open any page, tap the ☰ button | Sidebar slides in as before; fold has no effect | As expected | ✅ |
+| TC-25.7 | Sidebar open | Look at the top row | The fold icon is right of "Inventory & POS", above the menu links, with no words (v0.21.1); folded, logo and icon are stacked | v0.21.0: a "Fold menu" row under the links · v0.21.1: as expected | ❌→✅ |
 | TC-25.6 | Light, then dark theme | Open New Sale | Cream and caramel / espresso and amber; text readable; stock bars, Hot / Iced buttons and the Running-low banner still clear | As expected | ✅ |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
@@ -1055,9 +1058,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
-| `test_layout.py` | F20 / TC-25.1–25.6 (v0.21.0): fold button, saved choice before drawing, tooltips, wide screens only, warm palette | 9 |
+| `test_layout.py` | F20 / TC-25.1–25.7 (v0.21.0–v0.21.1): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette | 10 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| **22 files** | | **467 checks + 58 rule checks** |
+| **22 files** | | **468 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1087,8 +1090,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
-| F20 Cozy layout (v0.21.0) | 6 | 6 | 0 | 0 |
-| **Total** | **262** | **181 → 260** | **67 → 0** | **4 → 2** |
+| F20 Cozy layout (v0.21.0–v0.21.1) | 7 | 6 → **7** | 0 | 0 |
+| **Total** | **263** | **181 → 261** | **67 → 0** | **4 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1526,7 +1529,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F19) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (262 cases), screenshots S1–S52 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (263 cases), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |

@@ -46,6 +46,10 @@
                     <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
                     <span>Inventory & POS</span>
                 </a>
+                {# Fold button (v0.21.0, moved beside the name in v0.21.1): an icon only; shrinks the sidebar to an icon strip on wide screens #}
+                <button type="button" class="fold-btn js-sidebar-toggle" aria-label="Fold the menu" aria-pressed="false" title="Fold the menu">
+                    <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+                </button>
                 <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas"
                         data-bs-target="#sidebar" aria-label="Close menu"></button>
             </div>
@@ -70,11 +74,6 @@
                 {{ side_link(request.endpoint, 'ingredients', 'bi-droplet-half', 'Ingredients', ('ingredient_detail', 'ingredients_history')) }}
             </nav>
             {% endif %}
-
-            {# Fold button (v0.21.0): shrinks the sidebar to an icon strip on wide screens #}
-            <button type="button" class="side-link side-collapse js-sidebar-toggle" aria-label="Fold the menu" aria-pressed="false" title="Fold the menu">
-                <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i><span>Fold menu</span>
-            </button>
 
             <div class="side-footer">
                 {# One row: avatar menu on the left, theme icon on the right (v0.19.1) #}

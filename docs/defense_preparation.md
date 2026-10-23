@@ -14,7 +14,7 @@ Section numbers like "§7" mean the report.
 
 ## 1. Before you go
 
-- [ ] `python tests/run_tests.py` ends with **"All 21 passed"** (it did on v0.20.6, 2026-10-23).
+- [ ] `python tests/run_tests.py` ends with **"All 22 passed"** (it did on v0.21.0, 2026-10-23).
 - [ ] `python seed_demo_data.py --fresh` so the demo starts clean (your old database is backed up first).
 - [ ] `python app.py`, open http://127.0.0.1:5000, log in as `admin` / `admin123` and `cashier` / `cashier123`.
 - [ ] Open the report in a second window (`project_documentation_draft.md`, §3, §7, §10, §12–§14).
@@ -32,8 +32,8 @@ Section numbers like "§7" mean the report.
 | 4–5 | Type `/products/add` as cashier: **403** page | "Hiding a button is not enough. The server refuses (rule S2)." |
 | 5–6 | Log in as admin, **Ingredients**: stock bars, the sale used up ingredients, history | "Each sale subtracts the recipe's ingredients and writes a history line (rule I7)." |
 | 6–7 | **Sales report** for the week | "Revenue, top products, cash vs GCash." |
-| 7–8 | Switch to dark theme; shrink the browser to phone width | "Same pages, light/dark, phone-friendly." |
-| 8–9 | Terminal: `python tests/run_tests.py` | "21 test files, plus a contract check that enforces the rules on every pull request." |
+| 7–8 | Switch to dark theme, tap **Fold menu**; shrink the browser to phone width | "Same pages, light/dark, phone-friendly." |
+| 8–9 | Terminal: `python tests/run_tests.py` | "22 test files, plus a contract check that enforces the rules on every pull request." |
 | 9–10 | GitHub: pull requests, tags, defects list (§7) | "Incremental model: every tag is a working version. 58 defects found and fixed, each with a test." |
 
 If something breaks live: say what you expected, show the test that covers it, move on. Calm beats perfect.
@@ -136,7 +136,7 @@ Short answers you can say out loud. Know *why*, not just *what*.
 
 ### E. Testing and quality
 26. **How did you test it?**
-    21 automated test files in `tests/` (standard library only) run in a temporary copy so the real database is never touched, plus a contract check for the project rules. Browser checks were done by hand and recorded with screenshots. 256 documented test cases in §6. (T1–T4)
+    22 automated test files in `tests/` (standard library only) run in a temporary copy so the real database is never touched, plus a contract check for the project rules. Browser checks were done by hand and recorded with screenshots. 262 documented test cases in §6. (T1–T4)
 27. **What is regression testing?**
     Re-running old tests after a change to be sure old features still work.
 28. **Show a defect and how you fixed it.**

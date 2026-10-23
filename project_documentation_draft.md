@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.20.6** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.21.0** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -109,6 +109,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.4 | Patch: one basket can only be sold once: a one-time sale ticket (DEF-48) | Yes: no double receipts |
 | v0.20.5 | Patch: the Ingredients page's warn-level tick is visible again (DEF-58, side effect of v0.20.0) | Yes |
 | v0.20.6 | Patch: after login the user goes back to the page they first asked for (DEF-06, the last open defect) | Yes |
+| v0.21.0 | Cozy layout: warm cream / espresso theme, roomier spacing, sidebar that folds to an icon strip (F20) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -215,6 +216,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-14 | — | Report items 26–39 written from the v0.20.5 code: §13 architecture (MVC, layers, system context, subsystems, object classes, usage scenario) and §14 dependability and security (reliability, safety and security terminology, vulnerability avoidance, risk classification, fault tree, safety and reliability requirements, threat and control analysis); 6 new diagrams *(pull request #65, no tag)* |
 | — | 2026-10-14 | — | Generic names: the café's own add-on and drink names that had slipped into the code comments, tests, test menu, report and one diagram were replaced with generic ones (Oat Milk, Sweetener, Honey Latte, Mocha), and erased from 8 screenshots, because the owners' consent covers only their photos and prices *(pull request #66, no tag)* |
 | v0.20.6 | 2026-10-23 | — | Login goes back to the page the user first asked for, but only a page on this site (`page_after_login()`); a link to another website, `//host` or `/` + backslash is ignored. Last open defect closed (DEF-06). Short comments added above the 11 older routes (v0.3–v0.20) that had none; new `docs/defense_preparation.md` (demo script and question list for the one-to-one session) *(finishing touches, branch `docs/finishing-touches`)* |
+| v0.21.0 | 2026-10-23 | — | Cozy layout (F20): new warm palette (cream and caramel in the light theme, espresso and amber in the dark theme), bigger text, softer corners and wider gaps on every page, roomier New Sale tiles and basket, and a **Fold menu** button that shrinks the sidebar to an icon strip on wide screens (choice saved in the browser, like the theme). Only `theme.css`, `base.html` and a new test; no database or server change *(branch `feature/cozy-layout`)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -407,6 +409,9 @@ Each tile shows a bar and "49 left", so he sees before he promises that only *3 
 low), and the Matcha tile is greyed with "Out of Matcha powder". Under the basket, "Uses 4 ingredients · Iced cups will
 be low" has opened by itself. The customer hands over ₱500: Juan taps **₱500**, sees *Change ₱190.00*, and taps the big
 **Complete Sale ₱310.00**. Maria (admin) sees the same yellow "Running low" banner and taps it to open Ingredients.
+
+### Story F20 — A calmer, roomier screen *(v0.21.0)*
+Maria works at the counter for eight hours. The old white-and-teal screen felt cramped and cold. She now sees a warm cream page (espresso brown at night) with bigger text and more space between the drink tiles. When she needs the whole width for the menu she taps **Fold menu**: the sidebar shrinks to a strip of icons (hover shows each name) and stays that way the next time she opens the app. One more tap opens it again. On a phone nothing changes: the menu still slides in from the left.
 
 ---
 
@@ -962,6 +967,20 @@ running out.
 | S51 | TC-22.12 (v0.20.1): the same on a 1280 px laptop, nothing wraps in the basket | ![New Sale 1280 px](screenshots/v0.20.1_TC-22.12_new_sale_1280.png) |
 | S52 | TC-22.14 (v0.20.5): Ingredients bars, dark theme. Top: Yesha's screenshot of v0.20.4 (tick clipped to a speck). Bottom: v0.20.5 | ![Warn-level tick](screenshots/v0.20.5_TC-22.14_ingredient_warn_tick.png) |
 
+### F20 — Cozy layout and foldable sidebar *(v0.21.0)*
+
+Colours, sizes and the fold button only; no server rule changed. Automated in `tests/test_layout.py` (9 checks);
+the look was checked by hand in Chromium on a demo copy (light and dark theme, folded and open, phone width 375 px).
+
+| TC | Precondition | Steps | Expected | Actual | Result |
+|---|---|---|---|---|---|
+| TC-25.1 | Logged in | Open Products and New Sale | One **Fold menu** button in the sidebar of each page | As expected | ✅ |
+| TC-25.2 | Any page | Read the button | A plain button (not a link, not a form), so it changes nothing on the server | As expected | ✅ |
+| TC-25.3 | Sidebar folded, reload | Reload the page | Still folded, no flash of the open sidebar (choice applied before drawing) | As expected | ✅ |
+| TC-25.4 | Sidebar folded | Hover an icon | The tooltip shows the page name | As expected | ✅ |
+| TC-25.5 | Phone width (375 px) | Open any page, tap the ☰ button | Sidebar slides in as before; fold has no effect | As expected | ✅ |
+| TC-25.6 | Light, then dark theme | Open New Sale | Cream and caramel / espresso and amber; text readable; stock bars, Hot / Iced buttons and the Running-low banner still clear | As expected | ✅ |
+
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
 The security audit of 2026-10-11 left three defects open (DEF-48, DEF-51, DEF-52). With the checking moved to
@@ -1036,8 +1055,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
+| `test_layout.py` | F20 / TC-25.1–25.6 (v0.21.0): fold button, saved choice before drawing, tooltips, wide screens only, warm palette | 9 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| **21 files** | | **458 checks + 58 rule checks** |
+| **22 files** | | **467 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1067,7 +1087,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
-| **Total** | **256** | **181 → 254** | **67 → 0** | **4 → 2** |
+| F20 Cozy layout (v0.21.0) | 6 | 6 | 0 | 0 |
+| **Total** | **262** | **181 → 260** | **67 → 0** | **4 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1368,7 +1389,7 @@ then a tabular description of each, in the format of Sommerville's Lecture 5 p. 
 | | |
 |---|---|
 | **Actors** | Visitor, Admin, Cashier |
-| **Description** | Switches the look between "Clean counter" (light, teal) and "Night shift" (dark, amber) |
+| **Description** | Switches the look between "Warm cream" (light, caramel; "Clean counter" white and teal before v0.21.0) and "Night shift" (dark, amber) |
 | **Data** | The choice, saved in the browser's `localStorage` |
 | **Stimulus** | Clicking Dark mode / Light mode in the sidebar (or the moon/sun button on the login page) |
 | **Response** | Every page changes colour at once; the choice is kept after reloading. Printing always uses light |
@@ -1505,7 +1526,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F19) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (256 cases), screenshots S1–S52 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (262 cases), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1545,7 +1566,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 
 **Other submission requirements (Section C/D):**
 - ✅ Code comments explaining every block: every route and helper has a short comment ending with its version (checked 2026-10-23; the 11 older routes that had none got one in v0.20.6)
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 66 pull requests, one branch per version, tags v0.7.1–v0.20.6, automatic checks on every pull request (v0.19.0)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 66 pull requests, one branch per version, tags v0.7.1–v0.21.0, automatic checks on every pull request (v0.19.0)
 - ✅ README describing the project and how to run it (pull request #61), plus `docs/run_on_another_computer.md`, a step-by-step guide for setting it up on another computer such as a school lab (#63)
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

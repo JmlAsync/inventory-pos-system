@@ -15,8 +15,10 @@ for name, r in pages.items():
     html = text(r)
     check(f'TC-25.1 {name}: exactly one fold button for the sidebar', html.count('js-sidebar-toggle"') == 1 if name != 'login' else True)
 html = text(pages['products'])
-check('TC-25.2 the fold button is a plain button, not a link or a form (it changes nothing on the server)',
-      re.search(r'<button type="button" class="side-link side-collapse js-sidebar-toggle"', html) is not None)
+check('TC-25.2 the fold button (an icon beside the system name, v0.21.1) is a plain button, not a link or a form (it changes nothing on the server)',
+      re.search(r'<button type="button" class="fold-btn js-sidebar-toggle"', html) is not None)
+check('TC-25.7 the fold button sits in the top row beside the system name, above the menu links (v0.21.1)',
+      html.index('class="brand"') < html.index('js-sidebar-toggle"') < html.index('class="side-label"') and '<span>Fold menu</span>' not in html)
 check('TC-25.3 the saved fold choice is applied before the page is drawn (no flash)',
       html.index("pos-sidebar") < html.index('</head>') and "classList.add('sidebar-rail')" in html)
 check('TC-25.3 the click saves the choice in this browser only (localStorage)', "localStorage.setItem('pos-sidebar'" in html)

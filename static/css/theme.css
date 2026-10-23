@@ -668,10 +668,16 @@ body { font-size: 1.0625rem; line-height: 1.55; }
 .menu-search { border-radius: 14px; }
 .low-banner { border-radius: 16px; }
 
-/* Sidebar fold button: only on wide screens (phones already have the slide-in menu) */
-.side-collapse { display: none; }
+/* Sidebar fold button (v0.21.1): a small icon beside the system's name; wide screens only (phones already have the slide-in menu) */
+.fold-btn { display: none; }
 @media (min-width: 992px) {
-    .side-collapse { display: flex; width: 100%; margin-top: 1rem; background: none; border: 0; text-align: left; cursor: pointer; }
+    .fold-btn {
+        display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+        width: 2.25rem; height: 2.25rem; padding: 0; border: 1px solid var(--app-border); border-radius: 10px;
+        background: transparent; color: var(--app-muted); font-size: 1.05rem; cursor: pointer;
+    }
+    .fold-btn:hover { color: var(--app-text); border-color: var(--app-accent); }
+    .fold-btn:focus-visible { outline: 3px solid var(--app-accent-ring); outline-offset: 2px; }
     /* Folded: an icon strip. The page script puts "sidebar-rail" on <html> before the page is drawn. */
     html.sidebar-rail .app-sidebar { width: 84px; }
     html.sidebar-rail .sidebar-inner { padding: 1.5rem 0.75rem; }
@@ -685,6 +691,8 @@ body { font-size: 1.0625rem; line-height: 1.55; }
     html.sidebar-rail .side-footer-row { flex-direction: column; gap: 0.75rem; }
     html.sidebar-rail .side-footer-row .dropup { flex: 0 0 auto; }
     html.sidebar-rail .user-chip { justify-content: center; padding: 0.35rem; }
-    html.sidebar-rail .side-collapse .bi { transform: scaleX(-1); }
+    html.sidebar-rail .fold-btn .bi { transform: scaleX(-1); }
+    /* Folded: the name goes, so the logo and the fold button sit one above the other */
+    html.sidebar-rail .sidebar-inner > div:first-child { flex-direction: column; gap: 0.9rem; }
 }
 @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none !important; } .sale-tile { transition: none; } }

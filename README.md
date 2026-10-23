@@ -4,7 +4,7 @@ A web app for a **small café**: it keeps track of products, ingredients and sto
 the cashier sell at the counter and print a receipt. It was built as a university final project
 (Software Engineering 1), written in Python with Flask, and it works **without internet**.
 
-Current version: **v0.20.5**
+Current version: **v0.20.6**
 
 ![New Sale page](screenshots/v0.20.0_TC-22.1_new_sale_light.png)
 
@@ -108,7 +108,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `tests/` | Automated tests and the contract check |
 | `project_documentation_draft.md` | The full project report: version history, user stories, test cases, defects, requirements and UML |
 | `diagrams/` | UML diagrams (PlantUML source and pictures) |
-| `docs/` | Other reports and guides: the security audit, running on another computer |
+| `docs/` | Other reports and guides: the security audit, running on another computer, preparing for the professor's session |
 | `screenshots/` | Screenshots used in the report |
 
 **Built with:** Python 3.11+, Flask 3.1, Flask-Login, Flask-SQLAlchemy, SQLite, Jinja2 and

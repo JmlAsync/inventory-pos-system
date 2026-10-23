@@ -28,4 +28,9 @@ check('TC-25.5 folding only happens on wide screens (the phone menu is unchanged
       re.search(r'@media \(min-width: 992px\) \{[^@]*html\.sidebar-rail \.app-sidebar \{ width: 84px', css) is not None)
 check('TC-25.6 both themes use the warm palette (cream light, espresso dark)',
       '--app-bg: #F6EFE5' in css and '--app-bg: #1E1815' in css and '#0F6E56;          /* teal' not in css)
+# ---- v0.21.2: found by the layout audit
+check('TC-25.8 folded: the theme icon is not pushed to the side by margin-left:auto (it sat off-centre under the avatar)',
+      re.search(r'html\.sidebar-rail \.side-footer-row \.theme-toggle\s*\{\s*margin-left:\s*0', css) is not None)
+check('TC-25.9 phones: the New ingredient panel floats inside the screen (it ran off the right edge)',
+      re.search(r'\.new-ingredient-panel\s*\{\s*position:\s*fixed;\s*left:\s*1rem;\s*right:\s*1rem', css) is not None)
 finish('LAYOUT')

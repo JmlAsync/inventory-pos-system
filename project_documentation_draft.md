@@ -5,9 +5,9 @@
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
-> This is a *draft*, not the final report. The final report will be written in LibreOffice Writer and must
-> follow the professor's list in *Final_Project_Details.docx*, Section B. Section 10 below tracks which of
-> those items are covered here and which are still to do.
+> This is the working *draft*. The finished report for submission is **[`final_report.md`](final_report.md)**
+> (also `final_report.docx` for Word / LibreOffice and `final_report.pdf`), written from this draft on 2026-10-23
+> in the order of the professor's Section B list. Section 10 below tracks which items are covered.
 
 ---
 
@@ -221,6 +221,7 @@ The tag message summarizes what the increment added.
 | v0.21.0 | 2026-10-23 | — | Cozy layout (F20): new warm palette (cream and caramel in the light theme, espresso and amber in the dark theme), bigger text, softer corners and wider gaps on every page, roomier New Sale tiles and basket, and a **Fold menu** button that shrinks the sidebar to an icon strip on wide screens (choice saved in the browser, like the theme). Only `theme.css`, `base.html` and a new test; no database or server change *(branch `feature/cozy-layout`)* |
 | v0.21.1 | 2026-10-23 | — | The fold button moved to the top row, as an icon beside the system name (requested after seeing v0.21.0); folded, the logo and the icon sit one above the other. No "Fold menu" words any more; the tooltip and screen-reader label stay *(branch `fix/fold-button-beside-brand`)* |
 | v0.21.2 | 2026-10-23 | — | Layout audit of every page (14 pages, light and dark theme, phone 375 px and desktop, open and folded sidebar). Two defects fixed: the theme icon of the folded sidebar sat to the right of the avatar (DEF-59), and the "New ingredient" panel ran off the right edge of a phone (DEF-60). No page had sideways page scrolling *(branch `fix/rail-alignment-audit`)* |
+| — | 2026-10-23 | — | Final report: `final_report.md` (+ `.docx`, `.pdf`) written from this draft in Section B order, with a new tour of v0.21.2 (11 screenshots on the generic demo menu), cleaned-up wording and the last two open hand tests closed (TC-4.4 in Edge, TC-19.14 on GitHub) *(branch `docs/final-report`, no tag)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -489,7 +490,7 @@ Maria works at the counter for eight hours. The old white-and-teal screen felt c
 | TC-4.1 | Admin, product 2 exists | Click Delete on product 2, confirm | Removed from database and list | Removed | ✅ |
 | TC-4.2 | Admin | POST `/products/delete/999` | 404 | 404 | ✅ |
 | TC-4.3 | Admin | Visit `/products/delete/2` as a normal link (GET) | Refused (deleting through a link is unsafe) | 405 Method Not Allowed | ✅ |
-| TC-4.4 | Admin | Click Delete, then Cancel in the pop-up | Product kept | Pop-up is in the browser (`confirm()`); confirmed by code reading, **to test by hand** | ⏳ |
+| TC-4.4 | Admin | Click Delete, then Cancel in the pop-up | Product kept | Browser test on v0.21.2 (2026-10-23): pop-up "Delete this product?", Cancel chosen; all 17 products still listed | ✅ |
 
 > **Why does TC-4.3 matter?** If deleting worked through a simple link, a web crawler or a malicious link in
 > an email could delete products just by visiting it. Requiring POST (a form submission) prevents that.
@@ -894,7 +895,7 @@ each bug below was caught. "Expected result" here means *the tests fail* (red), 
 | TC-19.11 | Copy of the code | Add `requests` to requirements.txt | Contract fails (D1: package not allowed) | Caught by check_contract | ✅ |
 | TC-19.12 | Copy of the code | Receipt shows the product's *current* name instead of the name at the time of sale | Tests fail (old receipts would change) | Caught by test_sales, test_payment, test_options | ✅ |
 | TC-19.13 | Copy of the code | Add a new page `/secret-export` without any login check | Contract fails: "new page is not listed" (S1) | As expected | ✅ |
-| TC-19.14 | Pull request #49 on GitHub | Open the pull request | "Checks" runs and shows a green tick | To confirm after publishing | ⏳ |
+| TC-19.14 | Pull request #49 on GitHub | Open the pull request | "Checks" runs and shows a green tick | Green tick ("tests" passed), and on every later pull request up to #70 (checked 2026-10-23) | ✅ |
 
 ### Security audit patches *(v0.19.3)*
 
@@ -1073,7 +1074,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F1 View list | 3 | 3 | 0 | 0 |
 | F2 Add | 6 | 2 → **6** | 4 → **0** | 0 |
 | F3 Edit | 4 | 3 → **4** | 1 → **0** | 0 |
-| F4 Delete | 4 | 3 | 0 | 1 |
+| F4 Delete | 4 | 3 → **4** | 0 | 1 → **0** |
 | F5 Login/out | 12 | 7 → **12** | 0 | 1 → **0** |
 | F6 Roles | 6 | 6 | 0 | 0 |
 | F7 Process sale | 23 | 20 → **23** | 2 → **0** | 1 → **0** |
@@ -1089,13 +1090,13 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F15 Servings + add-ons | 14 | 11 → **14** | 3 → **0** | 0 |
 | F16 Ingredients | 14 | 12 → **14** | 2 → **0** | 0 |
 | F17 Ingredients page | 15 | 12 → **15** | 3 → **0** | 0 |
-| F18 Rules + automated tests | 14 | 13 | 0 | 1 |
+| F18 Rules + automated tests | 14 | 13 → **14** | 0 | 1 → **0** |
 | Security audit patches (v0.19.3) | 6 | 2 → **6** | 4 → **0** | 0 |
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
-| **Total** | **265** | **181 → 263** | **67 → 0** | **4 → 2** |
+| **Total** | **265** | **181 → 265** | **67 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1534,8 +1535,8 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | # | Item | Status |
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
-| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F19) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (265 cases), screenshots S1–S52 |
+| 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F20) |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F20 + audit patches (265 cases, all passing), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1572,6 +1573,8 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 37 | Safety requirements (L12 p. 23) | ✅ §14.7 (SR1–SR7) |
 | 38 | Functional reliability requirements (L12 p. 39) | ✅ §14.8 (RR1–RR7) |
 | 39 | Threat and control analysis (L12 p. 46) | ✅ §14.9 (11 threats) |
+
+**Final report:** ✅ `final_report.md` / `.docx` / `.pdf` (2026-10-23): all 39 items, Appendix C maps each item to its section. Still to fill in by hand on the title page: name, student number, section, instructor, date and the video link.
 
 **Other submission requirements (Section C/D):**
 - ✅ Code comments explaining every block: every route and helper has a short comment ending with its version (checked 2026-10-23; the 11 older routes that had none got one in v0.20.6)

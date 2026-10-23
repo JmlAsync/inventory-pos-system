@@ -3,7 +3,7 @@
    (or on one of the related pages listed in "also"). v0.13.0 #}
 {% macro side_link(current, endpoint, icon, label, also=()) %}
 {% set is_active = current == endpoint or current in also %}
-<a href="{{ url_for(endpoint) }}" class="side-link{% if is_active %} active{% endif %}"{% if is_active %} aria-current="page"{% endif %}>
+<a href="{{ url_for(endpoint) }}" class="side-link{% if is_active %} active{% endif %}" title="{{ label }}"{% if is_active %} aria-current="page"{% endif %}>
     <i class="bi {{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
 </a>
 {% endmacro %}
@@ -20,6 +20,8 @@
             var saved = null;
             try { saved = localStorage.getItem('pos-theme'); } catch (e) {}
             document.documentElement.setAttribute('data-bs-theme', saved === 'dark' ? 'dark' : 'light');
+            // Same for the folded sidebar (v0.21.0): "pos-sidebar" is "rail" when it was folded last time
+            try { if (localStorage.getItem('pos-sidebar') === 'rail') { document.documentElement.classList.add('sidebar-rail'); } } catch (e) {}
         })();
     </script>
     <!-- Bootstrap, its icons and the Inter font are stored in static/vendor/ (v0.19.4), so every page
@@ -68,6 +70,11 @@
                 {{ side_link(request.endpoint, 'ingredients', 'bi-droplet-half', 'Ingredients', ('ingredient_detail', 'ingredients_history')) }}
             </nav>
             {% endif %}
+
+            {# Fold button (v0.21.0): shrinks the sidebar to an icon strip on wide screens #}
+            <button type="button" class="side-link side-collapse js-sidebar-toggle" aria-label="Fold the menu" aria-pressed="false" title="Fold the menu">
+                <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i><span>Fold menu</span>
+            </button>
 
             <div class="side-footer">
                 {# One row: avatar menu on the left, theme icon on the right (v0.19.1) #}
@@ -151,6 +158,22 @@
             });
         });
         describeToggles();
+        // Fold / unfold the sidebar (v0.21.0) and remember the choice in this browser
+        var foldButton = document.querySelector('.js-sidebar-toggle');
+        function describeFold() {
+            var folded = root.classList.contains('sidebar-rail');
+            foldButton.setAttribute('aria-pressed', folded ? 'true' : 'false');
+            foldButton.setAttribute('aria-label', folded ? 'Unfold the menu' : 'Fold the menu');
+            foldButton.setAttribute('title', folded ? 'Unfold the menu' : 'Fold the menu');
+        }
+        if (foldButton) {
+            foldButton.addEventListener('click', function () {
+                var folded = root.classList.toggle('sidebar-rail');
+                try { localStorage.setItem('pos-sidebar', folded ? 'rail' : 'open'); } catch (e) {}
+                describeFold();
+            });
+            describeFold();
+        }
         // Receipts and reports always print in the light theme (saves ink, reads better on paper)
         var themeBeforePrint = null;
         window.addEventListener('beforeprint', function () {

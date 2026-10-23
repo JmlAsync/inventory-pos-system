@@ -291,6 +291,7 @@ def home():
 @app.route('/products')
 @login_required
 def products():
+    # Product list for everyone logged in, with the low-stock warning box (v0.3.0, v0.9.0)
     all_products = Product.query.all()
     # How many of each can be sold: own quantity, or what the ingredients allow (v0.17.0)
     recipes = Recipes()
@@ -307,6 +308,7 @@ def products():
 @login_required
 @admin_required
 def add_product():
+    # Admin: show the Add Product form, and save a new product if every field passes the checks (v0.4.0)
     if request.method == 'POST':
         data, error = validate_product_form(request.form)
         picture, picture_error = read_uploaded_picture(request.files.get('picture'))
@@ -325,6 +327,7 @@ def add_product():
 @login_required
 @admin_required
 def edit_product(product_id):
+    # Admin: show the Edit form for one product, and save the changes if they pass the checks (v0.5.0)
     product = find_by_id(Product, product_id) or abort(404)
     if request.method == 'POST':
         data, error = validate_product_form(request.form, current_product_id=product.id)
@@ -351,6 +354,7 @@ def edit_product(product_id):
 @login_required
 @admin_required
 def delete_product(product_id):
+    # Admin: delete one product, but only if it has never been sold (v0.5.0, v0.10.2)
     product = find_by_id(Product, product_id) or abort(404)
     # A product that has been sold must stay (v0.10.2): reports group sales by product,
     # and SQLite can give a deleted product's id to the next new product, which would
@@ -434,6 +438,7 @@ def read_amount(field, allow_negative=False):
 @login_required
 @admin_required
 def ingredients():
+    # Ingredients page: stock bars, groups, restock and count forms (v0.17.0, v0.18.0)
     if request.method == 'POST':
         action = request.form.get('action')
         ingredient = find_by_id(Ingredient, request.form.get('ingredient_id', type=int))
@@ -637,8 +642,19 @@ def recent_failures(key):
     return recent
 
 
+def page_after_login():
+    """Where to go after a correct password: the page the user first asked for (?next=...), but only
+    a page on THIS site, so a crafted link can't send them to another website. Otherwise Products. (v0.20.6, DEF-06)"""
+    wanted = request.args.get('next', '')
+    # A real local address starts with one "/" and has no second "/" or backslash after it
+    # (browsers read "//host" and "/" + backslash + "host" as another website).
+    if wanted.startswith('/') and not wanted.startswith(('//', '/' + chr(92))):
+        return wanted
+    return url_for('products')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Check the username and password, with the 5-tries limit, then start a login (v0.6.0)
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -654,7 +670,7 @@ def login():
             session.clear()                # nothing from a previous login on this browser is kept
             start_login_session(user)      # v0.20.3: a login that log-out can really end
             login_user(user)
-            return redirect(url_for('products'))
+            return redirect(page_after_login())    # v0.20.6 (DEF-06): back to the page they first asked for
         failed_logins.setdefault(key, []).append(datetime.now())
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
@@ -1050,6 +1066,7 @@ def basket_stock_problem(basket):
 @app.route('/sales/new', methods=['GET', 'POST'])
 @login_required
 def new_sale():
+    # New Sale screen: the menu tiles and the basket held in the session (v0.8.0, v0.20.0)
     if request.method == 'POST':
         # A serving button on a tile, "+ Add", or the "type a quantity" form was submitted
         product = find_by_id(Product, request.form.get('product_id', type=int))
@@ -1182,6 +1199,7 @@ def remove_line():
 @app.route('/sales/complete', methods=['POST'])
 @login_required
 def complete_sale():
+    # Turn the basket into a saved Sale: take stock and ingredients in one transaction, or nothing (v0.8.0, v0.8.2)
     basket = get_basket()
     if not basket:
         return show_sale_page('The basket is empty.')
@@ -1298,6 +1316,7 @@ def complete_sale():
 @app.route('/sales/<int:sale_id>')
 @login_required
 def receipt(sale_id):
+    # Show a saved sale as a printable receipt, built from the copies kept in SaleItem (v0.8.0)
     sale = find_by_id(Sale, sale_id) or abort(404)
     return render_template('receipt.html', sale=sale)
 
@@ -1429,6 +1448,7 @@ def avatar_url(user):
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    # Profile page: change the profile picture and the password (v0.12.0, v0.13.1)
     if request.method == 'POST':
         file = request.files.get('picture')
         data = file.read() if file else b''
@@ -1455,6 +1475,7 @@ def profile():
 @app.route('/profile/remove', methods=['POST'])
 @login_required
 def remove_avatar():
+    # Remove the profile picture and go back to the initials circle (v0.12.0)
     delete_avatar_file(current_user)
     current_user.avatar = None
     db.session.commit()

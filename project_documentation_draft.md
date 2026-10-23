@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.20.5** (2026-10-13). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.20.6** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -108,6 +108,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.3 | Patch: log-out, a password change and 8 idle hours really end a login (DEF-51) | Yes: a copied cookie is refused |
 | v0.20.4 | Patch: one basket can only be sold once: a one-time sale ticket (DEF-48) | Yes: no double receipts |
 | v0.20.5 | Patch: the Ingredients page's warn-level tick is visible again (DEF-58, side effect of v0.20.0) | Yes |
+| v0.20.6 | Patch: after login the user goes back to the page they first asked for (DEF-06, the last open defect) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -213,6 +214,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-14 | — | Documentation check against v0.20.5: actors, requirements (UR-1, 2, 3, 5, 8; NFR-12 offline; parts S5, S6, U4), structured specifications (sale ticket, login record), two new computation tables (quick cash, tile stock bar), scenario 1 with the one-tap flow, metrics measured again on v0.20.5, known limitations (BIR registration, senior/PWD discount, X/Z reading, dark-mode bar colour, tab icon), checklist and AGENTS.md folder list *(pull request #64, no tag)* |
 | — | 2026-10-14 | — | Report items 26–39 written from the v0.20.5 code: §13 architecture (MVC, layers, system context, subsystems, object classes, usage scenario) and §14 dependability and security (reliability, safety and security terminology, vulnerability avoidance, risk classification, fault tree, safety and reliability requirements, threat and control analysis); 6 new diagrams *(pull request #65, no tag)* |
 | — | 2026-10-14 | — | Generic names: the café's own add-on and drink names that had slipped into the code comments, tests, test menu, report and one diagram were replaced with generic ones (Oat Milk, Sweetener, Honey Latte, Mocha), and erased from 8 screenshots, because the owners' consent covers only their photos and prices *(pull request #66, no tag)* |
+| v0.20.6 | 2026-10-23 | — | Login goes back to the page the user first asked for, but only a page on this site (`page_after_login()`); a link to another website, `//host` or `/` + backslash is ignored. Last open defect closed (DEF-06). Short comments added above the 11 older routes (v0.3–v0.20) that had none; new `docs/defense_preparation.md` (demo script and question list for the one-to-one session) *(finishing touches, branch `docs/finishing-touches`)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -498,7 +500,7 @@ be low" has opened by itself. The customer hands over ₱500: Juan taps **₱500
 | TC-5.5 | Logged in | Click Logout | Logged out; redirect to home | 302 → `/` | ✅ |
 | TC-5.6 | Just logged out | Open `/products` | Redirect to login | 302 → `/login` | ✅ |
 | TC-5.7 | Users created | Look at the `password_hash` column in the database | A hash, not the real password | Stored as `scrypt:32768:8:1$…` hash | ✅ |
-| TC-5.8 | Not logged in | Open `/products/add` → log in | After login, return to the page originally requested | Always goes to `/products` (the `next` value is ignored) | ⚠️ minor, DEF-06 |
+| TC-5.8 | Not logged in | Open `/products/add` → log in | After login, return to the page originally requested | **v0.7.1–v0.20.5:** always goes to `/products` (the `next` value is ignored) · **v0.20.6:** returns to the requested page; `test_login_next.py` also checks that other-website links are ignored (TC-24.1–24.4) | ❌→✅ DEF-06 |
 
 ### F6 — Role-based access (Admin vs. Cashier)
 
@@ -1034,7 +1036,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
-| **20 files** | | **452 checks + 58 rule checks** |
+| `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
+| **21 files** | | **458 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1044,7 +1047,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F2 Add | 6 | 2 → **6** | 4 → **0** | 0 |
 | F3 Edit | 4 | 3 → **4** | 1 → **0** | 0 |
 | F4 Delete | 4 | 3 | 0 | 1 |
-| F5 Login/out | 8 | 7 | 0 | 1 |
+| F5 Login/out | 12 | 7 → **12** | 0 | 1 → **0** |
 | F6 Roles | 6 | 6 | 0 | 0 |
 | F7 Process sale | 23 | 20 → **23** | 2 → **0** | 1 → **0** |
 | Patches v0.8.2–v0.8.6 | 10 | 1 → **10** | 9 → **0** | 0 |
@@ -1064,7 +1067,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
-| **Total** | **252** | **181 → 249** | **67 → 0** | **4 → 3** |
+| **Total** | **256** | **181 → 254** | **67 → 0** | **4 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1083,7 +1086,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-03 | **High** | Negative price and negative quantity are accepted | TC-2.5 | Server check: `price >= 0`, `quantity >= 0`; also add `min="0"` to the form inputs | ✅ Fixed v0.7.1 |
 | DEF-04 | Medium | Empty name/SKU accepted if the browser check is bypassed | TC-2.6 | Server check: `.strip()` the value and reject if empty | ✅ Fixed v0.7.1 |
 | DEF-05 | Low | Prices display with a `$` sign, but the store is in the Philippines | Code review; confirmed by hand | Change the `$` in `products.html` to `₱` | ✅ Fixed v0.7.1 |
-| DEF-06 | Low | After logging in, the user is always sent to Products instead of the page they first asked for | TC-5.8 | Read `request.args.get('next')` and redirect there (only if it is a page within this site) | later |
+| DEF-06 | Low | After logging in, the user is always sent to Products instead of the page they first asked for | TC-5.8 | Read `request.args.get('next')` and redirect there (only if it is a page within this site: one leading `/`, never `//` or `/` + backslash) | ✅ Fixed v0.20.6 |
 | DEF-07 | **Critical** (security) | `SECRET_KEY` is written directly in `app.py` and pushed to a public GitHub repository. Proven on 2026-10-09: a cookie built with it opened the Sales Report as admin without a password | Code review; attack test TC-13.1 | Key from the `SECRET_KEY` environment variable, else a random key created once in `instance/secret_key.txt` (not uploaded) | ✅ Fixed v0.13.1 |
 | DEF-08 | **High** (security) | Forms have no **CSRF protection** (CSRF = Cross-Site Request Forgery: another website tricking a logged-in user's browser into submitting a form). Proven: a product was added by a request without any token | Code review; TC-13.3 | Own small CSRF check: a random token per session in a hidden field of every form, compared with `secrets.compare_digest`; no new library needed | ✅ Fixed v0.13.2 |
 | DEF-09 | **High** | Logging out did not empty the basket, so on a shared counter computer the next user saw the previous cashier's items | Testing during development (TC-7.17) | `session.pop('basket', None)` in `logout()` | ✅ Fixed before v0.8.0 release |
@@ -1502,7 +1505,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F19) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (252 cases), screenshots S1–S52 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (256 cases), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |
@@ -1541,8 +1544,8 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 | 39 | Threat and control analysis (L12 p. 46) | ✅ §14.9 (11 threats) |
 
 **Other submission requirements (Section C/D):**
-- 🟡 Code comments explaining every block: every route and helper added since v0.7.1 is commented; older parts (v0.1–v0.7) to check
-- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 66 pull requests, one branch per version, tags v0.7.1–v0.20.5, automatic checks on every pull request (v0.19.0)
+- ✅ Code comments explaining every block: every route and helper has a short comment ending with its version (checked 2026-10-23; the 11 older routes that had none got one in v0.20.6)
+- ✅ Use branches and pull requests (required: "commit, push, merge, pull request"): 66 pull requests, one branch per version, tags v0.7.1–v0.20.6, automatic checks on every pull request (v0.19.0)
 - ✅ README describing the project and how to run it (pull request #61), plus `docs/run_on_another_computer.md`, a step-by-step guide for setting it up on another computer such as a school lab (#63)
 - ⬜ 1080p OBS video with microphone, explaining every piece of code and demonstrating every feature
 - ⬜ Word/PDF document with screenshots of your comments on all 14 lecture videos (**missing it = Fail**)

@@ -4,7 +4,7 @@ A web app for a **small café**: it keeps track of products, ingredients and sto
 the cashier sell at the counter and print a receipt. It was built as a university final project
 (Software Engineering 1), written in Python with Flask, and it works **without internet**.
 
-Current version: **v0.21.1**
+Current version: **v0.21.2**
 
 ![New Sale page](screenshots/v0.20.0_TC-22.1_new_sale_light.png)
 

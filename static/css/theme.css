@@ -619,7 +619,9 @@ a.low-banner:hover { color: var(--warn-text); filter: brightness(0.97); }
     .ing-row { grid-template-columns: 1fr auto; grid-template-areas: "name button" "bar amount"; }
     .ing-name { grid-area: name; } .js-update { grid-area: button; }
     .ing-bar { grid-area: bar; } .ing-amount { grid-area: amount; }
-    .new-ingredient-panel { right: auto; left: 0; }
+    /* v0.21.2: a card pinned to the button ran off the right edge (the bigger v0.21.0 padding pushed the button in),
+       so on phones the panel floats under the top bar and uses the whole width */
+    .new-ingredient-panel { position: fixed; left: 1rem; right: 1rem; top: 4.75rem; width: auto; max-height: calc(100vh - 6rem); overflow-y: auto; }
 }
 /* The row you just updated is briefly highlighted (v0.18.1) */
 .ing-row { scroll-margin-top: 5rem; }
@@ -690,6 +692,7 @@ body { font-size: 1.0625rem; line-height: 1.55; }
     html.sidebar-rail .side-label { height: 1px; margin: 1.1rem 0.75rem; padding: 0; overflow: hidden; background: var(--app-border); font-size: 0; }
     html.sidebar-rail .side-footer-row { flex-direction: column; gap: 0.75rem; }
     html.sidebar-rail .side-footer-row .dropup { flex: 0 0 auto; }
+    html.sidebar-rail .side-footer-row .theme-toggle { margin-left: 0; }   /* v0.21.2: "auto" pushed the icon off-centre once the row stacks */
     html.sidebar-rail .user-chip { justify-content: center; padding: 0.35rem; }
     html.sidebar-rail .fold-btn .bi { transform: scaleX(-1); }
     /* Folded: the name goes, so the logo and the fold button sit one above the other */

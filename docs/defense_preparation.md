@@ -14,7 +14,7 @@ Section numbers like "§7" mean the report.
 
 ## 1. Before you go
 
-- [ ] `python tests/run_tests.py` ends with **"All 22 passed"** (it did on v0.21.1, 2026-10-23).
+- [ ] `python tests/run_tests.py` ends with **"All 22 passed"** (it did on v0.21.2, 2026-10-23).
 - [ ] `python seed_demo_data.py --fresh` so the demo starts clean (your old database is backed up first).
 - [ ] `python app.py`, open http://127.0.0.1:5000, log in as `admin` / `admin123` and `cashier` / `cashier123`.
 - [ ] Open the report in a second window (`project_documentation_draft.md`, §3, §7, §10, §12–§14).
@@ -34,7 +34,7 @@ Section numbers like "§7" mean the report.
 | 6–7 | **Sales report** for the week | "Revenue, top products, cash vs GCash." |
 | 7–8 | Switch to dark theme, tap the fold icon by the name; shrink the browser to phone width | "Same pages, light/dark, phone-friendly." |
 | 8–9 | Terminal: `python tests/run_tests.py` | "22 test files, plus a contract check that enforces the rules on every pull request." |
-| 9–10 | GitHub: pull requests, tags, defects list (§7) | "Incremental model: every tag is a working version. 58 defects found and fixed, each with a test." |
+| 9–10 | GitHub: pull requests, tags, defects list (§7) | "Incremental model: every tag is a working version. 60 defects found and fixed, each with a test." |
 
 If something breaks live: say what you expected, show the test that covers it, move on. Calm beats perfect.
 
@@ -141,7 +141,7 @@ Short answers you can say out loud. Know *why*, not just *what*.
     Re-running old tests after a change to be sure old features still work.
 28. **Show a defect and how you fixed it.**
     Pick one you know well, for example DEF-58: a CSS class name shared between pages made the Ingredients warn tick shrink. Fix: rename the New Sale classes and add a test that fails if any are shared again. Rule C3: every fix has a test that failed before and passes after. (§7)
-29. **How many defects?** 58 recorded, all fixed. Finding them is the purpose of testing (defect testing).
+29. **How many defects?** 60 recorded, all fixed. Finding them is the purpose of testing (defect testing).
 30. **What does your test not cover?**
     Real-browser clicking is not automated (it would need Playwright), and GCash payment is only recorded, not verified.
 

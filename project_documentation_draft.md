@@ -1,7 +1,7 @@
 # Inventory & POS System — Project Documentation Draft
 
 > **Living document.** Add to it after every iteration (version tag). Don't wait until the end.
-> This draft covers the system up to **v0.21.1** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
+> This draft covers the system up to **v0.21.2** (2026-10-23). Versions v0.8.2–v0.20.5 were implemented and tested by Claude on request
 > (time constraint: finals), following the same branch → pull request → merge → tag workflow and the stabilization rule.
 > Rebuilt on 2026-10-03 from the Git history and the source code, and tested against v0.7.0.
 >
@@ -111,6 +111,7 @@ Specification, development and validation are *interleaved* (they overlap) inste
 | v0.20.6 | Patch: after login the user goes back to the page they first asked for (DEF-06, the last open defect) | Yes |
 | v0.21.0 | Cozy layout: warm cream / espresso theme, roomier spacing, sidebar that folds to an icon strip (F20) | Yes |
 | v0.21.1 | Patch: the fold button is an icon beside the system name instead of a "Fold menu" row (F20) | Yes |
+| v0.21.2 | Patch: folded sidebar icons centred; New ingredient panel fits a phone screen (DEF-59, DEF-60, found by a layout audit) | Yes |
 | v1.0.0 → | Presentation release (planned) | — |
 
 **Why incremental, and not the other two?**
@@ -219,6 +220,7 @@ The tag message summarizes what the increment added.
 | v0.20.6 | 2026-10-23 | — | Login goes back to the page the user first asked for, but only a page on this site (`page_after_login()`); a link to another website, `//host` or `/` + backslash is ignored. Last open defect closed (DEF-06). Short comments added above the 11 older routes (v0.3–v0.20) that had none; new `docs/defense_preparation.md` (demo script and question list for the one-to-one session) *(finishing touches, branch `docs/finishing-touches`)* |
 | v0.21.0 | 2026-10-23 | — | Cozy layout (F20): new warm palette (cream and caramel in the light theme, espresso and amber in the dark theme), bigger text, softer corners and wider gaps on every page, roomier New Sale tiles and basket, and a **Fold menu** button that shrinks the sidebar to an icon strip on wide screens (choice saved in the browser, like the theme). Only `theme.css`, `base.html` and a new test; no database or server change *(branch `feature/cozy-layout`)* |
 | v0.21.1 | 2026-10-23 | — | The fold button moved to the top row, as an icon beside the system name (requested after seeing v0.21.0); folded, the logo and the icon sit one above the other. No "Fold menu" words any more; the tooltip and screen-reader label stay *(branch `fix/fold-button-beside-brand`)* |
+| v0.21.2 | 2026-10-23 | — | Layout audit of every page (14 pages, light and dark theme, phone 375 px and desktop, open and folded sidebar). Two defects fixed: the theme icon of the folded sidebar sat to the right of the avatar (DEF-59), and the "New ingredient" panel ran off the right edge of a phone (DEF-60). No page had sideways page scrolling *(branch `fix/rail-alignment-audit`)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -971,7 +973,7 @@ running out.
 
 ### F20 — Cozy layout and foldable sidebar *(v0.21.0)*
 
-Colours, sizes and the fold button only; no server rule changed. Automated in `tests/test_layout.py` (10 checks);
+Colours, sizes and the fold button only; no server rule changed. Automated in `tests/test_layout.py` (12 checks);
 the look was checked by hand in Chromium on a demo copy (light and dark theme, folded and open, phone width 375 px).
 
 | TC | Precondition | Steps | Expected | Actual | Result |
@@ -982,6 +984,8 @@ the look was checked by hand in Chromium on a demo copy (light and dark theme, f
 | TC-25.4 | Sidebar folded | Hover an icon | The tooltip shows the page name | As expected | ✅ |
 | TC-25.5 | Phone width (375 px) | Open any page, tap the ☰ button | Sidebar slides in as before; fold has no effect | As expected | ✅ |
 | TC-25.7 | Sidebar open | Look at the top row | The fold icon is right of "Inventory & POS", above the menu links, with no words (v0.21.1); folded, logo and icon are stacked | v0.21.0: a "Fold menu" row under the links · v0.21.1: as expected | ❌→✅ |
+| TC-25.8 | Sidebar folded, logged in | Compare the avatar and the theme icon at the bottom | Both centred in the strip | v0.21.0–v0.21.1: theme icon pushed to the right edge · v0.21.2: centred | ❌→✅ DEF-59 |
+| TC-25.9 | Phone 375 px, Ingredients | Tap **New ingredient** | The panel fits the screen with margins on both sides | v0.21.0–v0.21.1: cut off on the right · v0.21.2: fits | ❌→✅ DEF-60 |
 | TC-25.6 | Light, then dark theme | Open New Sale | Cream and caramel / espresso and amber; text readable; stock bars, Hot / Iced buttons and the Running-low banner still clear | As expected | ✅ |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
@@ -1058,9 +1062,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
-| `test_layout.py` | F20 / TC-25.1–25.7 (v0.21.0–v0.21.1): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette | 10 |
+| `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| **22 files** | | **468 checks + 58 rule checks** |
+| **22 files** | | **470 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1090,8 +1094,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Offline pages (v0.19.4) | 5 | 2 → **5** | 3 → **0** | 0 |
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
-| F20 Cozy layout (v0.21.0–v0.21.1) | 7 | 6 → **7** | 0 | 0 |
-| **Total** | **263** | **181 → 261** | **67 → 0** | **4 → 2** |
+| F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
+| **Total** | **265** | **181 → 263** | **67 → 0** | **4 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1163,6 +1167,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-56 | Low | New Sale v0.20.0 (before release): on phones the basket line squeezed the name beside the − / + buttons ("1 ×" and "₱140.00" on two lines) | Screenshot review at 390 px, TC-22.9 | On phones the name gets its own row; − / + and the subtotal go below it | ✅ Fixed before v0.20.0 was published |
 | DEF-57 | Low | New Sale v0.20.0 kept the 1180 px page width of the other pages, so on a wide screen about 200 px stayed empty on each side, the menu stopped at 3 tiles per row, and each tile kept a blank line under one-line names | Yesha, on her laptop with the café's menu (2026-10-12) | New Sale only: no width limit; auto-fill tile grid; basket 380–460 px; bar and "N left" on one line | ✅ Fixed v0.20.1 |
 | DEF-58 | Low | v0.20.0 named the New Sale tile bars `stock-bar`, a class the Ingredients page already used. The new rules clipped the Ingredients warn-level tick to a 6 px green speck, so it was hard to see how close a full shelf was to its warning level (side effect of v0.20.0, like DEF-46 was of v0.19.1) | Yesha, on her laptop (2026-10-13); measured in Chromium against v0.19.4 | New Sale bars renamed (`tile-stock`, `tile-bar`, `tile-note`); TC-22.13 now fails if any New Sale style name is used on another page. Lesson: the v0.20.0 browser check measured only New Sale; a style added for one page must be checked on the pages that share the style sheet | ✅ Fixed v0.20.5 |
+| DEF-59 | Low | Folded sidebar: the light/dark icon sat on the right edge, not under the avatar (the row's `margin-left: auto` still applied after the row became a column in v0.21.0) | Yesha's screenshot (2026-10-23); measured in Chromium | `margin-left: 0` for the folded sidebar; TC-25.8. Lesson: a rule written for one layout (a row) must be checked when the layout changes (a column) | ✅ Fixed v0.21.2 |
+| DEF-60 | Medium | Phone: the "New ingredient" panel was 100 % of the screen wide but started at the button, so its right part was cut off (made worse by v0.21.0's bigger padding) | Layout audit of all pages at 375 px (2026-10-23) | On phones the panel floats under the top bar with 1 rem margins and scrolls if tall; TC-25.9 | ✅ Fixed v0.21.2 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1529,7 +1535,7 @@ Status key: ✅ drafted here · 🟡 partly · ⬜ not started
 |---|---|---|
 | 1 | Process model and why (L2) | ✅ §2 |
 | 2 | Full story of each feature (L3 p. 21) | ✅ §5 (F1–F19) |
-| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (263 cases), screenshots S1–S52 |
+| 3 | Detailed test case of each feature (L3 p. 31) | ✅ §6 for F1–F19 + audit patches (265 cases), screenshots S1–S52 |
 | 4 | Requirements definition: user and system requirements (L4 p. 7) | ✅ §11.1 |
 | 5 | Nonfunctional requirements (L4 p. 18) | ✅ §11.2 |
 | 6 | Nonfunctional requirements metrics table (L4 p. 21) | ✅ §11.3 (measured) |

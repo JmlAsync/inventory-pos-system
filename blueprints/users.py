@@ -16,6 +16,7 @@ from store import users as user_store
 from store import audit as audit_store
 from store import signin as signin_store
 from store.shop import shop_profile
+import google_signin
 from blueprints.accounts import (link_to, email_code, code_problem, new_password_problem, start_login_session,
                                  MAX_USERNAME_LENGTH, tell_method_changed)
 
@@ -261,6 +262,17 @@ def signup(token):
         login_user(user)
         flash(f'Welcome, {user.username}! Your account is ready.', 'success')
         return redirect(url_for('reports.home'))
+    if request.method == 'POST' and request.form.get('step') == 'google':
+        # v0.29.0 (DEC-031): join with Google: the username here, then Google (same email), then the code
+        username = request.form.get('username', '').strip()
+        problem = username_problem(username)
+        if problem or not google_signin.settings() or not google_signin.works_here():
+            return render_template('signup.html', step='details', username=username, **details,
+                                   error=problem or 'Joining with Google doesn\'t work on this address. Choose a password.')
+        user_store.save_pending_signup(invitation, username)
+        return redirect(google_signin.start('signup', {'token': token, 'invitation_id': invitation.id}))
+    if request.method == 'GET' and request.args.get('step') == 'code' and invitation.pending_username:
+        return render_template('signup.html', step='code', **details)   # back from Google (v0.29.0)
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -274,6 +286,27 @@ def signup(token):
             return render_template('signup.html', step='code', error=problem, **details)
         return render_template('signup.html', step='code', **details)
     return render_template('signup.html', step='details', **details)
+
+
+def google_signup_finish(claims, extra):
+    """Back from Google while joining (v0.29.0, DEC-003, DEC-031): the Google account's verified email must be the
+    invited address; then the usual code goes to that address, and entering it makes the account with Google linked."""
+    token = extra.get('token', '')
+    invitation = user_store.invitation_by_token(token)
+    if invitation is None or invitation.id != extra.get('invitation_id') or not invitation.pending_username:
+        return render_template('signup.html', closed=True), 404
+    if claims['email'].lower() != invitation.email.lower():
+        flash(f'That Google account is {claims["email"]}, but the invitation is for {invitation.email}. '
+              f'Use the Google account with that address, or choose a password instead.', 'danger')
+        return redirect(url_for('users.signup', token=token))
+    if user_store.google_sub_taken(claims['sub']):
+        flash('That Google account already opens another account here.', 'danger')
+        return redirect(url_for('users.signup', token=token))
+    user_store.save_pending_signup(invitation, invitation.pending_username, google_sub=claims['sub'])
+    problem = email_code('signup', invitation.email, invitation_id=invitation.id)
+    flash(problem or f'Google confirmed you. Now type the code we sent to {invitation.email}.',
+          'danger' if problem else 'info')
+    return redirect(url_for('users.signup', token=token, step='code'))
 
 
 # ---------------- The audit log (admins) ----------------

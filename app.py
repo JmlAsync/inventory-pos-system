@@ -59,6 +59,12 @@ if app.config['DEMO_MODE'] and app.config['MAIL'].get('host'):
 # Password-only login, with the demo passwords allowed (v0.28.0, DEC-030). ONLY automated tests of other features
 # set this, like CSRF_ENABLED; tests/check_contract.py fails if any file outside tests/ does.
 app.config['TEST_PLAIN_LOGIN'] = False
+# Sign in with Google (v0.29.0, DEC-031): [google] client_id and client_secret from setup_shop.py; the
+# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables win, like DATABASE_URL. Not set up: no Google button.
+app.config['GOOGLE'] = dict(CONFIG.get('google', {}))
+for key in ('client_id', 'client_secret'):
+    if os.environ.get('GOOGLE_' + key.upper()):
+        app.config['GOOGLE'][key] = os.environ['GOOGLE_' + key.upper()]
 
 
 def load_secret_key():

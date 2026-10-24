@@ -237,6 +237,7 @@ The tag message summarizes what the increment added.
 | v0.26.0 | 2026-10-24 | — | Email sending and a login limit that holds (F23). `mail.py` sends plain-text email with Python's own `smtplib`, always over an encrypted connection, using the `[mail]` settings that `setup_shop.py` now asks for (optional; running it again keeps them). The admin page **Email** shows them (never the password) and sends a test message. Wrong passwords are counted in a new `login_attempt` table (migration `0004`), recorded before they are counted and stored as keyed hashes, so the limit survives a restart and holds for every server process (DEF-70, audit R2); **Change password** now has the same 5-tries limit (DEF-69, audit A7) (DEC-028) *(branch `feature/email-and-attempts`, merged after the defense, DEC-018)* |
 | v0.27.0 | 2026-10-24 | — | The owner, users and invitations (F24). Roles **owner**, admin and cashier; the database allows one owner, made by `setup_shop.py` with the owner's email (confirmed with a code on Profile; the purchase email replaces it in v0.38.0, owner's decision). **Users** page: invite by email (48-hour one-time link, role fixed by the inviter), change roles (owner), let admins invite cashiers, switch accounts off (never deleted; every login ends) and **Require a new password** (audit A5). **Emailed 6-digit codes** (keyed hashes, 10 minutes, one use, one purpose, 5 tries, one a minute and 5 an hour) confirm signups and emails and power **Forgot your password?** (the same answer for every address). **Audit log**: who changed which product, price, stock, option, ingredient, recipe, shop detail or account, old → new, written in the same commit as the change (audit R9). Migration `0005`; `add_users.py` removed (rule S12); rule S1 lists the three new public pages (owner's decision) (DEC-029) *(branch `feature/users-and-invitations`, merged after the defense, DEC-018)* |
 | v0.28.0 | 2026-10-25 | — | A code at every login (F25, rule S13): after the password, a 6-digit code by email, unless the browser is **trusted** (30 days; 7 for admins and the owner; ended by Remove, **Log out everywhere**, a password change, switching off or a role change). Each user may use an **authenticator app** instead (works with no internet; QR code drawn by `segno`, key encrypted with `cryptography`, a step never accepted twice) and print 10 one-time **backup codes**. Accounts with no email get one from the owner on Users (owner's decision). **Demo mode** (`DEMO_MODE=1`) prints codes and emails in the server window, lets the demo passwords work, and is refused with real mail settings (rule P3). Migration `0006`; rule S1 lists `/verify` (owner's decision); the tests of other features log in with `TEST_PLAIN_LOGIN`, which the contract check allows only in `tests/` (DEC-030) *(branch `feature/login-codes`, merged after the defense, DEC-018)* |
+| v0.29.0 | 2026-10-25 | — | Sign in with Google (F26): the OpenID Connect code flow with state, nonce and PKCE (Authlib); Google's answer is checked here: signature against Google's keys, issuer, audience, expiry, nonce and a verified email. Accounts are linked by Google's permanent id, never the email; linking from Profile needs the password and a fresh code, and the Google email must be the account's email (owner's decision). People can join from an invitation with Google (the invited address; the code still follows). The login code still follows Google unless the browser is trusted. Works on `localhost` and HTTPS only (Google's rule), so the login page says where. `setup_shop.py` asks for the client ID and secret (optional). Migration `0007`; packages Authlib, joserfc, requests and its four (D1); rule S1 lists the two Google pages (owner's decision) (DEC-031) *(branch `feature/google-signin`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -447,6 +448,9 @@ Maria ran `setup_shop.py` with her own email, so she is the café's **owner**; o
 
 ### Story F25 — A code that keeps strangers out *(v0.28.0)*
 Jun types his password on the counter laptop and the system asks for a 6-digit code, which arrives in his Gmail. He ticks **Trust this device**, so for the next 30 days that laptop only asks for his password. When someone sees Jun's password over his shoulder and tries it at home, they get stuck at the code. Maria prefers her phone: on Profile she switches to an authenticator app by scanning a QR code, and prints her backup codes. One morning the Wi-Fi is down; the counter laptop is trusted, so Jun logs in and sells as usual, and Maria logs in on her own laptop with the app, which needs no internet. When a part-timer's phone is lost, Ana resets their login code to email from Users, and the part-timer gets an email saying so.
+
+### Story F26 — One tap with Google *(v0.29.0)*
+Maria set up Google sign-in with the café's own Google Cloud client. On her Profile she types her password and the code from her app, taps **Link Google**, and picks her Gmail, the same address as her account. Now on the counter laptop (at `localhost`) she taps **Sign in with Google** and, because the laptop is trusted, she is in. Jun's invitation page offers **Continue with Google**; he chooses "jun", picks the Google account for the invited address, types the code that arrives, and is in, without ever making a password. When Ana tries to link her personal Gmail, which isn't her account's email, the page says the two addresses differ and nothing is linked.
 
 ---
 
@@ -1190,6 +1194,24 @@ Automated in `tests/test_login_codes.py` (69 checks), the one test file that log
 | TC-38.13 | A file outside `tests/` with `TEST_PLAIN_LOGIN = True` | `check_contract.py` | Fails, naming the file and line | As expected | ✅ |
 | TC-38.14 | Demo copy in the browser, demo mode | Log in as the owner with the printed code and trust; log out and in again; set up the app with its current code; Profile at 375 px, dark | Logged in; trusted for 7 days, listed under Trusted devices; owner's email now confirmed; the QR drawn; switched, backup codes, the change email printed; no sideways scroll; no script errors | **First try:** logging in again within a minute sent no code ("less than a minute ago") though the first code was used · **Fixed:** the minute only applies while a code is open | ❌→✅ |
 
+### F26 — Sign in with Google *(v0.29.0)*
+
+Automated in `tests/test_google.py` (55 checks), with no internet and no Google account (rule T3): the test makes its own RSA key, signs ID tokens with it, and replaces only the two calls that talk to Google. Every check on the answer runs for real. The real exchange with Google needs the owner's own OAuth client and is tried by hand (TC-39.10).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-39.1 | A database at migration 0006 | Upgrade; undo; upgrade | `user.google_sub` (unique) and `invitation.pending_google_sub` added and removed | As expected | ✅ |
+| TC-39.2 | Not set up; set up, on `127.0.0.1` | Open the login page; `/login/google` | No button and "not set up"; on `127.0.0.1` a note naming `http://localhost:5000`, no button that would fail | As expected | ✅ |
+| TC-39.3 | Set up, `localhost` | Sign in with Google | To Google's address, scopes `openid email profile` only, random state and nonce, PKCE S256, return to `/auth/google/callback`; the code exchanged with the matching verifier | As expected | ✅ |
+| TC-39.4 | A trip started | Answers with another state; a token signed by another key; another audience or issuer; expired; another nonce; no `sub`; email not verified; the same answer twice; no trip started; Cancel; older than 10 minutes; no internet | Each refused with a plain sentence, not logged in ("Could not reach Google" when offline) | As expected (13 cases) | ✅ |
+| TC-39.5 | Accounts with and without Google linked | Google login: unlinked; linked; trusted browser; Google email changed; switched off | Told how to link; `/verify` with the code; straight in when trusted; found by Google's id, not the email; refused | As expected | ✅ |
+| TC-39.6 | Cashier with a confirmed email | Link: wrong code; wrong password; code sent; another-email Google; a Google account linked elsewhere; the same email | Refused; refused; the code mail says what it is for; refused naming both addresses; refused; linked by id, emailed and logged | As expected | ✅ |
+| TC-39.7 | Unconfirmed email; a linked account | Open Profile, post anyway; unlink with a wrong then the right password | "Confirm your email first"; unlink needs the password, then Google no longer opens it | As expected | ✅ |
+| TC-39.8 | An invitation | Continue with Google: bad username; a Google account for another address; the invited address; the code | Refused; refused; the code step follows; a **cashier** with Google linked (a forged `role` changed nothing), logged in; its password unknown; Google then logs in via the code | As expected | ✅ |
+| TC-39.9 | — | `setup_shop.py` with a wrong client ID, a good one, again without; `GOOGLE_CLIENT_ID` | Refused; `[google]` written and the redirect address printed (not the secret); kept; the variable wins | As expected | ✅ |
+| TC-39.10 | The owner's own Google Cloud client | Sign in with a real Google account at `http://localhost:5000` | Google's page, back to `/verify`, logged in | **To try by hand** (needs the owner's OAuth client; the tests never use a real account, rule T3) | ⏳ |
+| TC-39.11 | Demo copy in the browser with Google settings | Login on `localhost` and `127.0.0.1`; Profile at 375 px, dark | The button on `localhost`; the note on `127.0.0.1`; the Google card with "Send me a code" and "Link Google"; no sideways scroll; no script errors | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1300,7 +1322,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_invitations.py` | F24 / TC-36.x (v0.27.0): invitation emails and hashed tokens, the link's address, signup in two steps, the role can't be forged, Send again / Cancel / 48 hours, mail down, every code rule, one account per invitation | 44 |
 | `test_password_reset.py` | F24 / TC-37.x (v0.27.0): Forgot password's same answer, code and new password, logins ended, limits, the email on Profile, the owner's fixed email | 24 |
 | `test_login_codes.py` | F25 / TC-38.x (v0.28.0): RFC 6238 codes, migration 0006, the code step and its 5 minutes, limits, trusted devices and every way they end, backup codes, offline login, the authenticator app (no replay), admin reset, accounts with no email, demo mode, the test-only switch | 69 |
-| **34 files** | | **870 checks + 117 rule checks** |
+| `test_google.py` | F26 / TC-39.x (v0.29.0): migration 0007, where it works, the trip (state, nonce, PKCE), every check on Google's answer with a test-made key, login by Google's id and the code after it, linking and unlinking, joining with Google, setup and the environment | 55 |
+| **35 files** | | **925 checks + 125 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1341,7 +1364,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F23 Email and login limit (v0.26.0) | 18 | 15 → **17** | 2 → **0** | 1 → **1** |
 | F24 Owner, users, invitations, audit log (v0.27.0) | 25 | 25 | 0 | 0 |
 | F25 Login codes (v0.28.0) | 14 | 13 → **14** | 1 → **0** | 0 |
-| **Total** | **388** | **275 → 386** | **94 → 0** | **5 → 2** |
+| F26 Sign in with Google (v0.29.0) | 11 | 10 | 0 | 1 |
+| **Total** | **399** | **285 → 396** | **94 → 0** | **6 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 

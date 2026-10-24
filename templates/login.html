@@ -34,6 +34,16 @@
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Login</button>
                 </form>
+                {# v0.29.0 (DEC-031): Sign in with Google, where Google accepts the return address (localhost or https) #}
+                {% set google = google_status() %}
+                {% if google.here %}
+                <div class="text-center text-body-secondary small my-3">or</div>
+                <a class="btn btn-outline-secondary w-100" href="{{ url_for('accounts.google_login', next=request.args.get('next')) }}">
+                    <i class="bi bi-google me-1" aria-hidden="true"></i>Sign in with Google</a>
+                {% elif google.ready %}
+                <p class="small text-body-secondary text-center mt-3 mb-0">Sign in with Google works at
+                    <a href="{{ google.where }}/login">{{ google.where }}</a> on the shop's main computer.</p>
+                {% endif %}
                 {# v0.27.0: a new password by emailed code #}
                 <p class="text-center mt-3 mb-0"><a href="{{ url_for('accounts.forgot_password') }}">Forgot your password?</a></p>
             </div>

@@ -152,6 +152,54 @@
     </div>
 </div>
 
+{# Sign in with Google (v0.29.0, DEC-031): link with the password and a fresh code; same email as this account #}
+{% set google = google_status() %}
+{% if google.ready %}
+<div class="card mx-auto mt-3" style="max-width: 28rem;" id="google">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-google me-2" aria-hidden="true"></i>Google</h2>
+        {% if current_user.google_sub %}
+        <p>Your account is linked to the Google account for <strong>{{ current_user.email }}</strong>. The login code is
+            still asked, unless this device is trusted.</p>
+        <form method="POST" action="{{ url_for('accounts.google_unlink') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="unlink_password">Current password</label>
+                <input type="password" class="form-control" id="unlink_password" name="current_password" autocomplete="current-password" required>
+                <div class="form-text">Joined with Google and never set a password? Use "Forgot your password?" first.</div>
+            </div>
+            <button type="submit" class="btn btn-outline-danger w-100">Unlink Google</button>
+        </form>
+        {% elif not (current_user.email and current_user.email_verified_at) %}
+        <p class="text-body-secondary mb-0">Confirm your email above first: Google is linked by that same address.</p>
+        {% elif not google.here %}
+        <p class="text-body-secondary mb-0">Linking Google works at <a href="{{ google.where }}/profile">{{ google.where }}</a>
+            on the shop's main computer.</p>
+        {% else %}
+        <p>Link the Google account for <strong>{{ current_user.email }}</strong> to use "Sign in with Google".</p>
+        {% if current_user.second_step != 'app' %}
+        <form method="POST" action="{{ url_for('accounts.google_link_code') }}" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary w-100">1. Send me a code</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('accounts.google_link_start') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-2">
+                <label class="form-label" for="link_password">Current password</label>
+                <input type="password" class="form-control" id="link_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="link_code">{{ 'Code from your app' if current_user.second_step == 'app' else 'The code we emailed' }}, or a backup code</label>
+                <input type="text" class="form-control" id="link_code" name="code" autocomplete="one-time-code" maxlength="12" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">{{ '' if current_user.second_step == 'app' else '2. ' }}Link Google</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {# Change password (v0.13.5) #}
 <div class="card mx-auto mt-3" style="max-width: 28rem;" id="password">
     <div class="card-body">

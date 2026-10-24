@@ -45,6 +45,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-028](#dec-028) | Wrong passwords counted in the database; Change password limited too; email sent with `smtplib` | Best choice | Decided |
 | [DEC-029](#dec-029) | The owner, the Users page, invitations, emailed codes, forgotten passwords and the audit log | Best choice | Decided (two points by the owner) |
 | [DEC-030](#dec-030) | A code at every login, trusted devices, backup codes, the authenticator app and demo mode | Best choice | Decided (two points by the owner) |
+| [DEC-031](#dec-031) | Sign in with Google, linking it from Profile, and joining with it | Best choice | Decided (two points by the owner) |
 
 ---
 
@@ -1027,5 +1028,75 @@ allowlist and `requirements/local.txt`. The code calculation itself (TOTP, RFC 6
 passkeys stop it but need HTTPS. A lost phone with no backup codes left needs an admin's reset, or for the owner,
 the subscription seller. The login sequence diagram in the submitted report still shows v0.20.4; the report's
 updated version gets the new one.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-25 (points 1 and 2 by the owner).
+
+---
+
+## DEC-031
+
+**Sign in with Google, linking it from Profile, and joining with it** *(v0.29.0, F26; rules S1, S12, S13, S14, D1,
+D2; plan §2.3; DEC-003, DEC-005)*
+
+**Owner's decisions (2026-10-25), asked before building (C8):**
+
+1. **Two more public pages** in rule S1: `/login/google` (sends the browser to Google) and `/auth/google/callback`
+   (where Google sends it back). The callback accepts only an answer that matches what this browser started.
+2. **The same email for everyone.** A Google account can be linked only if its verified email is the account's
+   confirmed email (plan §2.3 asked this only of the owner). One identity per person, as with invitations.
+
+**How it works.**
+
+1. **The standard flow** (OpenID Connect, "authorization code" with PKCE), in `google_signin.py`: the browser is sent
+   to Google with a random `state`, a random `nonce` and a PKCE challenge, all kept in the session for 10 minutes.
+   Scopes: `openid email profile` only (no access to the Gmail inbox).
+2. **Google's answer is checked here, not trusted:** `state` matches (`compare_digest`); the code is exchanged for an
+   ID token (with the PKCE verifier); the token's **signature** is checked against Google's published keys
+   (RS256 only); then issuer is Google, audience is this shop's client ID, not expired (1 minute leeway), `nonce`
+   matches, and `email_verified` is true. Any failure is one plain sentence.
+3. **Accounts are linked by Google's permanent id** (`sub`, a new unique `user.google_sub`), never by the email,
+   because an address can change hands.
+4. **Logging in with Google** finds the account by `sub`; a switched-off account is refused. Then exactly what a
+   password login does: a trusted browser goes in, everyone else goes to `/verify` for the code (plan D-5).
+5. **Linking from Profile:** the current password and a fresh code (emailed with purpose `link`, or the app's code),
+   then Google; the Google email must equal the account's confirmed email (owner's decision 2). Unlinking needs the
+   password. Both are logged and emailed to the person.
+6. **Joining with Google** (DEC-003): on the invitation page the person chooses a username and taps **Continue with
+   Google**; the Google email must be the invited address; the usual code to that address follows, then the account
+   exists with Google linked. Such an account gets a random password nobody knows; "Forgot your password?" can set
+   one later.
+7. **Where it works** (plan §2.3, stated honestly): Google only accepts `http://localhost` or an `https` address as a
+   return address. The button shows on `localhost` and on `https`; on `127.0.0.1` or the shop's network address the
+   login page says where Google sign-in works instead.
+8. **Settings:** `[google]` in `instance/config.toml` (client ID and secret, from `setup_shop.py`, optional), or the
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables. Downloaded `client_secret*.json` files are
+   already refused by the contract check (P1, DEC-016).
+
+**Why.** Many café staff already sign in to everything with Google; one less password to forget or reuse. The checks
+are the ones Google's own guide lists, done in our code where the tests can see them, so a forged or replayed
+answer is refused even though the tests never talk to Google.
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Library | Authlib 1.9.1 (approved, DEC-011), `OAuth2Session` for the flow, `joserfc` (which Authlib uses) for the token | Writing the OAuth exchange by hand (where mistakes hide); Flask-Dance (not approved); Google's own `google-auth` (pulls in more packages) |
+| Google's addresses | Fixed in the code (authorization, token, keys) | Fetching Google's discovery document at start-up (an extra request, and start-up would need internet) |
+| Linking key | `sub` | The email (can change hands: a new person with a recycled address would get the account) |
+| Which Google account | Same verified email as the account (owner's decision 2) | Any verified Google account (the account's email and its Google login could belong to different people) |
+| Code after Google | Yes, unless trusted (plan D-5, S13) | Trusting Google's own second step (we can't see whether the person used one) |
+| Linking needs | Password + a fresh code | Password only (a stolen unlocked till could link the thief's Google account); nothing (the same, worse) |
+| Joining with Google | Username first, then Google, then the code | Taking the username from Google's name (clashes, spaces, changes) |
+| Tests | Real signature and claim checks with a test key made in the test; only the two network calls replaced | A fake that returns "valid" (would test nothing of the checks); a real Google account (rule T3) |
+| `127.0.0.1` | Explain, don't show a button that would fail | Sending a `localhost` return address from `127.0.0.1` (the session cookie belongs to the other name, so the state check would always fail) |
+
+**Packages (rule D1).** Authlib 1.9.1 with joserfc 1.7.7; requests 2.34.2 with certifi 2026.10.23,
+charset-normalizer 3.5.2, idna 3.20 and urllib3 2.8.0; approved for this version on 2026-10-24 (DEC-011), pinned and
+added to the D1 list, the allowlist and `requirements/local.txt`.
+
+**Honest limits.** Google sign-in needs the internet (rule D2: password, trusted devices and backup codes keep the
+local package working) and, in the local package, the main computer at `localhost`. Each installation needs its own
+Google Cloud project and OAuth client (plan §2.3); until it is verified by Google, "Testing" mode allows 100 named
+users, enough for a café. The real exchange with Google is tried by hand with the owner's own client (TC-39.x).
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-25 (points 1 and 2 by the owner).

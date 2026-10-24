@@ -50,6 +50,13 @@
         <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password" required>
     </div>
     <button type="submit" class="btn btn-primary w-100">Continue</button>
+    {# v0.29.0 (DEC-031): or join with Google, using the invited address; the code still follows #}
+    {% if google_status().here %}
+    <div class="text-center text-body-secondary small my-3">or, with the same username</div>
+    <button type="submit" class="btn btn-outline-secondary w-100" name="step" value="google" formnovalidate>
+        <i class="bi bi-google me-1" aria-hidden="true"></i>Continue with Google</button>
+    <div class="form-text">Use the Google account for {{ invitation.email }}. No password needed here.</div>
+    {% endif %}
 </form>
 {% endif %}
 {% endblock %}

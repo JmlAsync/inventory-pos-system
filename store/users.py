@@ -9,6 +9,7 @@ import secrets
 from datetime import timedelta
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from werkzeug.security import generate_password_hash
 from common import keyed_hash, same_secret
 from models import db, User, Invitation, EmailCode, LoginSession, utc_now
 from store.accounts import record_try
@@ -130,10 +131,16 @@ def invitation_by_token(token):
     return invitation
 
 
-def save_pending_signup(invitation, username, password_hash):
-    """Signup step 1: remember the chosen username and the password's hash until the code is entered."""
+def save_pending_signup(invitation, username, password_hash=None, google_sub=None):
+    """Signup step 1: remember the chosen username and the password's hash (or, joining with Google since v0.29.0,
+    Google's permanent id) until the code is entered."""
     invitation.pending_username, invitation.pending_password_hash = username, password_hash
+    invitation.pending_google_sub = google_sub
     db.session.commit()
+
+
+def google_sub_taken(sub):
+    return User.query.filter_by(google_sub=sub).first() is not None
 
 
 def finish_signup(invitation):
@@ -146,15 +153,18 @@ def finish_signup(invitation):
     if used == 0:
         db.session.rollback()
         return None
-    user = User(username=invitation.pending_username, password_hash=invitation.pending_password_hash,
-                role=invitation.role, email=invitation.email.lower(), email_verified_at=now, created_at=now)
+    # Joining with Google (v0.29.0): a random password nobody knows; "Forgot your password?" can set a real one
+    password_hash = invitation.pending_password_hash or generate_password_hash(secrets.token_hex(32))
+    user = User(username=invitation.pending_username, password_hash=password_hash, role=invitation.role,
+                email=invitation.email.lower(), email_verified_at=now, created_at=now,
+                google_sub=invitation.pending_google_sub)
     db.session.add(user)
     try:
         db.session.flush()   # gives the new account its id, still inside the same transaction
     except IntegrityError:
         db.session.rollback()   # the username or email was taken in the meantime: nothing is saved
         return None
-    invitation.user_id, invitation.pending_password_hash = user.id, None
+    invitation.user_id, invitation.pending_password_hash, invitation.pending_google_sub = user.id, None, None
     note(user.id, 'user.join', user.username, {'role': ['', user.role], 'email': ['', user.email]})
     db.session.commit()
     return user

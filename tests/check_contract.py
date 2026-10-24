@@ -16,7 +16,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ---- Every page (route) must be listed here, so a new page is a deliberate decision (AGENTS.md rule S1).
 PUBLIC_ROUTES = {'/', '/login',                       # anyone, even when not logged in
                  '/signup/<token>', '/forgot-password', '/forgot-password/code',   # v0.27.0 (owner's decision, DEC-029)
-                 '/verify', '/verify/resend'}          # v0.28.0, within 5 minutes of a right password (DEC-030)
+                 '/verify', '/verify/resend',          # v0.28.0, within 5 minutes of a right password (DEC-030)
+                 '/login/google', '/auth/google/callback'}   # v0.29.0, owner's decision (DEC-031)
 ADMIN_ROUTES = {                                       # @login_required AND @admin_required
     '/products/add', '/products/edit/<int:product_id>', '/products/delete/<int:product_id>',
     '/options', '/ingredients', '/ingredients/<int:ingredient_id>', '/ingredients/history',
@@ -36,6 +37,7 @@ USER_ROUTES = {                                        # @login_required (admin 
     '/password/new', '/profile/email', '/profile/email/confirm',   # own account (v0.27.0)
     '/profile/devices/<int:device_id>/remove', '/profile/logout-everywhere', '/profile/backup-codes',   # v0.28.0
     '/profile/authenticator', '/profile/authenticator/confirm', '/profile/authenticator/off',
+    '/profile/google', '/profile/google/code', '/profile/google/unlink',   # linking Google (v0.29.0)
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',
@@ -43,7 +45,8 @@ ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'fla
                     'alembic', 'flask-migrate', 'mako',   # v0.23.0: migrations (DEC-011, DEC-023); Mako comes with alembic
                     'waitress',                            # v0.24.0: the shop's web server (DEC-026)
                     'cryptography', 'cffi', 'pycparser',   # v0.28.0: the authenticator key, encrypted (DEC-017, DEC-030)
-                    'segno'}                               # v0.28.0: the authenticator QR code (DEC-017)
+                    'segno',                               # v0.28.0: the authenticator QR code (DEC-017)
+                    'authlib', 'joserfc', 'requests', 'certifi', 'charset-normalizer', 'idna', 'urllib3'}   # v0.29.0: Google (DEC-031)
 # ---- Never committed to Git (AGENTS.md rule P1).
 PRIVATE = [r'^instance/', r'\.db$', r'^static/avatars/', r'^static/products/', r'^local_demo/', r'secret_key',
            r'(^|/)\.env$', r'^venv/', r'^\.venv/',

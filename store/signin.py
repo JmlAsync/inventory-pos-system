@@ -160,3 +160,17 @@ def back_to_email(user, by):
     note(by, 'user.second-step', user.username, {'sign-in method': ['app', 'email']})
     user.second_step, user.totp_key_encrypted, user.totp_pending_encrypted, user.totp_last_step = 'email', None, None, None
     db.session.commit()
+
+
+# ---------------- Google (v0.29.0, DEC-031) ----------------
+def link_google(user, sub):
+    """Remember Google's permanent id for this person (the page checked the email and that the id is free)."""
+    note(user.id, 'user.google-link', user.username)
+    user.google_sub = sub
+    db.session.commit()
+
+
+def unlink_google(user):
+    note(user.id, 'user.google-unlink', user.username)
+    user.google_sub = None
+    db.session.commit()

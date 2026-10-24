@@ -1,0 +1,35 @@
+{% extends "auth_base.html" %}
+{% block title %}Login code{% endblock %}
+{# The second step at login (v0.28.0, rule S13, DEC-030): the emailed code, the authenticator app's code, or a
+   backup code. Opens only within 5 minutes of the right password. #}
+{% block auth_body %}
+<h1 class="h4 fw-bold mb-1">Type your login code</h1>
+<p class="text-body-secondary mb-4">
+    {% if user.second_step == 'app' %}Open your authenticator app and type the 6-digit code it shows for this shop.
+    {% else %}We sent a 6-digit code to <strong>{{ email }}</strong>. It works for 10 minutes.{% endif %}
+</p>
+<form method="POST" action="{{ url_for('accounts.verify') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+        <label class="form-label" for="code">Code</label>
+        <input type="text" class="form-control form-control-lg text-center" id="code" name="code"
+               autocomplete="one-time-code" maxlength="12" placeholder="123456" required autofocus>
+        <div class="form-text">No code? Type one of your backup codes instead{% if backup_left %} ({{ backup_left }} left){% endif %}.</div>
+    </div>
+    <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" id="trust" name="trust" value="1">
+        <label class="form-check-label" for="trust">Trust this device for {{ days }} days</label>
+        <div class="form-text">Only on your own or the shop's computer. You will still need your password.</div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Log in</button>
+</form>
+{% if user.second_step != 'app' %}
+<form method="POST" action="{{ url_for('accounts.verify_resend') }}" class="mt-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-link w-100">Send a new code</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block below_card %}
+<p class="text-center mt-3 mb-0"><a href="{{ url_for('accounts.login') }}">Back to the login page</a></p>
+{% endblock %}

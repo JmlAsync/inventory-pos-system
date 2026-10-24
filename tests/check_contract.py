@@ -15,7 +15,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ---- Every page (route) must be listed here, so a new page is a deliberate decision (AGENTS.md rule S1).
 PUBLIC_ROUTES = {'/', '/login',                       # anyone, even when not logged in
-                 '/signup/<token>', '/forgot-password', '/forgot-password/code'}   # v0.27.0 (owner's decision, DEC-029)
+                 '/signup/<token>', '/forgot-password', '/forgot-password/code',   # v0.27.0 (owner's decision, DEC-029)
+                 '/verify', '/verify/resend'}          # v0.28.0, within 5 minutes of a right password (DEC-030)
 ADMIN_ROUTES = {                                       # @login_required AND @admin_required
     '/products/add', '/products/edit/<int:product_id>', '/products/delete/<int:product_id>',
     '/options', '/ingredients', '/ingredients/<int:ingredient_id>', '/ingredients/history',
@@ -26,18 +27,23 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
     '/admin/users/<int:user_id>/active', '/admin/users/<int:user_id>/require-password',
     '/admin/users/<int:user_id>/may-invite', '/admin/invitations/<int:invitation_id>/resend',
     '/admin/invitations/<int:invitation_id>/cancel', '/admin/audit',
+    '/admin/users/<int:user_id>/email', '/admin/users/<int:user_id>/reset-second-step',   # v0.28.0
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',
     '/sales/complete', '/sales/<int:sale_id>', '/profile', '/profile/remove', '/profile/password',
     '/sales/line-quantity', '/sales/line-options',     # order-line − / + and change add-ons (v0.20.0)
     '/password/new', '/profile/email', '/profile/email/confirm',   # own account (v0.27.0)
+    '/profile/devices/<int:device_id>/remove', '/profile/logout-everywhere', '/profile/backup-codes',   # v0.28.0
+    '/profile/authenticator', '/profile/authenticator/confirm', '/profile/authenticator/off',
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',
                     'itsdangerous', 'jinja2', 'markupsafe', 'sqlalchemy', 'typing_extensions', 'werkzeug',
                     'alembic', 'flask-migrate', 'mako',   # v0.23.0: migrations (DEC-011, DEC-023); Mako comes with alembic
-                    'waitress'}                            # v0.24.0: the shop's web server (DEC-026)
+                    'waitress',                            # v0.24.0: the shop's web server (DEC-026)
+                    'cryptography', 'cffi', 'pycparser',   # v0.28.0: the authenticator key, encrypted (DEC-017, DEC-030)
+                    'segno'}                               # v0.28.0: the authenticator QR code (DEC-017)
 # ---- Never committed to Git (AGENTS.md rule P1).
 PRIVATE = [r'^instance/', r'\.db$', r'^static/avatars/', r'^static/products/', r'^local_demo/', r'secret_key',
            r'(^|/)\.env$', r'^venv/', r'^\.venv/',
@@ -144,6 +150,9 @@ for path in python_files():
     for number, line in enumerate(source.splitlines(), 1):
         if re.search(r'debug\s*=\s*True', line) and not path.startswith('tests'):
             result(f'S4 no debug=True ({path} line {number})', False, line.strip())
+        # v0.28.0 (S13, DEC-030): only tests may log in with the password alone
+        if re.search(r"TEST_PLAIN_LOGIN'\]\s*=\s*True", line) and not path.startswith('tests'):
+            result(f'S13 TEST_PLAIN_LOGIN only switched on in tests ({path} line {number})', False, line.strip())
         if re.search(r'''(SECRET_KEY['"]?\]?\s*=|secret_key\s*=)\s*['"]''', line) and not path.startswith('tests'):
             result(f'S4 no secret key written in code ({path} line {number})', False, line.strip())
     if path.startswith('tests'):
@@ -156,6 +165,7 @@ for path in python_files():
                     result(f'S5 SQL text is not built with f-strings or + ({path} line {inner.lineno}, in {node.name})', False,
                            'use :named parameters, e.g. db.text("... WHERE id = :i"), {"i": value}')
 result('S4 no debug=True and no secret key in any .py file', not any(f.startswith('S4') for f in failures))
+result('S13 the password-only test login is switched on only in tests/', not any(f.startswith('S13') for f in failures))
 result('S5 SQL text only built from pieces inside upgrade_database()', not any(f.startswith('S5') for f in failures))
 
 # D1: dependencies

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Authenticator app{% endblock %}
+{% block content %}
+{# Setting up an authenticator app (v0.28.0, DEC-017): the QR code holds the secret key, so it is drawn on the server
+   as an image in the page (no file, no outside service), the page is not kept by the browser (no-store), and it is
+   shown only now. The switch happens only after the app's first code proves the scan worked. #}
+<div class="card mx-auto" style="max-width: 28rem;"><div class="card-body">
+    <h1 class="h4 fw-bold mb-2"><i class="bi bi-phone me-2" aria-hidden="true"></i>Use an authenticator app</h1>
+    <ol class="ps-3">
+        <li>In Google Authenticator, Microsoft Authenticator or a similar app, tap <strong>Add</strong> and scan this code.</li>
+        <li>Type the 6-digit code the app then shows.</li>
+    </ol>
+    <div class="text-center mb-2">
+        <img src="{{ qr }}" alt="QR code for your authenticator app" width="220" height="220" class="rounded border bg-white p-1">
+    </div>
+    <p class="small text-body-secondary text-center mb-3">Can't scan? Type this key in the app instead:<br>
+        <span class="font-monospace user-select-all">{{ key }}</span></p>
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    <form method="POST" action="{{ url_for('accounts.authenticator_confirm') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-label" for="code">Code from the app</label>
+        <input type="text" class="form-control form-control-lg text-center mb-3" id="code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="7" placeholder="123456" required autofocus>
+        <button type="submit" class="btn btn-primary w-100">Turn on</button>
+    </form>
+    <p class="text-center mt-3 mb-0"><a href="{{ url_for('accounts.profile') }}">Cancel: keep emailed codes</a></p>
+</div></div>
+{% endblock %}

@@ -4,6 +4,7 @@ Since v0.26.0 the tries with a limit (wrong passwords) are rows in login_attempt
 import secrets
 from models import db, LoginSession, LoginAttempt, utc_now
 from store.audit import note
+from store.signin import forget_devices
 
 
 def start_login(user, idle_timeout):
@@ -43,6 +44,7 @@ def change_password(user, new_hash, current_token, idle_timeout):
     user.password_hash = new_hash
     note(user.id, 'user.password', user.username)   # v0.27.0: who changed a password and when, never the password
     ended = LoginSession.query.filter(LoginSession.user_id == user.id, LoginSession.token != (current_token or '')).count()
+    forget_devices(user)   # v0.28.0 (S13): a new password ends every trusted device too
     LoginSession.query.filter_by(user_id=user.id).delete()
     return start_login(user, idle_timeout), ended   # commits the new password and the new token together
 

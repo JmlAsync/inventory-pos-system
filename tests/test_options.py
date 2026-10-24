@@ -9,6 +9,7 @@ CREATE TABLE sale (id INTEGER PRIMARY KEY, created_at DATETIME NOT NULL, user_id
 CREATE TABLE sale_item (id INTEGER PRIMARY KEY, sale_id INTEGER NOT NULL, product_id INTEGER NOT NULL, product_name VARCHAR(100) NOT NULL, unit_price FLOAT NOT NULL, quantity INTEGER NOT NULL);
 INSERT INTO product VALUES (1,'Old Croffle','C1',150,10,'Croffles');"""); c.commit(); c.close()
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Product, Sale, SaleItem, MenuOption
 from werkzeug.security import generate_password_hash as g

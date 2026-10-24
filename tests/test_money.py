@@ -6,6 +6,7 @@ from decimal import Decimal
 from helpers import check, finish, make_users, text
 
 from app import app, upgrade_database, MIGRATIONS_FOLDER
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, Product, Sale, SaleItem, MenuOption
 from alembic import command
 

@@ -46,11 +46,12 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | Path | What it holds | Notes |
 |---|---|---|
 | `app.py` | Start-up only since v0.25.0: settings, database and migrations, login manager, the CSRF check and security headers, error pages, registering the blueprints | Re-exports the old names so scripts and tests keep working (see the note below this table) |
+| `totp.py` | Authenticator-app codes (RFC 6238) and the encrypted key; the QR code (v0.28.0) | The key is never stored in plain text (S14) |
 | `mail.py` | Sends email with Python's own `smtplib`; settings from the `[mail]` part of `instance/config.toml` (v0.26.0) | Never put the mail password anywhere else (P1) |
 | `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
 | `blueprints/` | The pages, one file per part: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop` (v0.25.0) | Page names are `part.page`, e.g. `url_for('sales.new_sale')`. Pages never write to the database (I1) |
 | `store/` | The data layer: every database change (`sales`, `ingredients`, `catalog`, `accounts`, `shop`) and the stock calculations (`stock`) (v0.25.0) | Rule I1; DEC-027 |
-| `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement; v0.26.0–v0.27.0: LoginAttempt, Invitation, EmailCode, AuditEntry) | |
+| `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement; v0.26.0–v0.28.0: LoginAttempt, Invitation, EmailCode, AuditEntry, TrustedDevice, BackupCode) | |
 | `templates/` | The HTML pages; `base.html` is the shared layout; files starting with `_` are pieces | |
 | `static/css/theme.css` | All custom styling, light and dark theme | |
 | `static/vendor/` | Bootstrap, Bootstrap Icons and the Inter font, stored locally | Rule D2: nothing loads from the internet |
@@ -88,7 +89,8 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 - **S1 [checked]** Every page (`@app.route`) MUST be listed in `tests/check_contract.py` as
   public, user (logged in) or admin. Adding a page means deciding which list it belongs to.
   The public pages are `/`, `/login`, and (from v0.27.0) `/signup/<token>` (only with a valid invitation),
-  `/forgot-password` and `/forgot-password/code`.
+  `/forgot-password` and `/forgot-password/code`, and (from v0.28.0) `/verify` and `/verify/resend` (only within
+  5 minutes of a correct password; owner's decision 2026-10-25, DEC-030).
 
   > *Overridden 2026-10-24.* Old wording: "Only `/` and `/login` are public." Why: invitations (S12) and forgotten
   > passwords need pages a logged-out person can open; the owner approved these three. Full reasoning: DEC-029.
@@ -185,7 +187,9 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 
 - **D1 [checked]** `requirements.txt` may only contain these packages, each with an exact version
   (`name==1.2.3`): blinker, click, colorama, Flask, Flask-Login, Flask-SQLAlchemy, greenlet,
-  itsdangerous, Jinja2, MarkupSafe, SQLAlchemy, typing_extensions, Werkzeug.
+  itsdangerous, Jinja2, MarkupSafe, SQLAlchemy, typing_extensions, Werkzeug; and, as approved below,
+  Flask-Migrate, alembic and Mako (v0.23.0), waitress (v0.24.0), cryptography with cffi and pycparser, and segno
+  (v0.28.0).
   Adding a package needs the project owner's approval and a change to this list (and to the
   allowlist in `tests/check_contract.py`).
   **Approved on 2026-10-24 for the upgrade**, each added to this list, the allowlist and the

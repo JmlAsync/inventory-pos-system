@@ -44,6 +44,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice | Decided |
 | [DEC-028](#dec-028) | Wrong passwords counted in the database; Change password limited too; email sent with `smtplib` | Best choice | Decided |
 | [DEC-029](#dec-029) | The owner, the Users page, invitations, emailed codes, forgotten passwords and the audit log | Best choice | Decided (two points by the owner) |
+| [DEC-030](#dec-030) | A code at every login, trusted devices, backup codes, the authenticator app and demo mode | Best choice | Decided (two points by the owner) |
 
 ---
 
@@ -949,3 +950,82 @@ every login, trusted devices and backup codes are v0.28.0; until then a login is
 owner's email is typed during setup, not proven by a purchase, until v0.38.0. Google sign-in at signup is v0.29.0.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24 (points 1 and 2 by the owner).
+
+---
+
+## DEC-030
+
+**A code at every login, trusted devices, backup codes, the authenticator app and demo mode**
+*(v0.28.0, F25; rules S1, S13, S14, D1, D2, P3; DEC-004, DEC-005, DEC-006, DEC-012, DEC-017)*
+
+**Owner's decisions (2026-10-25), asked before building (C8):**
+
+1. **Accounts with no email yet** (made before v0.27.0) can't get an emailed code. Their login is refused with "ask the
+   owner to add your email"; the owner (or an admin, for a cashier) types that person's own address on Users, and
+   the person's next login sends the code there, which also confirms it. The owner vouches for the address, as with
+   an invitation. An account using an authenticator app needs no email.
+2. **Two more public pages** in rule S1: `/verify` and `/verify/resend`. They work only within 5 minutes of a correct
+   password; otherwise they go back to the login page.
+
+**How it works.**
+
+1. **Login, step 1:** the password, with the 5-tries limit (DEC-028), as before. A switched-off account is refused.
+   Outside demo mode, the published demo passwords (`admin123`, `cashier123`) are refused (rule P3).
+2. **Trusted device?** The browser's `trusted` cookie holds up to 10 random tokens (a shared counter computer can be
+   trusted by each cashier separately). If one matches an unexpired row in `trusted_device` *for this user*, the
+   person is logged in with no code (S13: trust skips only the code).
+3. **Otherwise, half-logged-in:** the session remembers who typed the right password, for **5 minutes**, and only
+   `/verify` opens. With the default method a 6-digit code is emailed (the v0.27.0 code rules, purpose `login`);
+   with an authenticator app nothing is sent.
+4. **`/verify`** accepts the emailed code, the app's code, or a **backup code**. Wrong tries count toward the same
+   limit (5, then wait 5 minutes), recorded before checking. The box **"Trust this device for 30 days"** (7 for
+   admins and the owner) creates the trusted-device row and cookie. Then the normal login starts (the login row of v0.20.3).
+5. **Trust ends** on: Profile → Devices → Remove; **Log out everywhere** (new, on Profile); a password change or
+   reset; switching the account off; a role change; and after 30 / 7 days.
+6. **Backup codes:** 10 one-time codes like `k7mp-29xa`, shown **once** (Profile, password needed; the page is sent
+   with `Cache-Control: no-store`), stored as keyed hashes (S14). Making new ones cancels the old ones.
+7. **Authenticator app** (DEC-017, unchanged): Profile → Sign-in method → password → a QR code (drawn by `segno`, an
+   SVG `data:` image, `no-store`) and the key as text → the app's current code proves the scan → switched, new backup
+   codes shown, and an email says the sign-in method changed. Turning it off needs the password and a current app or
+   backup code, and emails too. The key is stored **encrypted** with Fernet (`cryptography`); its key is
+   `instance/totp_key.txt` (made once, never in Git, P1) or the `TOTP_ENCRYPTION_KEY` environment variable. A code
+   is accepted for the current 30-second step or one either side, and **never for a step already used** (one
+   conditional update of `totp_last_step`). An admin (for cashiers) or the owner can reset someone's method to email
+   from Users: logged and emailed. Nobody can reset the owner's this way (DEC-017).
+8. **Demo mode** (`DEMO_MODE=1`, rule P3): every email (codes, invitations, tests) is printed in the server window
+   instead of being sent, so the demo works with no mail server and no internet. Start-up **refuses** demo mode
+   when real mail settings exist, so it can't be left on in a shop. The demo passwords work only in demo mode.
+9. **The automated tests of other features** log in with the password only (no code, demo passwords allowed) by
+   setting `app.config['TEST_PLAIN_LOGIN'] = True`, like `CSRF_ENABLED`. The contract check fails if any file outside
+   `tests/` sets it.
+
+**Why.** A password alone fails the moment it is seen over a shoulder or guessed (DEC-004). The rest makes the code
+bearable and safe: trust on the counter computer keeps staff from working around it (DEC-005), backup codes and
+trusted devices keep the local package logging in when the Wi-Fi is down (DEC-012, rule D2), and the app option
+works with no internet at all (DEC-017).
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Half-logged-in state | A short session value (user, method, time), 5 minutes, opens only `/verify` | Logging in and then blocking every page (a forgotten check would leak a page); a separate cookie (one more thing to sign and expire) |
+| Where trust is kept | A cookie of random tokens + hashed rows in the database | A signed cookie alone (can't be removed from Profile or ended by a password change); the IP address (Wi-Fi addresses change, and anyone on the Wi-Fi would be trusted) |
+| Trust on a shared computer | Up to 10 tokens in one cookie, each tied to its own user | One token per browser (the second cashier's trust would replace the first's) |
+| Trust on a role change | Ended | Kept (a cashier's 30 days would carry over to an admin, who should get 7) |
+| Backup code format | 8 characters from 31 letters and digits that can't be confused (no 0/o, 1/l/i), shown as `xxxx-xxxx` | 6 digits (looks like a login code; fewer combinations); long hex (hard to type from paper) |
+| Wrong tries at `/verify` | The login limit's table, per user, recorded first | Only the emailed code's own 5 tries (the app and backup codes would have no limit) |
+| Authenticator key at rest | Fernet with its own key file | Encrypting with the Flask secret key (one leaked file would open both); plain text (DEC-017) |
+| Demo passwords outside demo mode | Refused by the password itself | By username (a real shop may well call its owner "admin") |
+| Tests of other features | A config switch like `CSRF_ENABLED`, checked by the contract | Typing codes in all 30 older test files (hundreds of lines that test nothing new); an environment variable (could be set on a shop's computer by mistake) |
+
+**Packages (rule D1).** `cryptography` 50.0.2 (with `cffi` 2.1.1 and `pycparser` 3.12, which it needs on Windows)
+and `segno` 1.6.6, approved for this version on 2026-10-24 (DEC-011, DEC-017), pinned and added to the D1 list, the
+allowlist and `requirements/local.txt`. The code calculation itself (TOTP, RFC 6238) uses only `hmac`, `struct`,
+`base64` and `time`.
+
+**Honest limits.** A fake login page that forwards the password and code within seconds beats any code (DEC-017);
+passkeys stop it but need HTTPS. A lost phone with no backup codes left needs an admin's reset, or for the owner,
+the subscription seller. The login sequence diagram in the submitted report still shows v0.20.4; the report's
+updated version gets the new one.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-25 (points 1 and 2 by the owner).

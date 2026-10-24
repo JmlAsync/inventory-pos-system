@@ -103,12 +103,16 @@ def send_mail(to, subject, body, sender_name=''):
     """Send one plain-text email to one address. Returns None when the mail server accepted it, or one sentence
     for the screen saying what went wrong and what to do (rule C6). The details go to the server log; the
     password is never written anywhere."""
-    settings, problem = mail_settings()
-    if problem:
-        return problem
     address = check_email_address(to)
     if address is None:
         return 'That is not an email address. Type it like name@example.com.'
+    if current_app.config.get('DEMO_MODE'):
+        # v0.28.0 (rule P3, DEC-030): the demo sends nothing; the message is shown in the server's window instead
+        print(f'\n[DEMO_MODE] Email to {address}\nSubject: {subject}\n{body}', flush=True)
+        return None
+    settings, problem = mail_settings()
+    if problem:
+        return problem
     message = EmailMessage()
     message['From'] = formataddr((sender_name, settings['from_address']))   # shows the shop's name, e.g. "Sample Café"
     message['To'] = address

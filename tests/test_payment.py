@@ -11,6 +11,7 @@ INSERT INTO product VALUES (1,'Honey Latte','D1',180,20,'Coffee');
 INSERT INTO sale VALUES (1,'2026-10-01 10:00:00',1,180);
 INSERT INTO sale_item VALUES (1,1,1,'Honey Latte',180,1);"""); c.commit(); c.close()
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Product, Sale
 from werkzeug.security import generate_password_hash as g

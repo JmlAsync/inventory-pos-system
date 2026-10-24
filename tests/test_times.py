@@ -12,6 +12,7 @@ LOCAL_SALE = datetime(2026, 10, 20, 9, 15, 0)          # what v0.23.0 stored: th
 LOCAL_SEEN = datetime(2026, 10, 20, 9, 20, 30)
 
 from app import app, upgrade_database, MIGRATIONS_FOLDER
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, Product, Sale, SaleItem, LoginSession, IngredientMovement, Ingredient
 from alembic import command
 

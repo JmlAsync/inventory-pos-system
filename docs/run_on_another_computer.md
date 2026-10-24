@@ -95,8 +95,12 @@ With your own menu, the first line says `using the local menu in ...`.
 ## Step 6: Start the app
 
 ```
+$env:DEMO_MODE = "1"
 .\venv\Scripts\python app.py
 ```
+
+The first line (from v0.28.0) starts the **demo mode**: the demo passwords work, and login codes are shown in this
+window instead of being emailed.
 
 Wait for `Running on http://127.0.0.1:5000`. **Leave this window open**: closing it stops the app.
 Now open **http://127.0.0.1:5000** in a browser on the same computer.
@@ -111,7 +115,8 @@ the lab cannot open it.
 | `admin` | `admin123` | Admin |
 | `cashier` | `cashier123` | Cashier |
 
-These are the public demo passwords, the same in every fresh copy. Changing them on your own
+After the password, type the 6-digit **login code** shown in the app's window (v0.28.0); tick **Trust this device**
+to skip it next time. These are the public demo passwords, the same in every fresh copy. Changing them on your own
 computer does **not** change them here, because each computer has its own database. If the app will
 be left running where others can use it, change them on the **Profile** page.
 

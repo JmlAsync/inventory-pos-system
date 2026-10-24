@@ -2,6 +2,7 @@
 import os, io, sqlite3
 from helpers import check, finish, text, fixture
 from app import app, upgrade_database, AVATAR_FOLDER
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False  # tests post forms directly (v0.13.2); test_security.py checks tokens
 from models import db, User, Product
 from werkzeug.security import generate_password_hash as g

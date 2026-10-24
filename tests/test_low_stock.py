@@ -2,6 +2,7 @@
 from werkzeug.security import generate_password_hash as g
 from helpers import check, finish, text
 from app import app
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, Product, User
 
 app.config['CSRF_ENABLED'] = False

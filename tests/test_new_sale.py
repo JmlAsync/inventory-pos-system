@@ -4,6 +4,7 @@ basket line (design 6a), the "Uses N ingredients" panel and the quick cash amoun
 import re
 from helpers import check, finish, text
 from app import app, upgrade_database, quick_cash, MAX_QUANTITY
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Product, Sale, MenuOption, Ingredient, RecipeItem
 from werkzeug.security import generate_password_hash as g

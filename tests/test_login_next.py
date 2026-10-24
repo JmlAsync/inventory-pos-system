@@ -2,6 +2,7 @@
 Only a page on this site is allowed, so a crafted link cannot send a user to another website."""
 from helpers import check, finish, make_users
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False   # this file tests where login leads, not the form token
 from models import db, User
 

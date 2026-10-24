@@ -3,17 +3,20 @@
     python setup_shop.py                        asks the questions
     python setup_shop.py --answers answers.json for installers and tests (see the example at the bottom)
 
-It writes instance/config.toml (how the server listens, which database), brings the database up to date
-(with a backup first), saves the shop's details for the receipts and creates the first admin account with
-the owner's own password. It never creates the demo accounts (admin / admin123), which are for the demo only.
-Running it again is safe: data is kept, an existing admin is left as it is, and the old config.toml is
-kept as config.toml.bak.
+It writes instance/config.toml (how the server listens, which database and, if wanted, how to send email),
+brings the database up to date (with a backup first), saves the shop's details for the receipts and creates
+the first admin account with the owner's own password. It never creates the demo accounts (admin / admin123),
+which are for the demo only.
+Running it again is safe: data is kept, an existing admin is left as it is, email settings are kept unless new
+ones are given (v0.26.0), and the old config.toml is kept as config.toml.bak.
 """
 import getpass
 import json
 import os
 import shutil
 import sys
+import tomllib
+from mail import clean_mail_settings, SECURITY_PORTS   # the same checks the app uses (v0.26.0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INSTANCE = os.path.join(HERE, 'instance')
@@ -55,14 +58,34 @@ def toml_text(value):
     return json.dumps(value, ensure_ascii=False)
 
 
-def write_config(host, port):
-    """Write instance/config.toml, keeping the previous one as config.toml.bak. No passwords in it."""
+def existing_mail_settings():
+    """The [mail] part of the current config.toml, checked, or None (v0.26.0): kept when setup runs again without
+    new ones. Settings with a mistake (the file may have been edited by hand) are left out, with a note; the old
+    file is still there as config.toml.bak."""
+    try:
+        with open(CONFIG_FILE, 'rb') as f:
+            old = tomllib.load(f).get('mail')
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    if not old:
+        return None
+    mail, problem = clean_mail_settings(old)
+    if problem:
+        print(f'The old email settings had a mistake ({problem}), so they were left out. '
+              f'Run setup again and answer the email questions to set email up.')
+    return mail
+
+
+def write_config(host, port, mail=None):
+    """Write instance/config.toml, keeping the previous one as config.toml.bak. The only password in it is the
+    mail account's (v0.26.0), which the server needs to send email; account passwords are never written here."""
     os.makedirs(INSTANCE, exist_ok=True)
     if os.path.exists(CONFIG_FILE):
         shutil.copyfile(CONFIG_FILE, CONFIG_FILE + '.bak')
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         f.write('# Settings for this shop\'s copy of Inventory & POS, written by setup_shop.py (v0.24.0).\n'
-                '# Run "python setup_shop.py" again to change them. Never put passwords in this file.\n\n'
+                '# Run "python setup_shop.py" again to change them. This file stays on this computer (instance/\n'
+                '# never goes to GitHub). The only password in it is the mail account\'s, never a user\'s.\n\n'
                 '[server]\n'
                 f'# "127.0.0.1" = this computer only; "0.0.0.0" = also phones and computers on the shop\'s network\n'
                 f'host = {toml_text(host)}\n'
@@ -70,6 +93,16 @@ def write_config(host, port):
                 '[database]\n'
                 '# The local package keeps everything in one file: instance/inventory.db\n'
                 f'url = {toml_text("sqlite:///inventory.db")}\n')
+        if mail:
+            # v0.26.0 (DEC-028): how the shop sends email; Settings > Email in the app sends a test message
+            f.write('\n[mail]\n'
+                    '# "starttls" (usually port 587) or "ssl" (usually port 465); both are encrypted\n'
+                    f'host = {toml_text(mail["host"])}\n'
+                    f'port = {mail["port"]}\n'
+                    f'security = {toml_text(mail["security"])}\n'
+                    f'from_address = {toml_text(mail["from_address"])}\n'
+                    f'username = {toml_text(mail["username"])}\n'
+                    f'password = {toml_text(mail["password"])}\n')
 
 
 # ---------- Asking (interactive) or reading an answers file ----------
@@ -100,8 +133,25 @@ def ask_answers():
             break
         except Refused as reason:
             print(f'  {reason}')
+    # v0.26.0: email sending, optional; skipping keeps any email settings from an earlier run
+    print('\nEmail sending (optional). Invitations and sign-in codes will be sent by email; you can set it up later.')
+    mail = None
+    if ask('Set up email sending now? (y/n)', lambda a: a.lower().startswith('y'), 'n'):
+        print('  For Gmail: server smtp.gmail.com, security starttls, port 587, and an App Password.')
+        while True:
+            values = {'host': input('  Mail server: ').strip(),
+                      'security': input('  Security, starttls or ssl [starttls]: ').strip() or 'starttls'}
+            usual_port = SECURITY_PORTS.get(values['security'].lower(), 587)
+            values['port'] = input(f'  Port [{usual_port}]: ').strip() or usual_port
+            values['from_address'] = input('  Send from (email address): ').strip()
+            values['username'] = input(f'  Mail account username [{values["from_address"]}]: ').strip() or values['from_address']
+            values['password'] = getpass.getpass('  Mail account password (hidden): ')
+            mail, problem = clean_mail_settings(values)
+            if not problem:
+                break
+            print(f'  {problem}')
     return {'network': {'other_devices': other, 'port': port}, 'shop': shop,
-            'admin': {'username': username, 'password': password}}
+            'admin': {'username': username, 'password': password}, 'mail': mail}
 
 
 def read_answers(path):
@@ -121,9 +171,15 @@ def set_up(answers):
     shop_values, problem = validate_shop_form(shop)
     if problem:
         raise Refused(problem)
+    if answers.get('mail'):   # v0.26.0: new email settings, checked like everything else
+        mail, problem = clean_mail_settings(answers['mail'])
+        if problem:
+            raise Refused(problem)
+    else:
+        mail = existing_mail_settings()   # none given: keep the ones from an earlier run, if any
 
     # 2. Settings first: the app reads them when it starts
-    write_config(host, port)
+    write_config(host, port, mail)
     from app import app, upgrade_database
     from models import db, User, ShopProfile
     from werkzeug.security import generate_password_hash
@@ -144,6 +200,8 @@ def set_up(answers):
     print(f'\nDone. The system will listen on port {port} ({where}).')
     print('Start it by double-clicking start_shop.bat (or: venv\\Scripts\\python.exe serve.py),')
     print(f'then open http://127.0.0.1:{port} and log in as "{username}".')
+    if mail:
+        print('Email: open Email in the admin menu and send a test message to check it works.')
 
 
 def main():
@@ -168,7 +226,10 @@ def main():
 if __name__ == '__main__':
     sys.exit(main())
 
-# Example answers.json (for installers and tests; delete it afterwards, because it holds a password):
+# Example answers.json (for installers and tests; delete it afterwards, because it holds passwords).
+# "mail" is optional (v0.26.0); leave it out to set up email later or to keep the settings already there:
 # {"network": {"other_devices": true, "port": 5000},
 #  "shop": {"name": "Sample Café", "address": "", "tin": "", "footer": "Thank you!"},
-#  "admin": {"username": "maria", "password": "choose-a-long-one"}}
+#  "admin": {"username": "maria", "password": "choose-a-long-one"},
+#  "mail": {"host": "smtp.gmail.com", "port": 587, "security": "starttls", "from_address": "cafe@gmail.com",
+#           "username": "cafe@gmail.com", "password": "the app password"}}

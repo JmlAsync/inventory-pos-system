@@ -3,9 +3,10 @@ through store/shop.py. The receipt shows the shop's name, address, TIN and a foo
 and ALWAYS "This is not an official receipt." (SR6): the system is not a BIR-registered POS, so its receipts
 must never look like official sales invoices. That line is in the template, not a setting."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required
-from common import admin_required
+from flask_login import login_required, current_user
+from common import admin_required, shop_now
 from store.shop import shop_profile, save_shop_profile
+from mail import mail_settings, send_mail, check_email_address
 
 bp = Blueprint('shop', __name__)
 
@@ -41,3 +42,33 @@ def shop_settings():
         flash('Shop details saved. They now appear on every receipt.', 'success')
         return redirect(url_for('shop.shop_settings'))
     return render_template('shop_settings.html', shop=shop_profile())
+
+
+# ---------------- Email settings and a test message (v0.26.0, F23, DEC-028) ----------------
+# The settings themselves are written by setup_shop.py on the shop's computer (the password never travels
+# through a web page). This page shows them, without the password, and sends a test message, so the owner
+# knows email works before invitations and sign-in codes rely on it.
+
+@bp.route('/settings/email', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def email_settings():
+    settings, problem = mail_settings()
+    if request.method == 'POST':
+        to = request.form.get('to', '')
+        if check_email_address(to) is None:
+            flash('Type the email address to send the test to, like name@example.com.', 'danger')
+            return redirect(url_for('shop.email_settings'))
+        shop = shop_profile()
+        error = send_mail(to, f'Test message from {shop.name}',
+                          f'This is a test message from {shop.name} (Inventory & POS).\n\n'
+                          f'If you can read this, the shop\'s email sending works.\n\n'
+                          f'Sent by {current_user.username} on {shop_now():%d %b %Y, %I:%M %p}.\n',
+                          sender_name=shop.name)
+        if error:
+            flash(error, 'danger')
+        else:
+            flash(f'Test message sent to {to.strip()}. If it hasn\'t arrived in a few minutes, look in the spam folder.',
+                  'success')
+        return redirect(url_for('shop.email_settings'))
+    return render_template('email_settings.html', settings=settings, problem=problem)

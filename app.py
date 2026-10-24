@@ -41,6 +41,11 @@ CONFIG = load_config()
 # DATABASE_URL (an environment variable, as hosting services use) wins over the file; the default is the local file
 app.config['SQLALCHEMY_DATABASE_URI'] = (os.environ.get('DATABASE_URL')
                                          or CONFIG.get('database', {}).get('url', 'sqlite:///inventory.db'))
+# Email sending (v0.26.0, DEC-028): the [mail] settings, used by mail.py. The MAIL_PASSWORD environment variable
+# wins over the file, like DATABASE_URL. Without a [mail] part, email simply isn't set up yet.
+app.config['MAIL'] = dict(CONFIG.get('mail', {}))
+if os.environ.get('MAIL_PASSWORD'):
+    app.config['MAIL']['password'] = os.environ['MAIL_PASSWORD']
 
 
 def load_secret_key():
@@ -225,9 +230,9 @@ def server_error(e):
 
 
 # ---------------- Names other files and the tests import from app (unchanged since before v0.25.0) ----------------
-from blueprints.accounts import (failed_logins, MAX_LOGIN_FAILURES, LOCKOUT_MINUTES, MAX_USERNAME_LENGTH,
+from blueprints.accounts import (MAX_LOGIN_FAILURES, LOCKOUT_MINUTES, LOCKOUT_WINDOW, MAX_USERNAME_LENGTH,
                                  DUMMY_PASSWORD_HASH, MIN_PASSWORD_LENGTH, IDLE_TIMEOUT, start_login_session,
-                                 load_user, avatar_url)
+                                 load_user, avatar_url, attempt_key)   # v0.26.0: failed_logins is now a table
 from blueprints.catalog import validate_product_form, product_image_url, product_icon, OPTION_KINDS
 from blueprints.sales import (get_basket, save_basket, make_line_key, read_line, basket_lines, quick_cash,
                               menu_tile, usage_rows, STOCK_BAR_FULL)

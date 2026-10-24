@@ -1,7 +1,8 @@
 """Logins, passwords and profile pictures (v0.12.0, v0.13.5, v0.20.3). Moved from app.py in v0.25.0 (DEC-027);
-the steps are unchanged. Each login is a row in login_session; the cookie only carries its random token."""
+the steps are unchanged. Each login is a row in login_session; the cookie only carries its random token.
+Since v0.26.0 the tries with a limit (wrong passwords) are rows in login_attempt (DEC-028)."""
 import secrets
-from models import db, LoginSession, utc_now
+from models import db, LoginSession, LoginAttempt, utc_now
 
 
 def start_login(user, idle_timeout):
@@ -47,4 +48,31 @@ def change_password(user, new_hash, current_token, idle_timeout):
 def set_avatar(user, filename):
     """The user's picture file name, or None for the initials circle."""
     user.avatar = filename
+    db.session.commit()
+
+
+# ---------------- Tries with a limit (v0.26.0, DEC-028, audit R2 and A7) ----------------
+# Used for wrong passwords on the login page and on Change password. Rows live in the database, so a restart
+# doesn't forget them and every server process sees the same count.
+
+def record_try(key, window, limit):
+    """Record one try under this key FIRST, then count the tries in the last `window`. Returns True if this try
+    is within the limit. If it is over the limit, its row is removed again (so a refused try doesn't make the
+    wait longer) and False is returned. Recording before counting means two tries at the same moment can't
+    both see "4" and both get through: the one that counts last sees both rows."""
+    now = utc_now()
+    LoginAttempt.query.filter(LoginAttempt.created_at <= now - window).delete()   # tidy up: old tries no longer count
+    row = LoginAttempt(key=key, created_at=now)
+    db.session.add(row)
+    db.session.commit()
+    if LoginAttempt.query.filter(LoginAttempt.key == key, LoginAttempt.created_at > now - window).count() > limit:
+        db.session.delete(row)
+        db.session.commit()
+        return False
+    return True
+
+
+def forget_tries(key):
+    """A correct password: every try under this key is forgotten, so the count starts again (as since v0.13.3)."""
+    LoginAttempt.query.filter_by(key=key).delete()
     db.session.commit()

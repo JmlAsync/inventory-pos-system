@@ -3,7 +3,7 @@ import sys, os, re, subprocess
 from datetime import timedelta
 from helpers import check, finish, text, fixture
 from app import app, upgrade_database
-from models import db, User, Product
+from models import db, User, Product, LoginAttempt
 from werkzeug.security import generate_password_hash as g
 from flask.sessions import SecureCookieSessionInterface
 with app.app_context():
@@ -17,6 +17,17 @@ def token(c, path='/login'):
     m = re.search(r'name="csrf_token" value="([0-9a-f]+)"', h); return m.group(1) if m else ''
 def login(c, u, p):
     return c.post('/login', data={'username': u, 'password': p, 'csrf_token': token(c)})
+# v0.26.0 (DEC-028): the wrong passwords are rows in login_attempt, no longer a list in memory (failed_logins)
+def clear_tries():
+    with app.app_context():
+        LoginAttempt.query.delete(); db.session.commit()
+def age_tries(minutes):
+    with app.app_context():
+        for row in LoginAttempt.query: row.created_at -= timedelta(minutes=minutes)
+        db.session.commit()
+def tries():
+    with app.app_context():
+        return [row.key for row in LoginAttempt.query]
 
 # ---- v0.13.1 secret key
 key = app.config['SECRET_KEY']
@@ -59,16 +70,15 @@ for i in range(5): login(c, 'cashier', f'wrong{i}')
 r = login(c, 'cashier', 'cashier123')
 check('after 5 wrong passwords even the right one waits (429)', r.status_code == 429 and 'Too many' in r.get_data(as_text=True))
 check('other accounts are not blocked', login(app.test_client(), 'admin', 'admin123').status_code == 302)
-import app as A
-A.failed_logins.clear()
+clear_tries()
 c = app.test_client(); [login(c, 'cashier', 'bad') for _ in range(4)]
 check('4 wrong then right still logs in', login(c, 'cashier', 'cashier123').status_code == 302)
 [login(c, 'cashier', 'bad') for _ in range(4)]
 check('success resets the counter (4 + 1 more wrong: not locked)', login(c, 'cashier', 'bad').status_code == 200)
-A.failed_logins.clear(); c = app.test_client(); [login(c, 'cashier', 'bad') for _ in range(5)]
-for k in A.failed_logins: A.failed_logins[k] = [t - timedelta(minutes=6) for t in A.failed_logins[k]]
+clear_tries(); c = app.test_client(); [login(c, 'cashier', 'bad') for _ in range(5)]
+age_tries(6)
 check('lock ends after 5 minutes', login(c, 'cashier', 'cashier123').status_code == 302)
-A.failed_logins.clear()
+clear_tries()
 
 # ---- v0.13.4
 r = app.test_client().get('/login')
@@ -93,21 +103,21 @@ check('visitor cannot change a password', app.test_client().post('/profile/passw
 
 # ---- v0.19.3 (security audit 2026-10-11)
 # DEF-50: the login limit kept every wrong username at full length and never forgot untried ones
-A.failed_logins.clear()
+# (since v0.26.0 each try is a row whose key is a 64-character hash, so its size no longer depends on the input)
+clear_tries()
 v = app.test_client()
 for i in range(20):
     login(v, f'{i}' + 'x' * 400_000, 'wrong')
-check('DEF-50: a 400 KB username is remembered as at most 50 characters',
-      len(A.failed_logins) == 20 and max(len(k[0]) for k in A.failed_logins) <= 50)
-for k in A.failed_logins:
-    A.failed_logins[k] = [t - timedelta(minutes=6) for t in A.failed_logins[k]]
+check('DEF-50: a 400 KB username is counted under a key of fixed size (64 characters)',
+      len(tries()) == 20 and all(len(k) == 64 for k in tries()))
+age_tries(6)
 login(app.test_client(), 'someone-else', 'wrong')
-check('DEF-50: wrong usernames older than 5 minutes are forgotten for everyone', len(A.failed_logins) == 1)
-A.failed_logins.clear()
+check('DEF-50: wrong usernames older than 5 minutes are forgotten for everyone', len(tries()) == 1)
+clear_tries()
 c = app.test_client()
 for i in range(5): login(c, 'cashier' + 'x' * 60, f'wrong{i}')
 check('the limit still works for long usernames (6th try waits)', login(c, 'cashier' + 'x' * 60, 'wrong').status_code == 429)
-A.failed_logins.clear()
+clear_tries()
 # DEF-49: Werkzeug 3.1.8 has CVE-2026-102598 (Windows device names like NUL: hang static-file requests)
 pins = dict(line.split('==') for line in open('requirements/local.txt', encoding='utf-8').read().split() if '==' in line)   # UTF-8 since v0.21.6; requirements/ since v0.24.0
 check('DEF-49: requirements.txt pins Werkzeug 3.1.9 or newer', tuple(int(n) for n in pins['Werkzeug'].split('.')) >= (3, 1, 9))

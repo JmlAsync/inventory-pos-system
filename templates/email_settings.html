@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Email{% endblock %}
+{% block content %}
+{# Admin page: how the shop sends email, and a test message (v0.26.0, F23). The settings are written by
+   setup_shop.py on the shop's computer; the password is never shown or typed here. #}
+<h1>Email</h1>
+<p class="page-subtitle">The shop sends email for invitations and sign-in codes. Send a test message to check it works.</p>
+
+<div class="card mb-3" style="max-width: 40rem;"><div class="card-body">
+    <h2 class="h5 mb-3">Settings</h2>
+    {% if settings %}
+    <dl class="row mb-2">
+        <dt class="col-sm-4">Mail server</dt>
+        <dd class="col-sm-8">{{ settings.host }}, port {{ settings.port }}</dd>
+        <dt class="col-sm-4">Security</dt>
+        <dd class="col-sm-8">{{ 'SSL' if settings.security == 'ssl' else 'STARTTLS' }} (encrypted)</dd>
+        <dt class="col-sm-4">Sent from</dt>
+        <dd class="col-sm-8">{{ settings.from_address }}</dd>
+        <dt class="col-sm-4">Mail account</dt>
+        <dd class="col-sm-8">{{ settings.username or 'none (the server needs no login)' }}</dd>
+        <dt class="col-sm-4">Password</dt>
+        <dd class="col-sm-8">{{ 'Saved (never shown)' if settings.password else 'none' }}</dd>
+    </dl>
+    <p class="small text-body-secondary mb-0">To change these, run <code>python setup_shop.py</code> on the shop's
+        computer and answer the email questions.
+    {% else %}
+    <div class="alert alert-warning mb-2">{{ problem }}</div>
+    <p class="small text-body-secondary mb-0">
+    {% endif %}
+        For Gmail, use an App Password, not the account's normal password.</p>
+</div></div>
+
+<div class="card" style="max-width: 40rem;"><div class="card-body">
+    <h2 class="h5 mb-3">Send a test message</h2>
+    <form method="POST" action="{{ url_for('shop.email_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label class="form-label" for="to">Send it to</label>
+            <input type="email" class="form-control" id="to" name="to" maxlength="254" required
+                   placeholder="name@example.com" autocomplete="email">
+        </div>
+        <button type="submit" class="btn btn-primary" {{ 'disabled' if not settings }}>
+            <i class="bi bi-send me-1" aria-hidden="true"></i>Send test message</button>
+        <p class="small text-body-secondary mt-2 mb-0">Needs the internet. Selling works without it.</p>
+    </form>
+</div></div>
+{% endblock %}

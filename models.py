@@ -77,6 +77,16 @@ class LoginSession(db.Model):
     last_seen = db.Column(db.DateTime, default=utc_now, nullable=False)
 
 
+class LoginAttempt(db.Model):
+    """One try at something with a limit, such as a password (v0.26.0, DEC-028, audit R2 and A7). Kept in the
+    database, so the 5-tries limit survives a restart and holds for every server process. The key is a keyed hash
+    of what is limited ("login|username|computer" or "password|user id"), never the text someone typed."""
+    __tablename__ = 'login_attempt'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(64), nullable=False, index=True)        # HMAC-SHA256 in hex: always 64 characters
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False, index=True)
+
+
 class ShopProfile(db.Model):
     """The shop's own details for receipts (v0.22.0, F21, DEC-022). One row only (id 1); the owner
     edits it on Shop details. Kept in the database so it moves with the shop's data."""

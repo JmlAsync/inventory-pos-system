@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Something went wrong{% endblock %}
+{% block content %}
+{# Shown when the server hits an unexpected error (v0.21.3, DEF-61). No details: they stay in the server log. #}
+<div class="text-center py-5">
+    <i class="bi bi-cup-hot fs-1 text-body-secondary d-block mb-2" aria-hidden="true"></i>
+    <h1>Something went wrong</h1>
+    <p class="lead">Nothing was saved. Please go back and try again.</p>
+    <p class="text-body-secondary">If it keeps happening, tell the shop owner what you were doing when it happened.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Back to Home</a>
+</div>
+{% endblock %}

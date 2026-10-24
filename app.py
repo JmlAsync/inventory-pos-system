@@ -1566,6 +1566,19 @@ def too_large(e):
 def forbidden(e):
     return render_template('403.html'), 403
 
+
+@app.errorhandler(500)
+def server_error(e):
+    """A crash shows a friendly page instead of the plain "Internal Server Error" (v0.21.3, DEF-61, audit A11).
+    The details go to the server log only; the browser never sees them."""
+    db.session.rollback()   # undo anything half-done, so the next request starts clean
+    app.logger.error('Unexpected error on %s', request.path, exc_info=getattr(e, 'original_exception', e))
+    try:
+        return render_template('500.html'), 500
+    except Exception:
+        # If even the friendly page fails (for example the database is down), send a plain one
+        return ('<h1>Something went wrong</h1><p>Nothing was saved. Please go back and try again.</p>'), 500
+
 @app.route('/logout', methods=['POST'])   # a button, not a link, so other sites can't log you out (v0.13.2)
 @login_required
 def logout():

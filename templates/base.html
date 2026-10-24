@@ -13,6 +13,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Inventory & POS System{% endblock %}</title>
+    {# Browser tab icon, stored in the app like everything else (v0.21.7, DEF-65) #}
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <script>
         // Apply the saved theme BEFORE the page is drawn, so it never flashes white (v0.13.0).
         // localStorage is a small storage box in the browser; "pos-theme" is our label in it.

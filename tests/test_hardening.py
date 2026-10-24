@@ -52,4 +52,17 @@ r = app.test_client().post('/login', data={'username': 'admin', 'password': 'adm
 check('TC-26.7 the right password still logs in', r.status_code == 302)
 app_module.check_password_hash = real_check
 
+# ---- v0.21.7 (DEF-65): a browser tab icon, so the browser's request no longer ends in "404 Not Found"
+import re
+pages = {'login page': text(app.test_client().get('/login')), 'home (visitor)': text(app.test_client().get('/')),
+         'products (logged in)': text(admin.get('/products'))}
+for name, html in pages.items():
+    link = re.search(r'<link[^>]*rel="icon"[^>]*>', html)
+    check(f'TC-26.12 {name}: the page names a tab icon (DEF-65)', link is not None)
+    href = re.search(r'href="([^"]+)"', link.group(0)).group(1) if link else ''
+    check(f'TC-26.12 {name}: the icon is a file inside this app (works offline, rule D2)', href.startswith('/static/'))
+icon = app.test_client().get('/static/favicon.svg')
+check('TC-26.13 the icon file exists and is an SVG picture', icon.status_code == 200 and b'<svg' in icon.data)
+check('TC-26.13 the icon has no script in it (an SVG can carry one)', b'<script' not in icon.data.lower())
+
 finish('HARDENING')

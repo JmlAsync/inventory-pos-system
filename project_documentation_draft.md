@@ -223,6 +223,7 @@ The tag message summarizes what the increment added.
 | v0.21.2 | 2026-10-23 | — | Layout audit of every page (14 pages, light and dark theme, phone 375 px and desktop, open and folded sidebar). Two defects fixed: the theme icon of the folded sidebar sat to the right of the avatar (DEF-59), and the "New ingredient" panel ran off the right edge of a phone (DEF-60). No page had sideways page scrolling *(branch `fix/rail-alignment-audit`)* |
 | — | 2026-10-23 | — | Final report: `final_report.md` (+ `.docx`, `.pdf`) written from this draft in Section B order, with a new tour of v0.21.2 (11 screenshots on the generic demo menu), cleaned-up wording and the last two open hand tests closed (TC-4.4 in Edge, TC-19.14 on GitHub); plus `docs/system_overview.canvas`, a one-page map (actors, use cases, MVC layers, data rules, tests, readiness) *(branch `docs/final-report`, no tag)* |
 | v0.21.3 | 2026-10-24 | — | A crash shows a friendly "Something went wrong" page in the normal layout instead of the plain *Internal Server Error*; the half-done database work is undone and the details go only to the server log (DEF-61, audit A11, DEC-019) *(branch `fix/friendly-error-page`, merged after the defense, DEC-018)* |
+| v0.21.4 | 2026-10-24 | — | An unknown username now takes as long to refuse as a wrong password: a dummy password hash is checked, so the time taken no longer tells anyone which usernames exist (DEF-62, audit A8, DEC-020) *(branch `fix/login-timing`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1000,6 +1001,9 @@ Small fixes from the security audit and the known limitations, one per version, 
 | TC-26.2 | Same | Read the page | Says nothing was saved and to try again (C6) | **v0.21.2:** no advice · **v0.21.3:** as expected | ❌→✅ DEF-61 |
 | TC-26.3 | The crash carries an internal message | Read the page | No error details, code or traceback | As expected (also on v0.21.2) | ✅ |
 | TC-26.4 | After a crash; also as a visitor | Open Products; open the crashing page logged out | Products works; the visitor also gets the friendly page | **v0.21.2:** plain page for the visitor · **v0.21.3:** as expected | ❌→✅ DEF-61 |
+| TC-26.5 | No user called `nobody-here` | Log in as `nobody-here` | A password hash is still checked, made the same slow way (scrypt) as real ones | **v0.21.2:** no hash checked (about 1 ms instead of about 100 ms) · **v0.21.4:** one scrypt check | ❌→✅ DEF-62 |
+| TC-26.6 | Same; and `admin` with a wrong password | Read the message; count hash checks | Same "Invalid username or password"; a real user still costs exactly one check | As expected | ✅ |
+| TC-26.7 | — | `admin` / right password | Logged in | As expected | ✅ |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
@@ -1077,8 +1081,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
 | `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61) | 6 |
-| **23 files** | | **476 checks + 58 rule checks** |
+| `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62) | 11 |
+| **23 files** | | **481 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1109,8 +1113,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
-| Phase 1 patches (v0.21.3 onward) | 4 | 1 → **4** | 3 → **0** | 0 |
-| **Total** | **269** | **182 → 269** | **70 → 0** | **4 → 0** |
+| Phase 1 patches (v0.21.3 onward) | 7 | 3 → **7** | 4 → **0** | 0 |
+| **Total** | **272** | **184 → 272** | **71 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1185,6 +1189,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-59 | Low | Folded sidebar: the light/dark icon sat on the right edge, not under the avatar (the row's `margin-left: auto` still applied after the row became a column in v0.21.0) | Yesha's screenshot (2026-10-23); measured in Chromium | `margin-left: 0` for the folded sidebar; TC-25.8. Lesson: a rule written for one layout (a row) must be checked when the layout changes (a column) | ✅ Fixed v0.21.2 |
 | DEF-60 | Medium | Phone: the "New ingredient" panel was 100 % of the screen wide but started at the button, so its right part was cut off (made worse by v0.21.0's bigger padding) | Layout audit of all pages at 375 px (2026-10-23) | On phones the panel floats under the top bar with 1 rem margins and scrolls if tall; TC-25.9 | ✅ Fixed v0.21.2 |
 | DEF-61 | Low | A crash showed the plain *Internal Server Error* page: no layout, no advice, and the database session was left half-done until the next request (audit A11) | Security audit 2026-10-11 (A11), seen with A1 | `server_error()` undoes the unfinished database work, writes the details to the server log and shows `500.html`; if even that fails, a plain friendly message (DEC-019); TC-26.1–26.4 | ✅ Fixed v0.21.3 |
+| DEF-62 | Low (security) | Usernames could be found by timing: a wrong password for a real user took about 100 ms (the password hash is checked), an unknown username about 1 ms (audit A8) | Security audit 2026-10-11 (A8, measured) | `login()` checks `DUMMY_PASSWORD_HASH` (a random password hashed with scrypt at start-up) when the username doesn't exist (DEC-020); TC-26.5–26.7 | ✅ Fixed v0.21.4 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now

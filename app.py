@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_migrate import Migrate, upgrade as run_migrations
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile
 from functools import wraps
@@ -40,6 +41,10 @@ app.config['CSRF_ENABLED'] = True
 # Largest upload allowed (v0.12.0): bigger requests are refused with error 413
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024   # 2 MB
 db.init_app(app)
+# Database changes are numbered scripts in migrations/, run by Alembic through Flask-Migrate (v0.23.0, DEC-023).
+# render_as_batch: SQLite can't change most columns in place, so Alembic copies the table instead.
+MIGRATIONS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
+migrate = Migrate(app, db, directory=MIGRATIONS_FOLDER, render_as_batch=True)
 
 # Upper limits for numbers typed into forms (v0.8.3). Generous for a mini-store,
 # café or market, but they stop "nan", "inf" and absurdly large values.
@@ -129,53 +134,55 @@ def peso(amount):
     return f'₱{amount:,.2f}'
 
 
-# ---------------- Database upgrades (v0.12.0) ----------------
-# db.create_all() creates missing TABLES but never adds COLUMNS to existing ones,
-# so columns added by later versions are listed here and added once, automatically.
-NEW_COLUMNS = [
-    ('sale', 'cash_received', 'FLOAT NOT NULL DEFAULT 0'),   # v0.8.0
-    ('sale', 'change_due', 'FLOAT NOT NULL DEFAULT 0'),      # v0.8.0
-    ('user', 'avatar', 'VARCHAR(100)'),                      # v0.12.0
-    ('product', 'image', 'VARCHAR(100)'),                    # v0.14.0
-    ('sale', 'payment_method', "VARCHAR(10) NOT NULL DEFAULT 'cash'"),   # v0.15.0
-    ('sale', 'payment_reference', 'VARCHAR(20)'),            # v0.15.0
-    ('product', 'has_options', 'BOOLEAN NOT NULL DEFAULT 0'),  # v0.16.0
-    ('sale_item', 'options', 'VARCHAR(200)'),                # v0.16.0
-    ('menu_option', 'scale', 'FLOAT NOT NULL DEFAULT 1'),    # v0.17.0
-    ('ingredient', 'category', "VARCHAR(30) NOT NULL DEFAULT 'Other'"),   # v0.18.0
-    ('ingredient', 'full_at', 'FLOAT NOT NULL DEFAULT 0'),   # v0.18.0
-    ('sale', 'ticket', 'VARCHAR(32)'),                       # v0.20.4 (DEF-48)
-]
-# ALTER TABLE can't add a UNIQUE rule, so it is added as a separate "unique index" (v0.15.0).
-# (Empty values don't count as duplicates, so cash sales without a reference are fine.)
-NEW_INDEXES = [
-    'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_payment_reference ON sale (payment_reference)',
-    'CREATE UNIQUE INDEX IF NOT EXISTS ix_sale_ticket ON sale (ticket)',   # v0.20.4: one receipt per basket
-    # v0.17.1: remove recipe lines left behind by products deleted in v0.17.0
-    'DELETE FROM recipe_item WHERE product_id IS NOT NULL AND product_id NOT IN (SELECT id FROM product)',
-]
+# ---------------- Database upgrades (v0.12.0; migrations since v0.23.0) ----------------
+# Until v0.22.0 this was a list of columns (NEW_COLUMNS) added with ALTER TABLE. Since v0.23.0 every
+# change is a numbered script in migrations/versions/ (DEC-023, rule I5). Migration 0001 took over the
+# old list, so a database made by any earlier version is brought up to date without losing data.
+
+
+def pending_migrations():
+    """True if this database hasn't had the newest migration yet (v0.23.0)."""
+    from alembic.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+    with db.engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+    return current != ScriptDirectory(MIGRATIONS_FOLDER).get_current_head()
+
+
+def backup_database(before):
+    """Copy the SQLite database to instance/inventory_backup_<date-time>_before_<migration>.db (v0.23.0).
+    SQLite's own backup feature makes a consistent copy even if the file is in use."""
+    import sqlite3
+    path = db.engine.url.database
+    if db.engine.url.get_backend_name() != 'sqlite' or not path or not os.path.exists(path):
+        return None   # a server database (PostgreSQL) is backed up by its provider
+    stamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    target = os.path.join(os.path.dirname(path), f'inventory_backup_{stamp}_before_{before}.db')
+    source, copy = sqlite3.connect(path), sqlite3.connect(target)
+    with copy:
+        source.backup(copy)
+    source.close(); copy.close()
+    return target
 
 
 def upgrade_database():
-    """Create missing tables, then add any missing columns from NEW_COLUMNS."""
-    db.create_all()
-    inspector = db.inspect(db.engine)
+    """Bring the database up to the newest migration (v0.23.0, DEC-023). Called by "python app.py",
+    seed_demo_data.py and the tests. A database that has data gets a backup first."""
+    from alembic.script import ScriptDirectory
+    tables = set(db.inspect(db.engine).get_table_names())
+    if 'alembic_version' in tables and 'user' not in tables:
+        # The tables were dropped (tests do this with db.drop_all()) but the migration record stayed:
+        # forget the record, so the migrations build everything again from the start
+        with db.engine.begin() as connection:
+            connection.execute(db.text('DROP TABLE alembic_version'))
+        tables.discard('alembic_version')
+    if tables - {'alembic_version'} and pending_migrations():
+        backup_database(ScriptDirectory(MIGRATIONS_FOLDER).get_current_head())   # nothing is changed without a copy
+    run_migrations(directory=MIGRATIONS_FOLDER)
+    # Housekeeping on every start, as before v0.23.0: recipe lines of products that no longer exist (v0.17.1, DEF-40)
     with db.engine.begin() as connection:
-        for table, column, column_type in NEW_COLUMNS:
-            existing = [c['name'] for c in inspector.get_columns(table)]
-            if column not in existing:
-                connection.execute(db.text(f'ALTER TABLE "{table}" ADD COLUMN {column} {column_type}'))
-                if (table, column) == ('ingredient', 'category'):
-                    # First start of v0.18.0: put existing ingredients into a likely group
-                    rows = connection.execute(db.text('SELECT id, name FROM ingredient')).fetchall()
-                    for ingredient_id, name in rows:
-                        connection.execute(db.text('UPDATE ingredient SET category = :c WHERE id = :i'),
-                                           {'c': guess_ingredient_category(name), 'i': ingredient_id})
-                if (table, column) == ('ingredient', 'full_at'):
-                    # ... and treat what is on hand now as "full", so the stock bars start sensible
-                    connection.execute(db.text('UPDATE ingredient SET full_at = quantity WHERE quantity > low_at'))
-        for statement in NEW_INDEXES:
-            connection.execute(db.text(statement))
+        connection.execute(db.text('DELETE FROM recipe_item WHERE product_id IS NOT NULL '
+                                   'AND product_id NOT IN (SELECT id FROM product)'))
 
 
 # ---------------- CSRF protection (v0.13.2) ----------------
@@ -1647,7 +1654,7 @@ def logout():
 
 if __name__ == '__main__':
     with app.app_context():
-        upgrade_database()   # creates tables and adds any new columns (v0.12.0)
+        upgrade_database()   # backs up, then runs any missing migrations (v0.12.0; v0.23.0)
     # Debug mode shows an in-browser console that can run Python code when something crashes,
     # so it is OFF unless you ask for it (v0.13.4). While coding:  $env:FLASK_DEBUG = "1"
     app.run(debug=os.environ.get('FLASK_DEBUG') == '1')

@@ -28,7 +28,8 @@ USER_ROUTES = {                                        # @login_required (admin 
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',
-                    'itsdangerous', 'jinja2', 'markupsafe', 'sqlalchemy', 'typing_extensions', 'werkzeug'}
+                    'itsdangerous', 'jinja2', 'markupsafe', 'sqlalchemy', 'typing_extensions', 'werkzeug',
+                    'alembic', 'flask-migrate', 'mako'}   # v0.23.0: migrations (DEC-011, DEC-023); Mako comes with alembic
 # ---- Never committed to Git (AGENTS.md rule P1).
 PRIVATE = [r'^instance/', r'\.db$', r'^static/avatars/', r'^static/products/', r'^local_demo/', r'secret_key',
            r'(^|/)\.env$', r'^venv/', r'^\.venv/',

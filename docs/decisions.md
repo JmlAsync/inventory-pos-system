@@ -46,6 +46,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-029](#dec-029) | The owner, the Users page, invitations, emailed codes, forgotten passwords and the audit log | Best choice | Decided (two points by the owner) |
 | [DEC-030](#dec-030) | A code at every login, trusted devices, backup codes, the authenticator app and demo mode | Best choice | Decided (two points by the owner) |
 | [DEC-031](#dec-031) | Sign in with Google, linking it from Profile, and joining with it | Best choice | Decided (two points by the owner) |
+| [DEC-032](#dec-032) | Undo on the basket, a safe stock count, and undoing a count | Best choice | Decided |
 
 ---
 
@@ -1100,3 +1101,47 @@ Google Cloud project and OAuth client (plan §2.3); until it is verified by Goog
 users, enough for a café. The real exchange with Google is tried by hand with the owner's own client (TC-39.x).
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-25 (points 1 and 2 by the owner).
+
+---
+
+## DEC-032
+
+**Undo on the basket, a safe stock count, and undoing a count** *(v0.30.0, F27; plan §4.2, §4.8; rules I1, I7;
+report §10.4 known limitations)*
+
+**How it works.**
+
+1. **Basket undo.** Before every change to the order (add, − / +, change the serving or add-ons, remove a line or a
+   product) the order as it was is kept in the browser's session, up to the **last 5 changes**. **Undo** on New Sale
+   puts back the newest one. Nothing in the database changes, because the basket only lives in the session. The
+   undo list is emptied when the sale is completed (a sold order can never come back) and at log-in and log-out.
+2. **A safe count (plan §4.8).** The count form now sends the amount the admin **saw** on the page. In one
+   conditional step the count is saved only if the amount on hand is still that amount; the difference against it
+   goes in the history (I7). If a sale or a delivery changed it in between, nothing is saved and the page says
+   "it changed since you opened the page (now X): count again". A count without the amount seen (a page opened
+   before this version) is refused the same way.
+3. **Undo a count (plan §4.2).** For **5 minutes** after a count, Ingredients and the ingredient's page show
+   **Undo count**. It adds the opposite history line (reason `count-undo`) and puts the amount back, in one
+   conditional step. It is refused if anything else happened to that ingredient since (a sale, a delivery, another
+   count): the shelf has changed, so the admin counts again instead.
+
+**Why.** These were three known limitations in the report (§10.4): a wrong tap could only be fixed with another tap,
+a count could silently overwrite a sale made at the same moment (breaking I1's promise for counts), and a mistyped
+count (750 instead of 75) had no way back except a second count.
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Basket undo kept where | The session, like the basket | The browser's own memory (lost on reload, and the server is the truth); the database (a write for every tap, for something not yet sold) |
+| What is kept | Whole copies of the order, at most 5, and at most about 1,500 characters together | A list of "reverse operations" (more code, more ways to get wrong); unlimited (the session cookie has a 4 KB limit, and a cookie that is too big is dropped, logging the cashier out) |
+| After completing a sale | The undo list is emptied | Keeping it (an undo could bring back an order that was already sold and charged) |
+| A count that raced a sale | Refused, "count again" | Applying the difference to the new amount (it guesses whether the counted shelf was before or after the sale left it); overwriting (today's behaviour, loses the sale) |
+| Comparing the amount seen | Within 0.0005 of the stored amount (the page shows 3 decimals) | Exact equality (ingredient amounts are decimals, so 999.7 on screen can be 999.69999… stored) |
+| Undo window for a count | 5 minutes, and nothing else may have happened since | Any time (a sale since makes the old amount wrong); no undo (a typo needs a second count, and the history keeps a nonsense line either way) |
+| Undoing writes | A new history line `count-undo` | Deleting the count's line (history lines are never edited or deleted, I7) |
+
+**Honest limits.** The basket undo belongs to one browser and goes back 5 steps only. A count undo isn't possible
+after the 5 minutes or once a sale has used that ingredient; then the admin simply counts again.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-25.

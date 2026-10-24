@@ -1,5 +1,6 @@
 """The New Sale screen, the basket, completing a sale and the receipt (v0.8.0, v0.15.0, v0.16.0, v0.20.0, v0.20.4).
 Moved from app.py in v0.25.0 (DEC-027): the same rules; saving the sale is store/sales.py's record_sale()."""
+import json
 import math
 import re
 import secrets
@@ -35,10 +36,33 @@ def save_basket(basket):
         session['sale_ticket'] = secrets.token_hex(16)
 
 
+# ---------------- Undo on the basket (v0.30.0, DEC-032, plan §4.2) ----------------
+# Before each change to the order, the order as it was is kept in the session: the last 5 changes, and at most about
+# 1,500 characters together, because the session cookie has a 4 KB limit (a cookie that is too big is dropped,
+# which would log the cashier out). Nothing in the database changes. Emptied when the sale is completed.
+UNDO_STEPS = 5
+UNDO_MAX_CHARS = 1500
+
+
+def remember_for_undo():
+    """Call just before changing the basket: keep a copy of it as it is now."""
+    steps = session.get('basket_undo', []) + [dict(get_basket())]
+    steps = steps[-UNDO_STEPS:]
+    while len(steps) > 1 and len(json.dumps(steps)) > UNDO_MAX_CHARS:
+        steps.pop(0)   # the oldest goes first
+    session['basket_undo'] = steps
+
+
+def forget_undo():
+    """The order was sold (or found already sold): it must never come back with Undo."""
+    session.pop('basket_undo', None)
+
+
 def show_existing_receipt(sale):
     """This basket was already sold: empty it and open that receipt instead of selling it again."""
     session['basket'] = {}
     session.pop('sale_ticket', None)
+    forget_undo()   # v0.30.0
     flash(f'This sale was already completed (receipt #{sale.id}); it was not charged twice.', 'info')
     return redirect(url_for('sales.receipt', sale_id=sale.id))
 
@@ -291,6 +315,7 @@ def new_sale():
                 return show_sale_page(f'Not enough stock for {product.name}: only {available} more can be added.')
 
         key = make_line_key(product.id, size_id, addon_ids)
+        remember_for_undo()   # v0.30.0
         basket[key] = basket.get(key, 0) + quantity
         save_basket(basket)
         return redirect(url_for('sales.new_sale'))
@@ -311,6 +336,7 @@ def change_line_quantity():
         return redirect(url_for('sales.new_sale'))   # nothing to change (e.g. a tap on an old page)
     quantity = basket[key] + change
     if quantity <= 0:
+        remember_for_undo()   # v0.30.0
         basket.pop(key)
         save_basket(basket)
         return redirect(url_for('sales.new_sale'))
@@ -322,6 +348,7 @@ def change_line_quantity():
         problem = basket_stock_problem(trial)
         if problem:
             return show_sale_page(problem)
+    remember_for_undo()   # v0.30.0
     save_basket(trial)
     return redirect(url_for('sales.new_sale'))
 
@@ -356,6 +383,7 @@ def change_line_options():
     problem = basket_stock_problem(trial)
     if problem:
         return show_sale_page(problem)
+    remember_for_undo()   # v0.30.0
     save_basket(trial)
     return redirect(url_for('sales.new_sale'))
 
@@ -365,7 +393,10 @@ def change_line_options():
 def remove_from_basket(product_id):
     """Take every line of this product out of the basket."""
     basket = get_basket()
-    for key in [k for k in basket if k.split(':')[0] == str(product_id)]:
+    keys = [k for k in basket if k.split(':')[0] == str(product_id)]
+    if keys:
+        remember_for_undo()   # v0.30.0
+    for key in keys:
         basket.pop(key)
     save_basket(basket)
     return redirect(url_for('sales.new_sale'))
@@ -376,8 +407,29 @@ def remove_from_basket(product_id):
 def remove_line():
     """Take one basket line (one product with its size and add-ons) out (v0.16.0)."""
     basket = get_basket()
+    if request.form.get('line', '') in basket:
+        remember_for_undo()   # v0.30.0
     basket.pop(request.form.get('line', ''), None)   # harmless if it isn't there
     save_basket(basket)
+    return redirect(url_for('sales.new_sale'))
+
+
+@bp.route('/sales/undo', methods=['POST'])
+@login_required
+def undo_basket():
+    """Undo (v0.30.0, DEC-032): the order goes back to how it was before the last change (up to 5 changes).
+    The stock is checked again, as when adding: another cashier may have sold the last one meanwhile."""
+    steps = session.get('basket_undo', [])
+    if not steps:
+        flash('There is nothing to undo.', 'info')
+        return redirect(url_for('sales.new_sale'))
+    previous = steps.pop()
+    session['basket_undo'] = steps
+    save_basket(previous)
+    problem = basket_stock_problem(previous) if previous else None
+    if problem:
+        return show_sale_page('Undone, but: ' + problem)
+    flash('Undone: the order is back as it was before the last change.', 'success')
     return redirect(url_for('sales.new_sale'))
 
 
@@ -453,6 +505,7 @@ def complete_sale():
         return show_sale_page(str(reason))
     save_basket({})       # empty the basket for the next customer
     session.pop('sale_ticket', None)   # the next basket gets a new ticket (v0.20.4)
+    forget_undo()         # v0.30.0: a sold order can never come back with Undo
     return redirect(url_for('sales.receipt', sale_id=sale.id))
 
 

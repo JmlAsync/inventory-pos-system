@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_ingredient.html" import restock_form, count_form, edit_form, stock_bar, status_badge %}
+{% from "_ingredient.html" import restock_form, count_form, edit_form, stock_bar, status_badge, undo_count_banner %}
 {% block title %}Ingredients{% endblock %}
 {% block content %}
 {# Ingredient stock (v0.17.0), redesigned in v0.18.0: groups, search, stock bars and one Update button per row #}
@@ -10,6 +10,7 @@
             <strong>Count</strong> sets what is really on the shelf.</p>
     </div>
 </div>
+{{ undo_count_banner(last_count) }}{# v0.30.0 #}
 <ul class="nav nav-pills page-tabs mb-3">
     <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients.ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
     <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients.ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
@@ -170,6 +171,7 @@
             document.getElementById('ingredientOnHand').textContent = d.quantity + ' ' + d.unit;
             document.getElementById('ingredientPage').href = button.href;
             dialog.querySelectorAll('.js-id').forEach(function (i) { i.value = d.id; });
+            dialog.querySelectorAll('.js-seen').forEach(function (i) { i.value = d.quantity.replace(/,/g, ''); });   // v0.30.0
             dialog.querySelectorAll('.js-unit').forEach(function (u) { u.textContent = d.unit; });
             dialog.querySelector('.js-f-name').value = d.name;
             dialog.querySelector('.js-f-category').value = d.category;

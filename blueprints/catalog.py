@@ -3,7 +3,7 @@ Moved from app.py in v0.25.0 (DEC-027): the same rules; database changes now go 
 import math
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy import func
 from models import db, Product, MenuOption, RecipeItem, to_money
 from common import (MAX_PRICE, MAX_QUANTITY, LOW_STOCK_THRESHOLD, PRODUCT_IMAGE_FOLDER, find_by_id, admin_required,
@@ -89,7 +89,7 @@ def add_product():
             # Show the form again with the error message; nothing is saved
             return render_template('add_product.html', error=error or picture_error)
         image = save_picture(picture, PRODUCT_IMAGE_FOLDER, 'product') if picture else None
-        catalog_store.create_product(data, image)
+        catalog_store.create_product(data, image, by=current_user.id)
         return redirect(url_for('catalog.products'))
     return render_template('add_product.html')
 
@@ -112,7 +112,7 @@ def edit_product(product_id):
         if change_image:
             delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)
             image = save_picture(picture, PRODUCT_IMAGE_FOLDER, 'product') if picture else None
-        catalog_store.update_product(product, data, image, change_image)
+        catalog_store.update_product(product, data, image, change_image, by=current_user.id)
         return redirect(url_for('catalog.products'))
     return render_template('edit_product.html', product=product,
                            has_recipe=RecipeItem.query.filter_by(product_id=product.id).first() is not None)
@@ -132,7 +132,7 @@ def delete_product(product_id):
               f'Set its quantity to 0 instead to stop selling it.', 'danger')
         return redirect(url_for('catalog.products'))
     delete_picture_file(PRODUCT_IMAGE_FOLDER, product.image)   # its picture goes too (v0.14.0)
-    catalog_store.delete_product(product)                      # ...and its recipe (v0.17.1)
+    catalog_store.delete_product(product, by=current_user.id)   # ...and its recipe (v0.17.1)
     return redirect(url_for('catalog.products'))
 
 
@@ -174,7 +174,7 @@ def manage_options():
                 typed = request.form.get('scale', type=float)
                 scale = round(typed, 3) if typed and math.isfinite(typed) and 0 < typed <= 10 else 1.0
             active = bool(request.form.get('active')) if option_id else True
-            catalog_store.save_option(option, kind, name, price, scale, active)
+            catalog_store.save_option(option, kind, name, price, scale, active, by=current_user.id)
             flash(f'Saved {OPTION_KINDS[kind]} "{name}".', 'success')
         return redirect(url_for('catalog.manage_options'))
     in_order = (MenuOption.sort_order, MenuOption.id)

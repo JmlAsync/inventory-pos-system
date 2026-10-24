@@ -235,6 +235,7 @@ The tag message summarizes what the increment added.
 | v0.24.0 | 2026-10-24 | — | Setting up and running a shop's own copy (F22): `setup_shop.py` asks once for the network (this computer only, or also phones on the shop's network), the shop's details and the owner's own admin account, writes `instance/config.toml`, brings the database up to date and never creates the demo accounts; `serve.py` / `start_shop.bat` run it with **waitress** instead of Flask's development server (audit R3) and show the address for phones. Packages split into `requirements/local.txt` (rule D1); waitress 3.0.2. Tried end to end: a fresh install, started by `start_shop.bat`, used from the network address in Edge (DEC-026) *(branch `feature/serve-and-setup`, merged after the defense, DEC-018)* |
 | v0.25.0 | 2026-10-24 | — | `app.py` (1,722 lines) split into six **blueprints** (`accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop`), shared rules in `common.py`, and a **`store/`** data layer through which every database change goes (selling, restock and count, products, options, recipes, logins, passwords, pictures, shop details). `app.py` (242 lines) only starts the app. No visible change: every page, message and rule is the same; 26 of 27 test files unchanged (one line in `test_hardening.py`). The contract check now fails if a page writes to the database itself (rule I1, now checked) (DEC-027) *(branch `feature/blueprints-store`, merged after the defense, DEC-018)* |
 | v0.26.0 | 2026-10-24 | — | Email sending and a login limit that holds (F23). `mail.py` sends plain-text email with Python's own `smtplib`, always over an encrypted connection, using the `[mail]` settings that `setup_shop.py` now asks for (optional; running it again keeps them). The admin page **Email** shows them (never the password) and sends a test message. Wrong passwords are counted in a new `login_attempt` table (migration `0004`), recorded before they are counted and stored as keyed hashes, so the limit survives a restart and holds for every server process (DEF-70, audit R2); **Change password** now has the same 5-tries limit (DEF-69, audit A7) (DEC-028) *(branch `feature/email-and-attempts`, merged after the defense, DEC-018)* |
+| v0.27.0 | 2026-10-24 | — | The owner, users and invitations (F24). Roles **owner**, admin and cashier; the database allows one owner, made by `setup_shop.py` with the owner's email (confirmed with a code on Profile; the purchase email replaces it in v0.38.0, owner's decision). **Users** page: invite by email (48-hour one-time link, role fixed by the inviter), change roles (owner), let admins invite cashiers, switch accounts off (never deleted; every login ends) and **Require a new password** (audit A5). **Emailed 6-digit codes** (keyed hashes, 10 minutes, one use, one purpose, 5 tries, one a minute and 5 an hour) confirm signups and emails and power **Forgot your password?** (the same answer for every address). **Audit log**: who changed which product, price, stock, option, ingredient, recipe, shop detail or account, old → new, written in the same commit as the change (audit R9). Migration `0005`; `add_users.py` removed (rule S12); rule S1 lists the three new public pages (owner's decision) (DEC-029) *(branch `feature/users-and-invitations`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -439,6 +440,9 @@ The system is installed on Maria's counter laptop. She runs `setup_shop.py` once
 
 ### Story F23 — Making sure the café's email works *(v0.26.0)*
 Soon the system will email Jun his invitation, and a code when he logs in on a new device, so Maria sets up email first. She runs `setup_shop.py` again and says yes to the email questions: Gmail's server, the café's Gmail address and an App Password, hidden as she types. Her shop details and her account are kept. In the app she opens **Email** in the admin menu, sees the server and the address (the password only shows as "Saved"), types her own address and clicks **Send test message**. A minute later "Test message from" the café is in her inbox. On a day the Wi-Fi is down, the same button says it couldn't reach the mail server and that selling still works. And if someone sits down at the counter laptop while Maria is still logged in, they can't guess her password on the Profile page: after 5 wrong tries it says to wait 5 minutes, and closing and restarting the system doesn't reset that count.
+
+### Story F24 — Everyone with their own account *(v0.27.0)*
+Maria ran `setup_shop.py` with her own email, so she is the café's **owner**; on Profile she confirms the address with a code from her inbox. Jun starts on Monday, so she opens **Users**, types Jun's own Gmail address, picks **Cashier** and clicks **Invite**. Jun gets an email with a link, chooses "jun" and a password, types the 6-digit code that arrives, and is logged in as a cashier; nothing he types could have made him an admin. Maria lets her manager Ana invite cashiers too, but only Maria can make someone an admin. When a part-timer leaves, Ana switches the account off: the till they were logged in on is logged out at once, and their old receipts still show their name. A week later Jun forgets his password; **Forgot your password?** on the login page sends a code to his email and he chooses a new one. When the latte's price changes from ₱150 to ₱160, the **Audit log** shows who changed it and when.
 
 ---
 
@@ -1129,6 +1133,38 @@ Automated in `tests/test_attempts.py` (21 checks) and `tests/test_email.py` (66 
 | TC-34.11 | Demo copy in the browser, admin | Open Email (not set up, then set up); send a test with no mail server; light, dark, phone width | Readable in both themes and at phone width; the plain sentence after sending; no script errors | As expected: with a server name that doesn't exist, the real `smtplib` answered "Could not reach the mail server … Selling and everything else still works"; the duplicated advice on the not-set-up page was found here and removed; dark colours readable; 375 px wide with no sideways scroll | ✅ |
 | TC-34.12 | A real Gmail account with an App Password | Send a test message | It arrives, from the shop's name | **To try by hand** (needs the owner's App Password; the tests never use a real account, rule T3) | ⏳ |
 
+### F24 — The owner, users, invitations, forgotten passwords and the audit log *(v0.27.0)*
+
+Automated in `tests/test_users.py` (47 checks), `tests/test_invitations.py` (44) and `tests/test_password_reset.py` (24), with a fake mailbox in `tests/helpers.py` (rule T3). Three older tests changed with the rules: `test_setup.py` expects the **owner** and asks for its email (one more check), `test_email.py`'s setup answers include that email, and `test_shop_details.py` TC-27.8 now builds its "older database" by undoing the migrations to `0001` instead of dropping single tables (a current database already has the new columns).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-35.1 | A database at migration 0004 with an admin | Upgrade; undo; upgrade | New `user` columns and the three tables; the old admin still an admin, switched on, no email; undo removes them, keeping the account | As expected | ✅ |
+| TC-35.2 | An owner | Add a second owner | Refused by the database (unique index) | As expected | ✅ |
+| TC-35.3 | Owner, cashier | Open admin pages; cashier opens Users, Audit log and posts every Users button | Owner 200 with Users and Audit log in the sidebar; cashier 403 everywhere, nothing changed | As expected | ✅ |
+| TC-35.4 | Two admins, one allowed to invite | Invite, change roles, switch admins / the owner off | Only the allowed admin may invite, and only cashiers; everything else 403; nobody can switch the owner off | As expected | ✅ |
+| TC-35.5 | Owner | Make a cashier an admin and back; give "owner"; change the owner; allow an admin to invite | Done, logged; "may invite" cleared when demoted; "owner" and the owner's own row 403 | As expected | ✅ |
+| TC-35.6 | Cashier logged in on a till | Admin switches the account off, then on | The till is logged out at once; the right password says "switched off" (403); the account still exists; switched on, logs in again | As expected | ✅ |
+| TC-35.7 | Owner requires a new password for a cashier | Cashier opens pages | Every page goes to Choose a new password (log out still works); current password and the usual rules needed; then the flag is cleared | As expected | ✅ |
+| TC-35.8 | Owner and admin change products, the shop details, accounts | Read the Audit log; filter by area and person; 60 more lines | Who, old → new (price 150.00 → 160.00, stock 20 → 18); no line for a save that changes nothing; filters work; 50 a page with "Older" | As expected | ✅ |
+| TC-35.9 | An older database (admin and cashier, no owner) | `setup_shop.py` with the cashier, then the admin, then a new name | Cashier refused; the admin becomes the owner with the email (to be confirmed); a later run leaves the owner; the log says "Setup" | As expected | ✅ |
+| TC-35.10 | Demo copy in the browser, owner | Users, invite with no mail server, Audit log, Join with a bad link, Forgot password, Profile; light, dark, 375 px | Invitation saved with the plain mail sentence and "Send again"; the log line; "This link doesn't work any more" (404); the same answer page; owner's email "Not confirmed" with its button; no sideways scroll (tables scroll inside their card); no script errors | As expected | ✅ |
+| TC-36.1 | Owner, mail set up | Invite `Jun@Example.com` as cashier | One email naming the inviter, role and 48 hours; only a 64-character keyed hash of the token stored; listed with Send again / Cancel | As expected | ✅ |
+| TC-36.2 | Owner on 127.0.0.1 | Invite, with other devices allowed and not | The link uses the network address (192.168.1.20) only when other devices are allowed | As expected | ✅ |
+| TC-36.3 | The link | Bad usernames and passwords; good details with a forged `role=admin`; wrong code; right code with a space | Each refused with its reason; no account before the code; the right code makes a **cashier** with the confirmed email and logs in; the link then answers 404 | As expected | ✅ |
+| TC-36.4 | Owner, admin allowed to invite | Invite cashiers and an admin; an existing address; an address already invited; not an address | Allowed ones sent; each other case refused with its message; an admin can't resend or cancel the owner's invitation (403) | As expected | ✅ |
+| TC-36.5 | An invitation | Send again; Cancel | A new link, the old one 404; a cancelled link 404 | As expected | ✅ |
+| TC-36.6 | An invitation older than 48 hours | Open the link | 404; Users says "expired" | As expected | ✅ |
+| TC-36.7 | No internet; email not set up | Invite | "saved, but the email could not be sent … Send again"; not set up: the form is replaced by the reason | As expected | ✅ |
+| TC-36.8 | Signup codes | 5 wrong tries; a new code within a minute; a minute later; an older code; after 10 minutes; 7 codes in an hour; a reset code used for signup; a code used twice | Counts down 4–1 then cancelled; refused; sent; only the newest is open; expired; 5 then refused; wrong purpose refused; works once | As expected | ✅ |
+| TC-36.9 | One invitation | Finish the signup twice at once | One account; the second attempt makes nothing | As expected | ✅ |
+| TC-37.1 | Accounts with a confirmed, an unconfirmed, a switched-off and no email | Forgot password with each address | The same message every time; a code only for the switched-on, confirmed one; the email says what, when, from where and what to do | As expected | ✅ |
+| TC-37.2 | Cashier logged in on a till | Code and a new password | A rule-breaking password refused before the code is used; a wrong code refused; the right one saves it, the old password stops, the till is logged out; the code works once | As expected | ✅ |
+| TC-37.3 | A wrong code | New password = the username | "not right", nothing about the username | As expected | ✅ |
+| TC-37.4 | One computer; email not set up | 12 requests; ask with no mail settings | 10 answered, then 429; "ask the owner" for every address | As expected | ✅ |
+| TC-37.5 | An account from before v0.27.0 | Add an email: wrong password, another account's address, then right | Refused, refused, a code to the new address; saved and confirmed only after the code | As expected | ✅ |
+| TC-37.6 | Owner with an unconfirmed email | Profile; post another address anyway; enter the code | No box to change it; the code goes to the owner's own address; confirmed, address unchanged | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1232,10 +1268,13 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_migrations.py` | Migrations / TC-28.x (v0.23.0): older database upgraded with data kept, backup first, no second backup, models match migrations, rebuild after `drop_all`, 0001 can't be undone, log stays on, one line of migrations | 14 |
 | `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
 | `test_money.py` | Money in centavos / TC-30.x (v0.23.2): migration 0003 both ways, INTEGER storage, Decimal in Python, one rounding on save, receipts add up, exact sums, limits unchanged | 19 |
-| `test_setup.py` | F22 / TC-31.x (v0.24.0): config file, setup run with good and wrong answers, run twice, broken config, `DATABASE_URL`, waitress serving, server settings, `start_shop.bat`, answers file with a byte-order mark | 30 |
+| `test_setup.py` | F22 / TC-31.x (v0.24.0): config file, setup run with good and wrong answers, run twice, broken config, `DATABASE_URL`, waitress serving, server settings, `start_shop.bat`, answers file with a byte-order mark; the owner and its email (v0.27.0) | 31 |
 | `test_attempts.py` | F23 / TC-33.x (v0.26.0): migration 0004, the limit unchanged for users, hashed keys, a restart (DEF-70), Change password (DEF-69), tries at the same moment | 21 |
 | `test_email.py` | F23 / TC-34.x (v0.26.0): fake mail server, STARTTLS and SSL, every failure in plain words, address and settings checks, the Email page and its test message, setup's email answers, `MAIL_PASSWORD` | 66 |
-| **30 files** | | **685 checks + 64 rule checks** |
+| `test_users.py` | F24 / TC-35.x (v0.27.0): migration 0005, one owner, who may do what (403s), roles, switching off, Require a new password, the audit log and its page, setup making the owner on an older database | 47 |
+| `test_invitations.py` | F24 / TC-36.x (v0.27.0): invitation emails and hashed tokens, the link's address, signup in two steps, the role can't be forged, Send again / Cancel / 48 hours, mail down, every code rule, one account per invitation | 44 |
+| `test_password_reset.py` | F24 / TC-37.x (v0.27.0): Forgot password's same answer, code and new password, logins ended, limits, the email on Profile, the owner's fixed email | 24 |
+| **33 files** | | **801 checks + 96 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1274,7 +1313,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F22 Setup and serve (v0.24.0) | 12 | 9 → **11** | 2 → **0** | 0 → **1** |
 | Blueprints and store/ (v0.25.0) | 4 | 4 | 0 | 0 |
 | F23 Email and login limit (v0.26.0) | 18 | 15 → **17** | 2 → **0** | 1 → **1** |
-| **Total** | **349** | **237 → 347** | **93 → 0** | **5 → 2** |
+| F24 Owner, users, invitations, audit log (v0.27.0) | 25 | 25 | 0 | 0 |
+| **Total** | **374** | **262 → 372** | **93 → 0** | **5 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1381,7 +1421,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
 > - ~~**The shop name on receipts is fixed**~~ *(fixed in v0.22.0, F21: name, address, TIN and footer on Shop details)*
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
-> - ~~**The login limit is kept in memory**~~ *(fixed in v0.26.0, DEF-70: counted in the database, so a restart doesn't clear it)*. **Nobody can reset a forgotten password** except by changing it in the database. Fix: a forgotten-password code by email (planned for v0.27.0).
+> - ~~**The login limit is kept in memory**~~ *(fixed in v0.26.0, DEF-70: counted in the database, so a restart doesn't clear it)*. ~~**Nobody can reset a forgotten password**~~ *(fixed in v0.27.0, F24: Forgot your password? sends a code to a confirmed email)*.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
 > - **No "undo" for a tap:** a wrong tap is fixed with − on the basket line (one more tap), not an undo button.

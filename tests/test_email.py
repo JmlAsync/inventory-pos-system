@@ -231,7 +231,7 @@ def config():
 
 GOOD = {'network': {'other_devices': False, 'port': 5000},
         'shop': {'name': 'Sample Café', 'address': '', 'tin': '', 'footer': ''},
-        'admin': {'username': 'maria', 'password': 'kape-sa-umaga-2026'}}
+        'admin': {'username': 'maria', 'password': 'kape-sa-umaga-2026', 'email': 'maria@example.com'}}   # email: v0.27.0
 READ_MAIL = 'import logging;logging.disable(50);from app import app;print(app.config["MAIL"].get("host"), app.config["MAIL"].get("password"))'
 
 # ---- TC-34.9 setup writes the [mail] part; the app reads it; the password is stored exactly and never printed

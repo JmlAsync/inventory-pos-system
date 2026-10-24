@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+{# Admin page: who changed what, when, with the old and new values (v0.27.0, F24, audit R9, DEC-029).
+   Lines are never edited or deleted. Ingredient restocks and counts are in Ingredients > History instead. #}
+{% set FIELD_NAMES = {'name': 'Name', 'sku': 'SKU', 'price': 'Price', 'quantity': 'Stock', 'category': 'Category',
+    'has_options': 'Hot / Iced and add-ons', 'picture': 'Picture', 'active': 'Shown', 'scale': 'Recipe scale',
+    'unit': 'Unit', 'low_at': 'Low at', 'full_at': 'Full at', 'amount': 'Amount', 'address': 'Address', 'tin': 'TIN',
+    'footer': 'Footer', 'role': 'Role', 'email': 'Email'} %}
+{% set ACTIONS = {'add': 'added', 'update': 'changed', 'delete': 'deleted', 'remove': 'removed', 'invite': 'invited',
+    'invite-again': 'invitation sent again', 'invite-cancel': 'invitation cancelled', 'join': 'joined',
+    'role': 'role changed', 'switch-off': 'switched off', 'switch-on': 'switched on',
+    'require-password': 'must choose a new password', 'may-invite': 'invite permission', 'password': 'changed own password',
+    'password-reset': 'new password by emailed code', 'password-chosen': 'chose a new password',
+    'email': 'email changed', 'email-confirmed': 'email confirmed', 'owner': 'made the owner (setup)'} %}
+<h1>Audit log</h1>
+<p class="page-subtitle">Who changed what, and when. Sales are on their receipts; ingredient restocks and counts are
+    in <a href="{{ url_for('ingredients.ingredients_history') }}">Ingredients history</a>.</p>
+
+<form method="GET" class="row g-2 align-items-end mb-3" style="max-width: 40rem;">
+    <div class="col-sm-5">
+        <label class="form-label" for="area">What</label>
+        <select class="form-select" id="area" name="area">
+            <option value="">Everything</option>
+            {% for key, label in AREAS.items() %}<option value="{{ key }}" {{ 'selected' if area == key }}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-sm-4">
+        <label class="form-label" for="who">Who</label>
+        <select class="form-select" id="who" name="who">
+            <option value="">Everyone</option>
+            {% for person in people %}<option value="{{ person.id }}" {{ 'selected' if who == person.id }}>{{ person.username }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-sm-3"><button type="submit" class="btn btn-outline-secondary w-100">Show</button></div>
+</form>
+
+<div class="card app-card"><div class="table-responsive">
+<table class="table align-middle mb-0">
+    <thead><tr><th>When</th><th>Who</th><th>What</th><th>Changes</th></tr></thead>
+    <tbody>
+    {% for line in lines %}
+    {% set area_key, _, verb = line.action.partition('.') %}
+    <tr>
+        <td class="text-nowrap">{{ (line.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</td>
+        <td>{{ line.user.username if line.user else 'Setup (on the computer)' }}</td>
+        <td><span class="text-body-secondary">{{ AREAS.get(area_key, area_key) }}:</span> {{ line.target }}
+            <span class="text-body-secondary">{{ ACTIONS.get(verb, verb) }}</span></td>
+        <td class="small">
+            {% for field, values in details_of(line).items() %}
+            <div>{{ FIELD_NAMES.get(field, field) }}: {% if values[0] %}<span class="text-body-secondary">{{ values[0] }}</span> → {% endif %}{{ values[1] if values[1] != '' else '(empty)' }}</div>
+            {% endfor %}
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-body-secondary">Nothing recorded yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+
+<nav class="d-flex gap-2 mt-3" aria-label="Pages of the audit log">
+    {% if page > 1 %}<a class="btn btn-outline-secondary" href="{{ url_for('users.audit', page=page - 1, who=who, area=area) }}">Newer</a>{% endif %}
+    {% if older %}<a class="btn btn-outline-secondary" href="{{ url_for('users.audit', page=page + 1, who=who, area=area) }}">Older</a>{% endif %}
+</nav>
+{% endblock %}

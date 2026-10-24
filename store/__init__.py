@@ -4,6 +4,8 @@
     store/ingredients.py  restock, count, ingredients and recipe lines (I1, I7)
     store/catalog.py      products and the servings / add-ons list (I4)
     store/accounts.py     logins, passwords, profile pictures
+    store/users.py        the owner, invitations, emailed codes, switching accounts off (v0.27.0)
+    store/audit.py        the audit log: who changed what (v0.27.0)
     store/shop.py         the shop's details for receipts
     store/stock.py        reading what can still be made and sold (recipes, levels)
 

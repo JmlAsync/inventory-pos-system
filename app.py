@@ -46,6 +46,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (os.environ.get('DATABASE_URL')
 app.config['MAIL'] = dict(CONFIG.get('mail', {}))
 if os.environ.get('MAIL_PASSWORD'):
     app.config['MAIL']['password'] = os.environ['MAIL_PASSWORD']
+# How the server listens (v0.27.0): links in emails use the network address when other devices are allowed
+app.config['SERVER_HOST'] = CONFIG.get('server', {}).get('host', '127.0.0.1')
 
 
 def load_secret_key():
@@ -186,9 +188,9 @@ from store.stock import (INGREDIENT_UNITS, INGREDIENT_CATEGORIES, guess_ingredie
                          stock_status, Recipes, add_usage, shortages, default_size, can_make, stock_levels,
                          limiting_ingredient, running_low)
 from store.shop import shop_profile
-from blueprints import accounts, catalog, ingredients, sales, reports, shop
+from blueprints import accounts, catalog, ingredients, sales, reports, shop, users   # users: v0.27.0
 
-for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp):
+for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp, users.bp):
     app.register_blueprint(blueprint)
 login_manager.user_loader(accounts.load_user)   # who is logged in, checked on every request (v0.20.3)
 

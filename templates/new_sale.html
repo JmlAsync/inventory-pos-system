@@ -11,7 +11,7 @@
    Every button is a small form, so the server checks everything again (stock, prices,
    options). The scripts at the bottom only add conveniences.
    ===================================================================== #}
-{% set is_admin = current_user.role == 'admin' %}
+{% set is_admin = current_user.is_admin %}
 
 <div class="sale-header">
     <h1 class="mb-0">New Sale</h1>

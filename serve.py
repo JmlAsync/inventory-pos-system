@@ -8,9 +8,9 @@ How it listens comes from instance/config.toml, which setup_shop.py writes:
     host = "127.0.0.1"   # this computer only  ("0.0.0.0" = also phones and computers on the shop's network)
     port = 5000
 """
-import socket
 from waitress import serve
 from app import app, upgrade_database, CONFIG
+from common import network_address   # moved to common.py in v0.27.0: emails' links use it too
 
 ALLOWED_HOSTS = {'127.0.0.1': 'this computer only', '0.0.0.0': 'this computer and the shop\'s network'}
 
@@ -26,17 +26,6 @@ def server_settings(config):
         raise SystemExit(f'instance/config.toml: port must be a whole number from 1024 to 65535, not {port!r}. '
                          f'Run "python setup_shop.py" to fix it.')
     return host, port
-
-
-def network_address():
-    """This computer's address on the shop's network, e.g. 192.168.1.10, or None.
-    Connecting a UDP socket sends nothing; it only asks Windows which network card would be used."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-            probe.connect(('10.255.255.255', 1))
-            return probe.getsockname()[0]
-    except OSError:
-        return None
 
 
 if __name__ == '__main__':

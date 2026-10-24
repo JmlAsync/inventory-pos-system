@@ -81,7 +81,9 @@ DEFAULT_MENU = {
     },
 }
 
-DEMO_USERS = [("admin", "admin123", "admin"), ("cashier", "cashier123", "cashier")]
+# v0.27.0: the demo "admin" is the demo shop's owner (rule S12), so the Users page can be tried in the demo.
+# example.com addresses never receive mail (they are reserved for examples).
+DEMO_USERS = [("admin", "admin123", "owner", "owner@example.com"), ("cashier", "cashier123", "cashier", "cashier@example.com")]
 
 
 def load_menu():
@@ -94,9 +96,11 @@ def load_menu():
 
 
 def add_users():
-    for username, password, role in DEMO_USERS:
+    for username, password, role, email in DEMO_USERS:
         if User.query.filter_by(username=username).first() is None:
-            db.session.add(User(username=username,
+            if role == 'owner' and User.query.filter_by(role='owner').first():
+                role = 'admin'   # a shop has one owner (v0.27.0): if it already has one, the demo admin stays an admin
+            db.session.add(User(username=username, email=email,
                                 password_hash=generate_password_hash(password), role=role))
             print(f"  + user {username}")
 

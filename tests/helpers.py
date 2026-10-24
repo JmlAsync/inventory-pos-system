@@ -108,3 +108,48 @@ def start_server(app):
     server = make_server('127.0.0.1', 0, app, threaded=True)   # port 0 = any free port
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return f'http://127.0.0.1:{server.server_port}', server
+
+
+class FakeMailbox(list):
+    """A fake mail server for tests (v0.27.0, rule T3: never a real mailbox). It replaces smtplib's two connection
+    classes; every message "sent" is added to this list instead. Use:  mailbox = FakeMailbox(app)
+    It also gives the app working [mail] settings. mailbox.down = True makes sending fail like having no internet."""
+    def __init__(self, app):
+        super().__init__()
+        import smtplib
+        mailbox = self
+        self.down = False
+
+        class Connection:
+            def __init__(self, host, port, timeout=None, context=None):
+                if mailbox.down:
+                    raise OSError('no internet (fake)')
+            def __enter__(self): return self
+            def __exit__(self, *details): return False
+            def starttls(self, context=None): pass
+            def login(self, user, password): pass
+            def send_message(self, message): mailbox.append(message)
+        smtplib.SMTP = smtplib.SMTP_SSL = Connection
+        app.config['MAIL'] = {'host': 'smtp.example.com', 'port': 587, 'security': 'starttls',
+                              'from_address': 'shop@example.com', 'username': 'shop@example.com', 'password': 'x'}
+
+    def last_to(self, address):
+        """The newest message sent to this address, or None."""
+        for message in reversed(self):
+            if message['To'] == address:
+                return message
+        return None
+
+    def code_for(self, address):
+        """The 6-digit code in the newest message to this address ("Your code is 123 456"), or None."""
+        import re
+        message = self.last_to(address)
+        found = message and re.search(r'Your code is (\d{3}) (\d{3})', message.get_content())
+        return found.group(1) + found.group(2) if found else None
+
+    def link_for(self, address):
+        """The web address in the newest message to this address, or None."""
+        import re
+        message = self.last_to(address)
+        found = message and re.search(r'(https?://\S+)', message.get_content())
+        return found.group(1) if found else None

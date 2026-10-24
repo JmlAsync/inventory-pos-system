@@ -67,7 +67,7 @@ On macOS or Linux, activate the virtual environment with `source venv/bin/activa
 
 | Username | Password | Role |
 |---|---|---|
-| `admin` | `admin123` | Admin: can change products, ingredients and recipes, and see reports |
+| `admin` | `admin123` | The demo shop's **owner** (v0.27.0): changes products, ingredients and recipes, sees reports, manages Users and reads the Audit log |
 | `cashier` | `cashier123` | Cashier: can sell and see receipts |
 
 These passwords are for the demo only. Change them on the **Profile** page before using the app
@@ -92,7 +92,7 @@ Flask-Migrate).
 The quick start above is the **demo**. For a shop's own computer, after step 2 (the virtual environment):
 
 ```powershell
-.env\Scripts\python setup_shop.py   # once: network, shop details, the owner's admin account, email (optional)
+.env\Scripts\python setup_shop.py   # once: network, shop details, the owner's account and email, email sending (optional)
 ```
 
 Then start it every day by double-clicking **`start_shop.bat`**. It runs the system with **waitress**, a real
@@ -100,6 +100,12 @@ web server, and shows the address to open (also the one for phones, if you allow
 time, Windows Firewall may ask whether Python may use the network: allow it on **Private networks** only.
 `setup_shop.py` never creates the demo accounts; the owner chooses their own password. Run it again any
 time to change the settings; your data is kept.
+
+**Users (v0.27.0):** everyone else joins by **invitation**: the owner opens **Users**, types the person's own email
+and role, and the person chooses their username and password from the emailed link (a code confirms the address).
+Nobody can sign themselves up. Accounts are switched off, never deleted. The owner confirms their own email on
+**Profile**; **Forgot your password?** on the login page sends a code to a confirmed email. **Audit log** shows who
+changed which price, product, recipe or account.
 
 **Email (v0.26.0):** answer yes to the email questions to let the system send email. For Gmail, use the server
 `smtp.gmail.com`, security `starttls`, port 587 and an **App Password** (Google Account → Security → App
@@ -122,8 +128,8 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | Path | What it holds |
 |---|---|
 | `app.py` | Starts the app: settings, database, security checks, error pages (v0.25.0: the pages moved to `blueprints/`) |
-| `blueprints/` | The pages, one file per part of the system: accounts, catalog, ingredients, sales, reports, shop |
-| `store/` | Every change to the database (selling, stock, products, logins, shop details) and the stock calculations |
+| `blueprints/` | The pages, one file per part of the system: accounts, catalog, ingredients, sales, reports, shop, users |
+| `store/` | Every change to the database (selling, stock, products, logins, shop details, users, the audit log) and the stock calculations |
 | `common.py` | Rules and helpers every part uses (limits, money, the shop's clock, pictures) |
 | `mail.py` | Sends email with Python's own `smtplib`, using the shop's `[mail]` settings (v0.26.0) |
 | `models.py` | The database tables: products, users, sales, servings and add-ons, ingredients, recipes, ingredient history |

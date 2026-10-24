@@ -38,7 +38,7 @@ def shop_settings():
         values, error = validate_shop_form(request.form)
         if error:
             return render_template('shop_settings.html', shop=request.form, error=error)
-        save_shop_profile(values)
+        save_shop_profile(values, by=current_user.id)   # v0.27.0: named in the audit log
         flash('Shop details saved. They now appear on every receipt.', 'success')
         return redirect(url_for('shop.shop_settings'))
     return render_template('shop_settings.html', shop=shop_profile())

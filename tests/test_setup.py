@@ -25,7 +25,7 @@ def setup(answers):
 
 GOOD = {'network': {'other_devices': True, 'port': 5050},
         'shop': {'name': 'Kapehan sa Kanto', 'address': '12 Rizal St.', 'tin': '123-456-789-000', 'footer': 'Salamat!'},
-        'admin': {'username': 'maria', 'password': 'kape-sa-umaga-2026'}}
+        'admin': {'username': 'maria', 'password': 'kape-sa-umaga-2026', 'email': 'maria@example.com'}}   # email: v0.27.0
 
 ASK_DB = """
 import logging; logging.disable(50)
@@ -48,10 +48,11 @@ check('TC-31.1 no instance/config.toml: the local SQLite database is used', r.st
 
 # ---- TC-31.3 wrong answers are refused with a plain message, and nothing is created
 for answers, message in [
-        ({**GOOD, 'admin': {'username': 'maria', 'password': 'short'}}, 'at least 8 characters'),
-        ({**GOOD, 'admin': {'username': 'maria', 'password': 'maria'}}, 'at least 8 characters'),
-        ({**GOOD, 'admin': {'username': 'mariaclara', 'password': 'mariaclara'}}, 'same as the username'),
-        ({**GOOD, 'admin': {'username': '', 'password': 'kape-sa-umaga-2026'}}, 'username'),
+        ({**GOOD, 'admin': {'username': 'maria', 'password': 'short', 'email': 'maria@example.com'}}, 'at least 8 characters'),
+        ({**GOOD, 'admin': {'username': 'maria', 'password': 'maria', 'email': 'maria@example.com'}}, 'at least 8 characters'),
+        ({**GOOD, 'admin': {'username': 'mariaclara', 'password': 'mariaclara', 'email': 'maria@example.com'}}, 'same as the username'),
+        ({**GOOD, 'admin': {'username': '', 'password': 'kape-sa-umaga-2026', 'email': 'maria@example.com'}}, 'username'),
+        ({**GOOD, 'admin': {'username': 'maria', 'password': 'kape-sa-umaga-2026'}}, "owner's email is required"),   # v0.27.0
         ({**GOOD, 'network': {'other_devices': False, 'port': 80}}, 'port'),
         ({**GOOD, 'network': {'other_devices': False, 'port': 'abc'}}, 'port'),
         ({**GOOD, 'shop': {'name': ''}}, 'Shop name is required')]:
@@ -72,7 +73,7 @@ keys = [k.lower() for section in config.values() if isinstance(section, dict) fo
 check('TC-31.2 the config file holds no password or secret (no such setting, and not the password itself)',
       not any('password' in k or 'secret' in k for k in keys) and 'kape-sa-umaga' not in text)
 users, shop, rest, uri = run('-c', ASK_DB).stdout.strip().split('\n')
-check('TC-31.2 the first admin is created, and no demo accounts', users == "[('maria', 'admin')]")
+check('TC-31.2 the owner is created (v0.27.0: role owner), and no demo accounts', users == "[('maria', 'owner')]")
 check('TC-31.2 the password is stored only as a hash that matches it', rest.startswith('True'))
 from alembic.script import ScriptDirectory   # v0.26.0: the newest migration in migrations/, not a fixed number
 check('TC-31.2 the database is at the newest migration', rest.endswith(ScriptDirectory('migrations').get_current_head()))
@@ -81,8 +82,8 @@ check('TC-31.2 the shop details are saved for the receipts', shop == 'Kapehan sa
 # ---- TC-31.4 running it again keeps everything
 r = setup({**GOOD, 'network': {'other_devices': False, 'port': 5000}})
 users, shop, rest, uri = run('-c', ASK_DB).stdout.strip().split('\n')
-check('TC-31.4 a second run: the admin is not added twice and keeps the password', users == "[('maria', 'admin')]" and rest.startswith('True'))
-check('TC-31.4 ... it says so', 'already exists' in r.stdout)
+check('TC-31.4 a second run: the owner is not added twice and keeps the password', users == "[('maria', 'owner')]" and rest.startswith('True'))
+check('TC-31.4 ... it says so', 'left as it is' in r.stdout)
 with open('instance/config.toml', 'rb') as f:
     check('TC-31.4 ... the new network choice is saved (this computer only: 127.0.0.1:5000)',
           tomllib.load(f)['server'] == {'host': '127.0.0.1', 'port': 5000})

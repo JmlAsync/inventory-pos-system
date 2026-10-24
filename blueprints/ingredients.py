@@ -74,7 +74,8 @@ def ingredients():
             elif same_name:
                 flash(f'There is already an ingredient called "{same_name.name}".', 'danger')
             else:
-                ingredient = ingredient_store.save_ingredient(ingredient, name, unit, low_at, category, full_at)
+                ingredient = ingredient_store.save_ingredient(ingredient, name, unit, low_at, category, full_at,
+                                                              by=current_user.id)
                 flash(f'Saved {name}.' + (' Use Restock to add what you have.' if action == 'add' else ''), 'success')
         else:
             abort(400)
@@ -156,7 +157,7 @@ def edit_recipe(kind, item_id):
         if line is not None and line not in lines.all():
             abort(404)   # a line of another recipe
         if request.form.get('action') == 'remove' and line is not None:
-            ingredient_store.remove_recipe_line(line)
+            ingredient_store.remove_recipe_line(line, by=current_user.id)
             flash('Ingredient removed from the recipe.', 'success')
         else:
             amount = read_amount('amount', allow_negative=(kind == 'option'))
@@ -167,14 +168,15 @@ def edit_recipe(kind, item_id):
                 flash('Type an amount' + (' (more than 0).' if kind == 'product'
                                           else ' (negative to replace an ingredient, e.g. -180 ml milk).'), 'danger')
             elif line is not None:
-                ingredient_store.change_recipe_line(line, amount)
+                ingredient_store.change_recipe_line(line, amount, by=current_user.id)
                 flash('Recipe saved.', 'success')
             elif lines.filter_by(ingredient_id=ingredient.id).first():
                 flash(f'{ingredient.name} is already in this recipe; change its amount instead.', 'danger')
             else:
                 ingredient_store.add_recipe_line(ingredient.id, amount,
                                                  product_id=owner.id if kind == 'product' else None,
-                                                 option_id=owner.id if kind == 'option' else None)
+                                                 option_id=owner.id if kind == 'option' else None,
+                                                 by=current_user.id)
                 flash(f'Added {ingredient.name} to the recipe.', 'success')
         return redirect(url_for('ingredients.edit_recipe', kind=kind, item_id=item_id))
     return render_template('recipe.html', kind=kind, owner=owner,

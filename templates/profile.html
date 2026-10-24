@@ -27,6 +27,55 @@
     </div>
 </div>
 
+{# Email (v0.27.0, DEC-029): used for Forgot password. The owner's address is fixed (rule S12); others may change
+   theirs with the current password and a code sent to the new address. #}
+<div class="card mx-auto mt-3" style="max-width: 28rem;" id="email">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-envelope me-2" aria-hidden="true"></i>Email</h2>
+        {% if current_user.email %}
+        <p class="mb-3">{{ current_user.email }}
+            {% if current_user.email_verified_at %}<span class="badge rounded-pill text-bg-success ms-1">Confirmed</span>
+            {% else %}<span class="badge rounded-pill text-bg-warning ms-1">Not confirmed</span>{% endif %}</p>
+        {% else %}
+        <p class="mb-3 text-body-secondary">No email yet. Add one so you can choose a new password if you forget yours.</p>
+        {% endif %}
+        {% if current_user.is_owner %}
+            {% if current_user.email and not current_user.email_verified_at %}
+            <form method="POST" action="{{ url_for('accounts.change_email') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary w-100">Send me a code to confirm it</button>
+            </form>
+            {% endif %}
+            <p class="small text-body-secondary mt-2 mb-0">As the owner, your email is the shop's main contact. It is
+                set with <code>python setup_shop.py</code> on the shop's computer.</p>
+        {% else %}
+        <form method="POST" action="{{ url_for('accounts.change_email') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="email_new">{{ 'New email' if current_user.email else 'Email' }}</label>
+                <input type="email" class="form-control" id="email_new" name="email" maxlength="254" autocomplete="email" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="email_password">Current password</label>
+                <input type="password" class="form-control" id="email_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-outline-primary w-100">Send a code to this address</button>
+        </form>
+        {% endif %}
+        {% if session.get('pending_email') %}
+        <form method="POST" action="{{ url_for('accounts.confirm_email') }}" class="mt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label" for="email_code">Code sent to {{ session.get('pending_email') }}</label>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control text-center" id="email_code" name="code" inputmode="numeric"
+                       autocomplete="one-time-code" maxlength="7" placeholder="123456" required>
+                <button type="submit" class="btn btn-primary">Confirm</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
 {# Change password (v0.13.5) #}
 <div class="card mx-auto mt-3" style="max-width: 28rem;" id="password">
     <div class="card-body">

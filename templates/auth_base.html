@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{# The layout of the pages someone uses before they are fully logged in (v0.27.0): signing up from an invitation,
+   Forgot password, Choose a new password. Like the login page: no sidebar, one card in the middle. #}
+{% block page %}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a class="brand" href="{{ url_for('reports.home') }}">
+                <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
+                <span>Inventory & POS</span>
+            </a>
+            <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
+                <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="card">
+            <div class="card-body p-4">
+                {% include "_flash.html" %}
+                {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+                {% block auth_body %}{% endblock %}
+            </div>
+        </div>
+        {% block below_card %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

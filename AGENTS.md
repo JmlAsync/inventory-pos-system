@@ -50,7 +50,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
 | `blueprints/` | The pages, one file per part: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop` (v0.25.0) | Page names are `part.page`, e.g. `url_for('sales.new_sale')`. Pages never write to the database (I1) |
 | `store/` | The data layer: every database change (`sales`, `ingredients`, `catalog`, `accounts`, `shop`) and the stock calculations (`stock`) (v0.25.0) | Rule I1; DEC-027 |
-| `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement) | |
+| `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement; v0.26.0–v0.27.0: LoginAttempt, Invitation, EmailCode, AuditEntry) | |
 | `templates/` | The HTML pages; `base.html` is the shared layout; files starting with `_` are pieces | |
 | `static/css/theme.css` | All custom styling, light and dark theme | |
 | `static/vendor/` | Bootstrap, Bootstrap Icons and the Inter font, stored locally | Rule D2: nothing loads from the internet |
@@ -58,7 +58,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | `setup_shop.py` | Sets up a shop's own copy once: `instance/config.toml`, migrations, shop details, the first admin (v0.24.0) | Never creates the demo accounts |
 | `serve.py`, `start_shop.bat` | Run the system for a shop with waitress (v0.24.0); `python app.py` stays for development | Settings from `instance/config.toml` |
 | `requirements/` | The packages per install package: `local.txt` (v0.24.0); `requirements.txt` points to it | Rule D1 |
-| `add_users.py`, `add_test_product.py` | Small helper scripts from the first versions | |
+| `add_test_product.py` | A small helper script from the first versions (`add_users.py` was removed in v0.27.0: accounts come only from setup and invitations, S12) | |
 | `tests/` | Automated tests and the contract check | See section 9 |
 | `migrations/` | Numbered database changes (`versions/0001_…`), run by Alembic at start-up after a backup (v0.23.0) | Rule I5; how to add one: `migrations/README.md` |
 | `project_documentation_draft.md` | The living project report (versions, tests, defects, UML) | MUST be updated with every change (W4) |
@@ -87,7 +87,11 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 
 - **S1 [checked]** Every page (`@app.route`) MUST be listed in `tests/check_contract.py` as
   public, user (logged in) or admin. Adding a page means deciding which list it belongs to.
-  Only `/` and `/login` are public.
+  The public pages are `/`, `/login`, and (from v0.27.0) `/signup/<token>` (only with a valid invitation),
+  `/forgot-password` and `/forgot-password/code`.
+
+  > *Overridden 2026-10-24.* Old wording: "Only `/` and `/login` are public." Why: invitations (S12) and forgotten
+  > passwords need pages a logged-out person can open; the owner approved these three. Full reasoning: DEC-029.
 - **S2 [checked]** A user page MUST have `@login_required` directly under `@app.route`.
   An admin page MUST have `@app.route`, then `@login_required`, then `@admin_required`, in that order.
   Hiding a button is never enough: the server MUST refuse (403) a cashier who types the address.
@@ -122,6 +126,8 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   the owner allowed to invite) to that person's own email, with the role chosen by the inviter.
   Accepting an invitation never changes its role. *(From v0.27.0; until then accounts are made only
   by `seed_demo_data.py` and `add_users.py`.)* Why: DEC-002 (owner) and DEC-003 (invitations).
+  *Until v0.38.0 (no licence check yet), `setup_shop.py` asks for the owner's email and the owner confirms it with
+  a code on Profile; v0.38.0 replaces it with the purchase email (owner's decision 2026-10-24, DEC-029).*
 - **S13** Every login needs the password (or Google sign-in) **and** a 6-digit code, unless that browser is a **trusted device** for that user. Trust skips only the code,
   never the password. The code comes by email (the default) or, if the user chose it on their
   Profile, from an authenticator app; turning the app on or off needs the password and a current

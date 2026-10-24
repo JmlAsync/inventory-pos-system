@@ -32,7 +32,7 @@ with app.app_context():
     check('restock ADDS and is written in the history', db.session.get(Ingredient, I['Fresh milk']).quantity == 1000 and IngredientMovement.query.filter_by(reason='restock').count() == 4)
 for bad in ['0', '-5', 'nan', 'abc', '1e12']:
     check(f'restock amount "{bad}" refused', 'how much was received' in ing(action='restock', ingredient_id=I['Cream'], amount=bad))
-ing(action='count', ingredient_id=I['Cream'], counted='380')
+ing(action='count', ingredient_id=I['Cream'], counted='380', seen='400')   # seen: the amount on the page (v0.30.0)
 with app.app_context():
     m = IngredientMovement.query.order_by(IngredientMovement.id.desc()).first()
     check('stock count sets the amount; history shows -20', db.session.get(Ingredient, I['Cream']).quantity == 380 and m.reason == 'count' and m.change == -20)

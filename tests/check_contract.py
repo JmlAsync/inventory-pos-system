@@ -29,11 +29,13 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
     '/admin/users/<int:user_id>/may-invite', '/admin/invitations/<int:invitation_id>/resend',
     '/admin/invitations/<int:invitation_id>/cancel', '/admin/audit',
     '/admin/users/<int:user_id>/email', '/admin/users/<int:user_id>/reset-second-step',   # v0.28.0
+    '/ingredients/count/<int:movement_id>/undo',       # undo a stock count within 5 minutes (v0.30.0)
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',
     '/sales/complete', '/sales/<int:sale_id>', '/profile', '/profile/remove', '/profile/password',
     '/sales/line-quantity', '/sales/line-options',     # order-line − / + and change add-ons (v0.20.0)
+    '/sales/undo',                                    # undo the last change to the basket (v0.30.0)
     '/password/new', '/profile/email', '/profile/email/confirm',   # own account (v0.27.0)
     '/profile/devices/<int:device_id>/remove', '/profile/logout-everywhere', '/profile/backup-codes',   # v0.28.0
     '/profile/authenticator', '/profile/authenticator/confirm', '/profile/authenticator/off',

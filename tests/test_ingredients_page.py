@@ -55,14 +55,18 @@ r = a.post('/ingredients', data={'action': 'restock', 'ingredient_id': '1', 'amo
 check('restock from the detail page returns there', r.status_code == 302 and r.headers['Location'].endswith('/ingredients/1'))
 r = a.post('/ingredients', data={'action': 'restock', 'ingredient_id': '1', 'amount': '1', 'return_to': 'https://evil.example'})
 check('a web address in return_to is ignored', 'evil' not in r.headers['Location'] and '/ingredients' in r.headers['Location'])
-r = a.post('/ingredients', data={'action': 'count', 'ingredient_id': '6', 'counted': '500'})
+def seen(ingredient_id):
+    """The amount the page shows, which a count now sends with it (v0.30.0, DEC-032)."""
+    with app.app_context():
+        return str(db.session.get(Ingredient, ingredient_id).quantity)
+r = a.post('/ingredients', data={'action': 'count', 'ingredient_id': '6', 'counted': '500', 'seen': seen(6)})
 check('v0.18.1: back on the list at the same row (#ing-6)', r.headers['Location'].endswith('/ingredients#ing-6'))
 h18 = a.get('/ingredients').get_data(as_text=True)
 check('v0.18.1: each row has its anchor once (not repeated in Needs attention)', h18.count('id="ing-8"') == 1 and h18.count('id="ing-') == h18.count('js-update"') - re.search(r'data-group="attention".*?</section>', h18, re.S).group(0).count('js-update"'))
 check('unknown ingredient page -> 404', a.get('/ingredients/999').status_code == 404 and a.get('/ingredients/99999999999999999999').status_code == 404)
 for page in ['/ingredients', '/ingredients/1', '/ingredients/history']:
     check(f'cashier gets 403 on {page}', c.get(page).status_code == 403)
-post(action='count', ingredient_id='6', counted='450')
+post(action='count', ingredient_id='6', counted='450', seen=seen(6))
 hist = a.get('/ingredients/history').get_data(as_text=True)
 check('History tab lists restock and count', 'Restock' in hist and 'Stock count' in hist)
 only = a.get('/ingredients/history?ingredient=6&reason=count').get_data(as_text=True)

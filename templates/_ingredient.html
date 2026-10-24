@@ -26,14 +26,32 @@
 {% macro count_form(ing=None, return_to='') %}
 <form method="POST" action="{{ url_for('ingredients.ingredients') }}" data-panel="count">
     {{ hidden_fields(ing, 'count', return_to) }}
+    {# v0.30.0 (DEC-032): the amount on hand the admin saw; the count is saved only if it hasn't changed since #}
+    <input type="hidden" name="seen" value="{{ ing.quantity|plain_amount if ing else '' }}" class="js-seen">
     <label class="form-label" for="count{{ ing.id if ing else '' }}">Counted on the shelf</label>
     <div class="input-group">
         <input type="number" class="form-control" id="count{{ ing.id if ing else '' }}" name="counted" min="0" step="any" required placeholder="e.g. 750">
         <span class="input-group-text js-unit">{{ ing.unit if ing else '' }}</span>
     </div>
-    <div class="form-text">Replaces the amount on hand; the difference is saved in the history.</div>
+    <div class="form-text">Replaces the amount on hand; the difference is saved in the history. If a sale changes it
+        while you count, you are asked to count again. You can undo a count for 5 minutes.</div>
     <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save count</button>
 </form>
+{% endmacro %}
+
+{# "Undo count" for 5 minutes after a count (v0.30.0, DEC-032, plan §4.2) #}
+{% macro undo_count_banner(line, return_to='') %}
+{% if line %}
+<div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <span>You counted {{ line.ingredient.name }} ({{ '+' if line.change >= 0 else '' }}{{ line.change|amount }} {{ line.ingredient.unit }}).
+        Wrong number? You can undo it for 5 minutes, if nothing else changed it.</span>
+    <form method="POST" action="{{ url_for('ingredients.undo_count', movement_id=line.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Undo count</button>
+    </form>
+</div>
+{% endif %}
 {% endmacro %}
 
 {% macro edit_form(ing=None, units=(), categories=(), return_to='', action='edit') %}

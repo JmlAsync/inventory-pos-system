@@ -1,7 +1,7 @@
 """Ingredient and recipe pages, admin only (v0.17.0, v0.18.0, v0.18.1).
 Moved from app.py in v0.25.0 (DEC-027): the same rules; stock and recipe changes go through store/ingredients.py."""
 import math
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from models import Product, MenuOption, Ingredient, RecipeItem, IngredientMovement
@@ -43,14 +43,21 @@ def ingredients():
                 ingredient_store.restock(ingredient, amount, current_user.id)
                 flash(f'Added {fmt_amount(amount)} {ingredient.unit} of {ingredient.name}.', 'success')
         elif action == 'count':
-            # A stock count: set what is really on the shelf; the difference is recorded
+            # A stock count: set what is really on the shelf; the difference is recorded.
+            # v0.30.0 (DEC-032): only if the amount on hand is still what the admin saw on the page
             counted = read_amount('counted')
             if counted is None:
                 flash('Type the amount you counted (0 or more).', 'danger')
             else:
-                change = ingredient_store.count(ingredient, counted, current_user.id)
-                flash(f'{ingredient.name} set to {fmt_amount(counted)} {ingredient.unit} '
-                      f'({"+" if change >= 0 else ""}{fmt_amount(change)}).', 'success')
+                line = ingredient_store.count(ingredient, counted, read_amount('seen'), current_user.id)
+                if line is None:
+                    flash(f'{ingredient.name} changed since you opened the page (a sale or a delivery): it now says '
+                          f'{fmt_amount(ingredient_store.on_hand(ingredient))} {ingredient.unit}. Nothing was saved; '
+                          f'please count again.', 'danger')
+                else:
+                    session['last_count'] = line.id   # for "Undo count" during the next 5 minutes
+                    flash(f'{ingredient.name} set to {fmt_amount(counted)} {ingredient.unit} '
+                          f'({"+" if line.change >= 0 else ""}{fmt_amount(line.change)}).', 'success')
         elif action in ('add', 'edit'):
             name = request.form.get('name', '').strip()
             unit = request.form.get('unit', '')
@@ -98,7 +105,32 @@ def ingredients():
     return render_template('ingredients.html', ingredients=all_ingredients,
                            groups=[(c, items) for c, items in groups.items() if items],
                            attention=attention, units=INGREDIENT_UNITS, categories=INGREDIENT_CATEGORIES,
-                           percent=stock_percent, status=stock_status)
+                           percent=stock_percent, status=stock_status, last_count=last_count())
+
+
+def last_count():
+    """This browser's last count, if it can still be undone (v0.30.0, DEC-032): shown with an "Undo count" button."""
+    return ingredient_store.undoable_count(session.get('last_count'))
+
+
+@bp.route('/ingredients/count/<int:movement_id>/undo', methods=['POST'])
+@login_required
+@admin_required
+def undo_count(movement_id):
+    """Undo a count within 5 minutes (v0.30.0, plan §4.2): the opposite history line, the amount put back.
+    Refused if anything else happened to the ingredient since."""
+    line = ingredient_store.undoable_count(movement_id)
+    if line is None or not ingredient_store.undo_count(line, current_user.id):
+        flash('That count can no longer be undone: 5 minutes have passed, or a sale, a delivery or another count '
+              'changed the amount since. Count again if it is wrong.', 'danger')
+    else:
+        session.pop('last_count', None)
+        ingredient = line.ingredient
+        flash(f'Count undone: {ingredient.name} is back to {fmt_amount(ingredient_store.on_hand(ingredient))} '
+              f'{ingredient.unit}.', 'success')
+    if request.form.get('return_to') == 'detail' and line is not None:
+        return redirect(url_for('ingredients.ingredient_detail', ingredient_id=line.ingredient_id))
+    return redirect(url_for('ingredients.ingredients'))
 
 
 @bp.route('/ingredients/<int:ingredient_id>')
@@ -111,12 +143,14 @@ def ingredient_detail(ingredient_id):
     history = (IngredientMovement.query.filter_by(ingredient_id=ingredient.id)
                .order_by(IngredientMovement.id.desc()).limit(20).all())
     used_in = RecipeItem.query.filter_by(ingredient_id=ingredient.id).all()
+    count = last_count()
     return render_template('ingredient_detail.html', ingredient=ingredient, history=history,
                            used_in=used_in, units=INGREDIENT_UNITS, categories=INGREDIENT_CATEGORIES,
-                           percent=stock_percent, status=stock_status)
+                           percent=stock_percent, status=stock_status,
+                           last_count=count if count and count.ingredient_id == ingredient.id else None)
 
 
-HISTORY_REASONS = {'sale': 'Sale', 'restock': 'Restock', 'count': 'Stock count'}
+HISTORY_REASONS = {'sale': 'Sale', 'restock': 'Restock', 'count': 'Stock count', 'count-undo': 'Count undone'}   # v0.30.0
 
 
 @bp.route('/ingredients/history')

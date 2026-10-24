@@ -65,4 +65,26 @@ icon = app.test_client().get('/static/favicon.svg')
 check('TC-26.13 the icon file exists and is an SVG picture', icon.status_code == 200 and b'<svg' in icon.data)
 check('TC-26.13 the icon has no script in it (an SVG can carry one)', b'<script' not in icon.data.lower())
 
+# ---- v0.21.8 (DEF-66): Ingredients page, dark theme: a normal bar and a Low bar must not share a colour
+css = open('static/css/theme.css', encoding='utf-8').read()
+
+
+def colour_of(selector):
+    """The background of the last rule in theme.css written for exactly this selector, or ''."""
+    found = re.findall(re.escape(selector) + r'\s*\{[^}]*background:\s*([^;}]+)', css)
+    return found[-1].strip() if found else ''
+
+
+dark_vars = dict(re.findall(r'(--[\w-]+):\s*([^;]+);', css[css.index('[data-bs-theme="dark"] {'):]))
+dark_accent = re.search(r'\[data-bs-theme="dark"\][^{]*\{[^}]*--app-accent:\s*([^;]+);', css).group(1).strip()
+ok_dark = colour_of('[data-bs-theme="dark"] .stock-fill.is-ok') or 'var(--app-accent)'
+ok_dark = dark_vars.get(ok_dark[4:-1], ok_dark) if ok_dark.startswith('var(') else ok_dark
+if ok_dark == 'var(--app-accent)' or ok_dark.startswith('var(--app-accent'):
+    ok_dark = dark_accent
+low = colour_of('.stock-fill.is-low')
+check(f'TC-26.14 dark theme: a normal bar ({ok_dark}) and a Low bar ({low}) have different colours (DEF-66)',
+      ok_dark.lower() != low.lower())
+check('TC-26.14 the Low and Out colours are unchanged', low.upper() == '#EF9F27' and colour_of('.stock-fill.is-out').upper() == '#DC3545')
+check('TC-26.15 the light theme keeps the caramel bar (only the dark theme changes)', colour_of('.stock-fill') == 'var(--app-accent)')
+
 finish('HARDENING')

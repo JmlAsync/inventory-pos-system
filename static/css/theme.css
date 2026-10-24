@@ -614,6 +614,9 @@ a.low-banner:hover { color: var(--warn-text); filter: brightness(0.97); }
 .stock-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--app-accent); }
 .stock-fill.is-low { background: #EF9F27; }
 .stock-fill.is-out { background: #DC3545; }
+/* v0.21.8 (DEF-66): in the dark theme the accent is amber, the same as a Low bar, so a full shelf and a low
+   one looked alike. Normal bars use the same green as the New Sale tiles there; Low and Out are unchanged. */
+[data-bs-theme="dark"] .stock-fill.is-ok { background: var(--stock-ok); }
 .stock-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--app-muted); border-radius: 1px; }
 @media (max-width: 767.98px) {   /* phones: name and button on top, bar and amount below */
     .ing-row { grid-template-columns: 1fr auto; grid-template-areas: "name button" "bar amount"; }

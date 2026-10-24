@@ -96,7 +96,7 @@ with c.session_transaction() as s: s['basket'] = {}
 c.post('/sales/new', data={'product_id': L, 'quantity': '1', 'size_id': ICED})
 h = page()
 check('TC-22.4 each basket line has a change panel with the servings and add-ons, current choice ticked',
-      'id="lineEdit1"' in h and re.search(rf'value="{ICED}" data-price="0\.0"\s*checked', h) is not None and 'name="addon_ids"' in h)
+      'id="lineEdit1"' in h and re.search(rf'value="{ICED}" data-price="0\.00?"\s*checked', h) is not None and 'name="addon_ids"' in h)
 r = opts(line, size_id=ICED, addon_ids=[OAT])
 check('TC-22.4 tick Oat Milk -> the line becomes "Iced, Oat Milk", ₱180.00', r.status_code == 302 and basket() == {f'{L}:{ICED}:{OAT}': 1}
       and 'basket-options">Iced, Oat Milk<' in page() and '1 × ₱180.00' in page())

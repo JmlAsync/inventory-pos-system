@@ -39,6 +39,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-022](#dec-022) | Shop details live in the database; the "not an official receipt" line is fixed | Best choice | Decided |
 | [DEC-023](#dec-023) | Migrations: one catch-up first migration, a backup before every upgrade | Best choice | Decided |
 | [DEC-024](#dec-024) | Times stored in UTC; shown in the shop's fixed UTC+8 | Best choice | Decided |
+| [DEC-025](#dec-025) | Money: whole centavos in the database, exact Decimal pesos in Python | Best choice | Decided |
 
 ---
 
@@ -673,5 +674,40 @@ happen before any cloud package exists.
 | Stored form | UTC without a zone label | Zone-aware columns: SQLite has none, and labels would differ between databases |
 | Backup file names | Still the computer's local time | They are read by a person in File Explorer on that computer |
 | Tests | Fixed dates for the conversions; three older tests moved to the helpers | Relying on the test machine's zone: GitHub runs on UTC, where local and UTC are the same and a mistake would hide (one did: TC-27.8 only failed on the UTC+8 laptop) |
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-025
+
+**Money: whole centavos in the database, exact Decimal pesos in Python** *(v0.23.2, DEF-68, audit R5)*
+
+**How it works.** A new column type, `Money` (in `models.py`), is used for every price and total: product and add-on
+prices, sale totals, cash received, change and receipt-line prices. When a value is saved it is turned into an exact
+`Decimal`, rounded once to the centavo (half up: 0.125 → 0.13) and stored as a whole number of centavos (₱75.50 →
+7550). When it is read back, Python gets `Decimal('75.50')`. Forms still type pesos, pages still show pesos, and the
+code still says `product.price`; only the storage and the arithmetic changed. Migration `0003` multiplied every stored
+amount by 100 and rounded it *before* changing the column to INTEGER (changing the type alone would cut 75.50 to 75).
+
+**Why.** A float can't hold most centavo amounts exactly (0.1 is really 0.1000000000000000055…). Rounding each result
+hid that for single sums, but long sums drift, and one real case showed on a receipt: ₱0.125 was displayed as ₱0.12 per
+item but ₱0.38 for three. Shops and accountants expect every receipt to add up to the centavo, and the cloud package
+(DEC-014) will add up thousands of sales. Whole centavos are what payment systems use; doing it now, before the store
+layer and the cloud package, means they are built on exact money from the start.
+
+**Alternatives checked.**
+
+| Option | Verdict |
+|---|---|
+| **`Money` type: INTEGER centavos stored, `Decimal` pesos in Python** | Exact storage *and* exact arithmetic, the same on SQLite and PostgreSQL, and almost no code had to change. Chosen |
+| Integer centavos everywhere in the code too | Equally exact, but every calculation, form, template and about 15 test files would change in one version; much more risk for no extra exactness |
+| SQLAlchemy `Numeric(10, 2)` | On SQLite it is still stored as a floating-point number (SQLite has no exact decimal type), so it doesn't fix the problem where the shop runs |
+| Keep floats and round more carefully | Treats the symptom; the receipt case shows rounding in one place and not another still breaks |
+
+**Details checked.** Rounding is *half up* (what a cashier expects: ₱0.125 → ₱0.13), not Python's default
+"half to even". Amounts typed in forms are still checked as numbers first (limits, `nan`, `inf`), then converted
+to `Decimal` at the boundary (`to_money()`), so a float never meets a `Decimal` in a sum. Tested on a copy of the
+owner's database: all 58 receipts, 120 lines and 12 prices equal to the centavo before and after.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

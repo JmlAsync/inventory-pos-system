@@ -87,6 +87,20 @@ first saves a copy as `instance/inventory_backup_<date-time>_before_<number>.db`
 changes in `migrations/` (after updating the code, run `pip install -r requirements.txt` once: v0.23.0 added
 Flask-Migrate).
 
+## Setting it up for a real shop (v0.24.0)
+
+The quick start above is the **demo**. For a shop's own computer, after step 2 (the virtual environment):
+
+```powershell
+.env\Scripts\python setup_shop.py   # once: network, shop details, the owner's admin account
+```
+
+Then start it every day by double-clicking **`start_shop.bat`**. It runs the system with **waitress**, a real
+web server, and shows the address to open (also the one for phones, if you allowed other devices). The first
+time, Windows Firewall may ask whether Python may use the network: allow it on **Private networks** only.
+`setup_shop.py` never creates the demo accounts; the owner chooses their own password. Run it again any
+time to change the settings; your data is kept.
+
 ## Running the tests
 
 ```powershell
@@ -108,6 +122,8 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `static/css/theme.css` | The custom look, light and dark |
 | `static/vendor/` | Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and the Inter font, stored here so nothing loads from the internet |
 | `seed_demo_data.py` | Fills the database with demo data |
+| `setup_shop.py`, `serve.py`, `start_shop.bat` | Setting up and running a shop's own copy (v0.24.0) |
+| `requirements/` | The packages for each install package (`local.txt`); `requirements.txt` points to it |
 | `tests/` | Automated tests and the contract check |
 | `migrations/` | Numbered database changes, applied automatically at start-up after a backup (v0.23.0) |
 | `final_report.md` (+ `.docx`, `.pdf`) | The final project report for submission, in the order of the course's Section B list |

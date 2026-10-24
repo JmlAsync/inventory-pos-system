@@ -11,10 +11,36 @@ from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 import re
+import sys
+import tomllib
 from flask import abort
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
+
+# ---------------- The shop's settings (v0.24.0, F22, DEC-026) ----------------
+# instance/config.toml is written by setup_shop.py: which database to use and how the server listens.
+# It is in instance/, so it never goes to GitHub (rule P1). Without it, the defaults below are used.
+CONFIG_FILE = os.path.join(app.instance_path, 'config.toml')
+
+
+def load_config():
+    """The settings in instance/config.toml as a dictionary, or {} if there is no such file."""
+    if not os.path.exists(CONFIG_FILE):
+        return {}
+    try:
+        with open(CONFIG_FILE, 'rb') as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as error:
+        # A plain message instead of a traceback: the owner may have edited the file by hand
+        print(f'instance/config.toml has a mistake: {error}.', file=sys.stderr)
+        print('Fix it in a text editor, or run "python setup_shop.py" again to write a new one.', file=sys.stderr)
+        raise SystemExit(1)
+
+
+CONFIG = load_config()
+# DATABASE_URL (an environment variable, as hosting services use) wins over the file; the default is the local file
+app.config['SQLALCHEMY_DATABASE_URI'] = (os.environ.get('DATABASE_URL')
+                                         or CONFIG.get('database', {}).get('url', 'sqlite:///inventory.db'))
 
 
 def load_secret_key():

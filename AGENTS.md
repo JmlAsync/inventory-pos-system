@@ -51,6 +51,9 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | `static/css/theme.css` | All custom styling, light and dark theme | |
 | `static/vendor/` | Bootstrap, Bootstrap Icons and the Inter font, stored locally | Rule D2: nothing loads from the internet |
 | `seed_demo_data.py` | Fills the database with demo data; `--fresh` backs up first | |
+| `setup_shop.py` | Sets up a shop's own copy once: `instance/config.toml`, migrations, shop details, the first admin (v0.24.0) | Never creates the demo accounts |
+| `serve.py`, `start_shop.bat` | Run the system for a shop with waitress (v0.24.0); `python app.py` stays for development | Settings from `instance/config.toml` |
+| `requirements/` | The packages per install package: `local.txt` (v0.24.0); `requirements.txt` points to it | Rule D1 |
 | `add_users.py`, `add_test_product.py` | Small helper scripts from the first versions | |
 | `tests/` | Automated tests and the contract check | See section 9 |
 | `migrations/` | Numbered database changes (`versions/0001_…`), run by Alembic at start-up after a backup (v0.23.0) | Rule I5; how to add one: `migrations/README.md` |

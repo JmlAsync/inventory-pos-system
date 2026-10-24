@@ -232,6 +232,7 @@ The tag message summarizes what the increment added.
 | v0.23.0 | 2026-10-24 | — | Database migrations with Alembic (Flask-Migrate): every database change is now a numbered script in `migrations/versions/`. Migration `0001` brings any older or empty database to the v0.22.0 shape (it took over the `NEW_COLUMNS` list) and can't be undone; start-up backs the database up (`instance/inventory_backup_<date>_before_<number>.db`) before running any missing migration. New packages Flask-Migrate 4.1.0, alembic 1.20.0, Mako 1.4.3 (approved in DEC-011). Tested on a copy of the owner's real database: only `alembic_version` added, every row count unchanged, integrity ok (DEC-023) *(branch `feature/alembic-migrations`, merged after the defense, DEC-018)* |
 | v0.23.1 | 2026-10-24 | — | Times stored in **UTC** and shown, and counted into days, on the shop's clock (UTC+8): receipts, the report, Home's "today", ingredient history, logins and the login limit. Migration `0002` turns every stored time from this computer's local time into UTC (and back when undone). Needed before any cloud server, which runs on UTC (DEF-67, audit R1, DEC-024). Tested on a copy of the owner's database: times 8 hours earlier in storage, the same on screen *(branch `fix/utc-times`, merged after the defense, DEC-018)* |
 | v0.23.2 | 2026-10-24 | — | Money stored as **whole centavos** (INTEGER: ₱75.50 = 7550) through a new `Money` column type, and handled in Python as exact `Decimal` pesos, so totals can't drift and a receipt always adds up. A price typed with more than two decimals is rounded once, half up, when saved. Migration `0003` converts every price and total (and back when undone). Tested on a copy of the owner's database: all 58 receipts, 120 lines and 12 prices identical to the centavo (DEF-68, audit R5, DEC-025) *(branch `fix/money-centavos`, merged after the defense, DEC-018)* |
+| v0.24.0 | 2026-10-24 | — | Setting up and running a shop's own copy (F22): `setup_shop.py` asks once for the network (this computer only, or also phones on the shop's network), the shop's details and the owner's own admin account, writes `instance/config.toml`, brings the database up to date and never creates the demo accounts; `serve.py` / `start_shop.bat` run it with **waitress** instead of Flask's development server (audit R3) and show the address for phones. Packages split into `requirements/local.txt` (rule D1); waitress 3.0.2. Tried end to end: a fresh install, started by `start_shop.bat`, used from the network address in Edge (DEC-026) *(branch `feature/serve-and-setup`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -430,6 +431,9 @@ Maria works at the counter for eight hours. The old white-and-teal screen felt c
 
 ### Story F21 — The shop's own receipt *(v0.22.0)*
 Maria wants the receipts to carry her café's name, not "Inventory & POS". She opens **Shop details** in the admin part of the sidebar, types the café's name, its address, her TIN and a footer ("Thank you! See you again."), and clicks **Save shop details**. The next receipt Jun prints shows them at the top and bottom, and old receipts show them too when reprinted. At the very bottom every receipt says **"This is not an official receipt."** Maria can't switch that line off: the official invoice still comes from the café's BIR-registered POS, and this slip is for the shop's own records. When she types a TIN with letters in it, the page says it must have 9 to 14 digits. Jun, as a cashier, has no Shop details link, and typing its address gives the 403 page.
+
+### Story F22 — Setting up the café's own copy *(v0.24.0)*
+The system is installed on Maria's counter laptop. She runs `setup_shop.py` once. It asks whether phones in the café will use it (yes: Jun takes orders on a tablet), the café's name and address for the receipts, and her own username and password, typed twice; "maria" or a 6-letter password is refused with a plain reason. It says it's done and how to start. Every morning she double-clicks **start_shop.bat**: a window shows "On this computer: http://127.0.0.1:5000" and "On other devices: http://192.168.1.10:5000", which Jun opens on the tablet. Nobody can log in with the demo password `admin123`, because the demo accounts were never created.
 
 ---
 
@@ -1065,6 +1069,25 @@ Automated in `tests/test_money.py` (19 checks). `test_new_sale.py` TC-22.4 now a
 | TC-30.9 | A copy of the owner's real database | Start v0.23.2 in a scratch folder | All 58 sales, 120 lines, 12 prices equal to the centavo; every total = sum of its lines; the unique GCash and ticket indexes kept; integrity ok; real file unchanged | As expected | ✅ |
 | TC-30.10 | Demo copy in Edge | Iced latte + Oat Milk; cash ₱200; complete | Live price "₱180.00 each", change ₱20.00, receipt ₱180.00 / ₱200.00 / ₱20.00, no script errors | As expected | ✅ |
 
+### F22 — Setting up and running a shop's copy *(v0.24.0)*
+
+Automated in `tests/test_setup.py` (30 checks; `setup_shop.py` is run as a program with an answers file, and waitress really answers a request). Also tried end to end in a scratch folder: install, `start_shop.bat`, and Edge through the computer's network address. `test_security.py` now reads the Werkzeug pin from `requirements/local.txt`.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-31.1 | No `instance/config.toml` | Start the app | The local SQLite database | As expected | ✅ |
+| TC-31.2 | Fresh folder | `setup_shop.py --answers` (other devices, port 5050, shop details, admin "maria") | Exit 0 and how to start; config `0.0.0.0:5050`, local database, no password or secret in it; "maria" only (no demo accounts), password hashed; database at the newest migration; shop details saved | As expected | ✅ |
+| TC-31.3 | Fresh folder | Password `short`, = username, empty username, port 80 or `abc`, empty shop name | Each refused with its reason, exit 1; nothing created | As expected (7 cases) | ✅ |
+| TC-31.4 | Set up | Run again with "this computer only, 5000" | Admin kept (not added twice, same password, "already exists"); new choice saved; old config kept as `config.toml.bak` | As expected | ✅ |
+| TC-31.5 | A config file with a mistake | Start the app | A plain message naming the file and `setup_shop.py`; no traceback | As expected | ✅ |
+| TC-31.6 | `DATABASE_URL` set | Start the app | It wins over the file (for hosting) | As expected | ✅ |
+| TC-31.7 | — | Serve with waitress; open `/login` | 200 with the security headers | **v0.23.2:** only Flask's development server · **v0.24.0:** waitress | ❌→✅ |
+| TC-31.8 | Config with host `8.8.8.8`, port 99999 or `x`; no `[server]` | `serve.server_settings()` | Each refused with a plain message; defaults 127.0.0.1:5000 | As expected | ✅ |
+| TC-31.9 | — | Read `start_shop.bat` | Runs `serve.py` with `venv\Scripts\python.exe` from its own folder | As expected | ✅ |
+| TC-31.10 | An answers file saved by PowerShell 5 (UTF-8 with a byte-order mark) | Run the setup | Accepted | **First try:** refused ("Unexpected UTF-8 BOM"), found in the end-to-end trial · **v0.24.0:** accepted | ❌→✅ |
+| TC-31.11 | A fresh scratch install | `start_shop.bat`; Edge at `http://192.168.100.88:5081` | Served by waitress through the network address; `admin`/`admin123` refused; "maria" logs in; shop details there; the start-up window shows both addresses | As expected | ✅ |
+| TC-31.12 | A fresh install, typing the answers | `python setup_shop.py` (no answers file) | The questions read clearly; passwords hidden; a wrong answer asked again | **To try by hand on Sunday** (the password prompt reads from the keyboard, so it can't be automated) | ⏳ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1168,7 +1191,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_migrations.py` | Migrations / TC-28.x (v0.23.0): older database upgraded with data kept, backup first, no second backup, models match migrations, rebuild after `drop_all`, 0001 can't be undone, log stays on, one line of migrations | 14 |
 | `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
 | `test_money.py` | Money in centavos / TC-30.x (v0.23.2): migration 0003 both ways, INTEGER storage, Decimal in Python, one rounding on save, receipts add up, exact sums, limits unchanged | 19 |
-| **27 files** | | **568 checks + 59 rule checks** |
+| `test_setup.py` | F22 / TC-31.x (v0.24.0): config file, setup run with good and wrong answers, run twice, broken config, `DATABASE_URL`, waitress serving, server settings, `start_shop.bat`, answers file with a byte-order mark | 30 |
+| **28 files** | | **598 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1204,7 +1228,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Database migrations (v0.23.0) | 9 | 8 → **9** | 1 → **0** | 0 |
 | Times in UTC (v0.23.1) | 9 | 5 → **9** | 4 → **0** | 0 |
 | Money in centavos (v0.23.2) | 9 | 4 → **9** | 5 → **0** | 0 |
-| **Total** | **315** | **209 → 315** | **89 → 0** | **4 → 0** |
+| F22 Setup and serve (v0.24.0) | 12 | 9 → **11** | 2 → **0** | 0 → **1** |
+| **Total** | **327** | **218 → 326** | **91 → 0** | **4 → 1** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 

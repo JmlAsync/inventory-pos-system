@@ -29,7 +29,8 @@ USER_ROUTES = {                                        # @login_required (admin 
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',
                     'itsdangerous', 'jinja2', 'markupsafe', 'sqlalchemy', 'typing_extensions', 'werkzeug',
-                    'alembic', 'flask-migrate', 'mako'}   # v0.23.0: migrations (DEC-011, DEC-023); Mako comes with alembic
+                    'alembic', 'flask-migrate', 'mako',   # v0.23.0: migrations (DEC-011, DEC-023); Mako comes with alembic
+                    'waitress'}                            # v0.24.0: the shop's web server (DEC-026)
 # ---- Never committed to Git (AGENTS.md rule P1).
 PRIVATE = [r'^instance/', r'\.db$', r'^static/avatars/', r'^static/products/', r'^local_demo/', r'secret_key',
            r'(^|/)\.env$', r'^venv/', r'^\.venv/',
@@ -132,22 +133,29 @@ result('S5 SQL text only built from pieces inside upgrade_database()', not any(f
 
 # D1: dependencies
 packages = {}
-for line in read('requirements.txt').splitlines():
-    line = line.strip()
-    if line and not line.startswith('#'):
-        name, _, version = line.partition('==')
-        packages[name.strip().lower().replace('_', '-')] = version.strip()
+REQUIREMENT_FILES = ['requirements.txt']   # v0.24.0: "-r requirements/local.txt" lines are followed too
+for path in REQUIREMENT_FILES:
+    for line in read(path).splitlines():
+        line = line.strip()
+        if line.startswith('-r '):
+            REQUIREMENT_FILES.append(os.path.normpath(os.path.join(os.path.dirname(path), line[3:].strip())))
+        elif line and not line.startswith('#'):
+            name, _, version = line.partition('==')
+            packages[name.strip().lower().replace('_', '-')] = version.strip()
 allowed = {p.replace('_', '-') for p in ALLOWED_PACKAGES}
-result('D1 requirements.txt only has allowed packages', set(packages) <= allowed, 'not allowed: ' + ', '.join(sorted(set(packages) - allowed)))
+result('D1 the requirements files only have allowed packages', set(packages) <= allowed, 'not allowed: ' + ', '.join(sorted(set(packages) - allowed)))
 result('D1 every package has an exact version (name==1.2.3)', all(packages.values()), 'missing: ' + ', '.join(n for n, v in packages.items() if not v))
 # v0.21.6 (DEF-64, audit R11): saved as plain UTF-8, which every tool reads (PowerShell's "pip freeze >" writes UTF-16)
-with open(os.path.join(ROOT, 'requirements.txt'), 'rb') as f:
-    raw = f.read()
-try:
-    raw.decode('utf-8'); plain_utf8 = not raw.startswith((b'\xff\xfe', b'\xfe\xff', b'\xef\xbb\xbf'))
-except UnicodeDecodeError:
-    plain_utf8 = False
-result('D1 requirements.txt is plain UTF-8 (not UTF-16, no byte-order mark)', plain_utf8,
+plain_utf8 = True
+for path in REQUIREMENT_FILES:   # every requirements file, including the ones in requirements/ (v0.24.0)
+    with open(os.path.join(ROOT, path), 'rb') as f:
+        raw = f.read()
+    try:
+        raw.decode('utf-8')
+        plain_utf8 = plain_utf8 and not raw.startswith((b'\xff\xfe', b'\xfe\xff', b'\xef\xbb\xbf'))
+    except UnicodeDecodeError:
+        plain_utf8 = False
+result('D1 the requirements files are plain UTF-8 (not UTF-16, no byte-order mark)', plain_utf8,
        'save it as UTF-8: python -c "import pathlib;p=pathlib.Path(\'requirements.txt\');p.write_text(p.read_text(\'utf-16\'),\'utf-8\')"')
 
 # D2: pages load nothing from the internet (AGENTS.md rule D2, changed in v0.19.4 for offline use)

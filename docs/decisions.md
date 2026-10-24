@@ -40,6 +40,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-023](#dec-023) | Migrations: one catch-up first migration, a backup before every upgrade | Best choice | Decided |
 | [DEC-024](#dec-024) | Times stored in UTC; shown in the shop's fixed UTC+8 | Best choice | Decided |
 | [DEC-025](#dec-025) | Money: whole centavos in the database, exact Decimal pesos in Python | Best choice | Decided |
+| [DEC-026](#dec-026) | A shop's copy: set up once, settings in `config.toml`, served by waitress | Best choice | Decided |
 
 ---
 
@@ -709,5 +710,47 @@ layer and the cloud package, means they are built on exact money from the start.
 "half to even". Amounts typed in forms are still checked as numbers first (limits, `nan`, `inf`), then converted
 to `Decimal` at the boundary (`to_money()`), so a float never meets a `Decimal` in a sum. Tested on a copy of the
 owner's database: all 58 receipts, 120 lines and 12 prices equal to the centavo before and after.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-026
+
+**A shop's copy: set up once, settings in `config.toml`, served by waitress** *(v0.24.0, F22, audit R3 and A5)*
+
+**How it works.**
+
+1. `setup_shop.py` asks (or reads an answers file): may phones and other computers use the system; which port; the
+   shop's details; the owner's admin username and password (typed twice, hidden). Every answer is checked *before*
+   anything is written, so a wrong one changes nothing.
+2. It writes `instance/config.toml` (server host and port, database address; never a password), keeping the old one as
+   `config.toml.bak`, then brings the database up to date (with the v0.23.0 backup), saves the shop's details and
+   creates the admin, unless that username already exists.
+3. `start_shop.bat` runs `serve.py`, which checks the settings, upgrades the database and starts **waitress**, printing
+   the address for this computer and, if allowed, for phones on the shop's network.
+
+**Why.** Until now a shop's copy was the demo: Flask's development server (which says itself it isn't for real use),
+the public demo passwords, and settings only in code. A café needs a real server that handles several devices, one
+place for settings that a person can read, and an install that can't accidentally keep `admin123` as the owner's password.
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Web server | waitress 3.0.2 (pure Python, no other packages, made for Windows) | gunicorn and uWSGI (don't run on Windows); Flask's development server (not for real use) |
+| Listening | This computer only unless the owner says yes to other devices | Always open to the network (exposes the system on every Wi-Fi the laptop joins); always closed (phones and tablets couldn't be used) |
+| Allowed hosts | Only `127.0.0.1` or `0.0.0.0` | Any address: typing mistakes could leave it unreachable, and there's no need for more on a shop's laptop |
+| Settings file | `instance/config.toml`, read with Python's own `tomllib` | `.env` (needs `python-dotenv`), JSON (no comments for a person editing it), the database (it can't hold its own address) |
+| Shop details | Still in the database (DEC-022), entered by the setup | Duplicating them in the config file (two places to keep in step) |
+| First account | The owner's own admin, password at least 8 characters and not the username | The demo accounts (public passwords, audit A5) |
+| Automated installs | An answers file (`--answers`), read with `utf-8-sig` | Command-line arguments (the password would stay in the shell's history); plain `utf-8` refused files saved by PowerShell 5 or older Notepad (found in the end-to-end trial, TC-31.10) |
+| Requirements | `requirements/local.txt`, with `requirements.txt` pointing to it (`-r`) | Moving everyone to new commands; empty `cloud.txt` and `dev.txt` before anything goes in them |
+| `.bat` line endings | Forced to CRLF with `.gitattributes` | Leaving it to Git's settings on each computer (a `.bat` with Unix line endings can misbehave) |
+
+**Honest limits.** The interactive questions can't be automated (the password prompt reads the keyboard), so they
+are a hand test for Sunday (TC-31.12). Windows Firewall may ask once whether Python may use the network; the README
+says to allow it on private networks only. The owner role, the owner's email and the licence come later (v0.27.0,
+v0.38.0); until then the setup creates an ordinary admin.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

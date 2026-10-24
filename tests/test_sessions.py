@@ -45,12 +45,12 @@ forged = SecureCookieSessionInterface().get_signing_serializer(app).dumps({'_use
 f = app.test_client(); f.set_cookie('session', forged)
 check('TC-23.7 a cookie made with the real secret key but no login record is refused', not can_open(f))
 
-from models import LoginSession   # (v0.20.3) one row per logged-in browser
+from models import LoginSession, utc_now   # (v0.20.3) one row per logged-in browser
 def age_logins(username, hours):
     with app.app_context():
         user = User.query.filter_by(username=username).first()
         for row in LoginSession.query.filter_by(user_id=user.id):
-            row.last_seen = datetime.now() - timedelta(hours=hours)
+            row.last_seen = utc_now() - timedelta(hours=hours)   # stored in UTC since v0.23.1
         db.session.commit()
 
 # ---- TC-23.8 8 idle hours end a login; activity keeps it alive
@@ -60,7 +60,7 @@ age_logins('cashier', 7)
 check('TC-23.8 7 idle hours: still logged in', can_open(k, '/sales/new'))
 with app.app_context():
     seen = max(r.last_seen for r in LoginSession.query.all())
-check('TC-23.8 ... and the visit counts as activity (last seen is now)', datetime.now() - seen < timedelta(minutes=1))
+check('TC-23.8 ... and the visit counts as activity (last seen is now)', utc_now() - seen < timedelta(minutes=1))
 age_logins('cashier', 9)
 check('TC-23.8 9 idle hours: logged out', not can_open(k, '/sales/new'))
 with k.session_transaction() as s: left = dict(s)

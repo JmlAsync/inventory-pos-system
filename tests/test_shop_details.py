@@ -66,6 +66,9 @@ with app.app_context():
     upgrade_database()
     check('TC-27.8 an older database gets the shop_profile table at start-up, nothing lost',
           db.inspect(db.engine).has_table('shop_profile') and Sale.query.count() == 1)
+# v0.23.1: a real older database stores local times, which migration 0002 turns into UTC. This made-up one already
+# has UTC login times, so 0002 shifts them by this computer's offset and the login may look idle: log in again.
+cashier = app.test_client(); cashier.post('/login', data={'username': 'cashier', 'password': 'cashier123'})
 check('TC-27.8 and the receipt still opens with the default name and the notice',
       'This is not an official receipt.' in text(cashier.get('/sales/1')))
 

@@ -230,6 +230,7 @@ The tag message summarizes what the increment added.
 | v0.21.8 | 2026-10-24 | — | Ingredients page, dark theme: a normal stock bar is green (the same green as the New Sale tiles) instead of the amber accent, which was exactly the colour of a Low bar; light theme, Low and Out unchanged (DEF-66) *(branch `fix/dark-low-bar`, merged after the defense, DEC-018)* |
 | v0.22.0 | 2026-10-24 | — | Shop details on receipts (F21): the admin sets the shop's name, address, TIN and a footer on a new **Shop details** page, and every receipt now says **"This is not an official receipt."**, which can't be turned off (SR6 met; closes the report's only *Intolerable* hazard as far as the software can). New `shop_profile` table, created at start-up on older databases (DEC-022) *(branch `feature/receipt-shop-details`, merged after the defense, DEC-018)* |
 | v0.23.0 | 2026-10-24 | — | Database migrations with Alembic (Flask-Migrate): every database change is now a numbered script in `migrations/versions/`. Migration `0001` brings any older or empty database to the v0.22.0 shape (it took over the `NEW_COLUMNS` list) and can't be undone; start-up backs the database up (`instance/inventory_backup_<date>_before_<number>.db`) before running any missing migration. New packages Flask-Migrate 4.1.0, alembic 1.20.0, Mako 1.4.3 (approved in DEC-011). Tested on a copy of the owner's real database: only `alembic_version` added, every row count unchanged, integrity ok (DEC-023) *(branch `feature/alembic-migrations`, merged after the defense, DEC-018)* |
+| v0.23.1 | 2026-10-24 | — | Times stored in **UTC** and shown, and counted into days, on the shop's clock (UTC+8): receipts, the report, Home's "today", ingredient history, logins and the login limit. Migration `0002` turns every stored time from this computer's local time into UTC (and back when undone). Needed before any cloud server, which runs on UTC (DEF-67, audit R1, DEC-024). Tested on a copy of the owner's database: times 8 hours earlier in storage, the same on screen *(branch `fix/utc-times`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1031,6 +1032,22 @@ Automated in `tests/test_migrations.py` (14 checks), which starts from a databas
 | TC-28.8 | — | List the migrations | One line (no branches), each with a description | As expected | ✅ |
 | TC-28.9 | A copy of the owner's real database (v0.21.2) | Start v0.23.0 on it in a scratch folder | Only `alembic_version` added; row counts unchanged; backup taken; `integrity_check` ok; the real file unchanged (same SHA-1) | As expected | ✅ |
 
+### Times in UTC *(v0.23.1)*
+
+Automated in `tests/test_times.py` (18 checks); the conversions are checked with fixed dates so the result is the same on every computer (T3). Three older tests were moved to the new helpers because they built times from the computer's clock: `test_report.py` (days on the shop's clock), `test_sessions.py` (idle hours in UTC) and `test_shop_details.py` TC-27.8 (logs in again after its made-up "older database" is upgraded).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-29.1 | A database at migration 0001 with a sale and a login in local time | Start v0.23.1 | Migration 0002 turns them into UTC using this computer's time zone | **v0.23.0:** local time kept · **v0.23.1:** as expected | ❌→✅ DEF-67 |
+| TC-29.2 | Same | Undo 0002 | Exactly the old local times again | As expected | ✅ |
+| TC-29.3 | — | Convert fixed times | Shop = UTC+8; 16:30 UTC Oct 24 = 00:30 Oct 25; the shop's Oct 25 begins 16:00 UTC Oct 24; `utc_now()` and `shop_now()` correct | As expected | ✅ |
+| TC-29.4 | — | Look at what a new sale, login and ingredient change are stamped with | UTC | **v0.23.0:** local time · **v0.23.1:** UTC | ❌→✅ DEF-67 |
+| TC-29.5 | Sales at 23:59 Mar 9 and 00:01 Mar 10 (shop time) | Report for Mar 9; for Mar 10 | Each sale on its own shop day | As expected | ✅ |
+| TC-29.6 / 29.8 | Same | Read the report list and the receipt | Shop time (2025-03-10 12:01 AM) | **v0.23.0:** would show the stored time · **v0.23.1:** shop time | ❌→✅ DEF-67 |
+| TC-29.7 | Sales at 00:05 today and 23:55 yesterday (shop time) | Open Home | "Today" counts only the 00:05 sale; today's shop date shown | As expected | ✅ |
+| TC-29.9 | — | Search `app.py`, `models.py`, `seed_demo_data.py` | No local-time stamps left (backup file names excepted) | **v0.23.0:** 10 · **v0.23.1:** none | ❌→✅ DEF-67 |
+| TC-29.10 | A copy of the owner's real database | Start v0.23.1 in a scratch folder | Sale #58 stored 15:19 → 07:19 UTC, still shown 3:19 PM; row counts unchanged; backup; integrity ok; real file unchanged | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1132,7 +1149,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62), tab icon (DEF-65), dark-theme bar colour (DEF-66) | 22 |
 | `test_shop_details.py` | F21 / TC-27.x (v0.22.0): notice on every receipt (SR6), who may change the details, saving, wrong values, HTML as text, older database | 22 |
 | `test_migrations.py` | Migrations / TC-28.x (v0.23.0): older database upgraded with data kept, backup first, no second backup, models match migrations, rebuild after `drop_all`, 0001 can't be undone, log stays on, one line of migrations | 14 |
-| **25 files** | | **531 checks + 59 rule checks** |
+| `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
+| **26 files** | | **549 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1166,7 +1184,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Phase 1 patches (v0.21.3 onward) | 15 | 4 → **15** | 11 → **0** | 0 |
 | F21 Shop details (v0.22.0) | 8 | 7 → **8** | 1 → **0** | 0 |
 | Database migrations (v0.23.0) | 9 | 8 → **9** | 1 → **0** | 0 |
-| **Total** | **297** | **200 → 297** | **80 → 0** | **4 → 0** |
+| Times in UTC (v0.23.1) | 9 | 5 → **9** | 4 → **0** | 0 |
+| **Total** | **306** | **205 → 306** | **84 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1246,6 +1265,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-64 | Low (tooling) | `requirements.txt` was saved as UTF-16 (PowerShell's `pip freeze >` writes UTF-16). pip reads it, but many tools (GitHub's dependency graph, some editors and security scanners) don't, and Git showed it as a binary file (audit R11) | Security audit 2026-10-11 (R11) | Saved as UTF-8 with the same 13 packages; new contract rule "requirements.txt is plain UTF-8" with the command to fix it; TC-26.11 | ✅ Fixed v0.21.6 |
 | DEF-65 | Low (cosmetic) | No browser tab icon: every page load ended with "404 Not Found" for `/favicon.ico` in the browser's console, and the tab showed a blank page icon (known limitation since the report) | Report §10.4 known limitations | `static/favicon.svg` and a `<link rel="icon">` in `base.html`; TC-26.12–26.13 | ✅ Fixed v0.21.7 |
 | DEF-66 | Low (cosmetic) | Ingredients page, dark theme: a normal stock bar used the amber accent `#EF9F27`, exactly the colour of a Low bar, so a full shelf and a low one looked alike (the report's known limitation called them "tile bars"; measuring showed it is the Ingredients page; the New Sale tiles were already green and amber) | Report §10.4 known limitations; checked against the CSS (rule C10) | `[data-bs-theme="dark"] .stock-fill.is-ok` uses `--stock-ok` (green); TC-26.14–26.15 | ✅ Fixed v0.21.8 |
+| DEF-67 | Medium (future) | Times were stored in the computer's local time with no zone. On a cloud server (UTC) "today", the report's days and receipt times would have been 8 hours off (audit R1) | Security audit 2026-10-11 (R1) | Store UTC (`models.utc_now`), show and count days in the shop's time (`SHOP_TIMEZONE` UTC+8, `shop_time` filter); migration 0002 converts old times (DEC-024); TC-29.1–29.10 | ✅ Fixed v0.23.1 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now

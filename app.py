@@ -2,12 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate, upgrade as run_migrations
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile, utc_now
 from functools import wraps
 import math
 import os
 import secrets
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 import re
@@ -134,6 +134,39 @@ def peso(amount):
     return f'₱{amount:,.2f}'
 
 
+# ---------------- Times: stored in UTC, shown in the shop's time (v0.23.1, DEF-67, DEC-024) ----------------
+# Every time in the database is UTC (models.utc_now). Pages show it, and the report and Home count days, in the
+# shop's own time. A cloud server runs on UTC, so the computer's local time can't be trusted for this.
+# The Philippines is UTC+8 all year (no daylight saving), so a fixed offset is exact and needs no extra package.
+SHOP_TIMEZONE = timezone(timedelta(hours=8), 'PHT')
+
+
+def shop_now():
+    """The current time in the shop (UTC+8), without a time-zone label."""
+    return datetime.now(SHOP_TIMEZONE).replace(tzinfo=None)
+
+
+def to_shop_time(moment):
+    """A stored UTC time as the shop's clock showed it."""
+    return moment.replace(tzinfo=timezone.utc).astimezone(SHOP_TIMEZONE).replace(tzinfo=None)
+
+
+def to_utc(shop_moment):
+    """A time on the shop's clock as UTC, the way it is stored."""
+    return shop_moment.replace(tzinfo=SHOP_TIMEZONE).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def shop_day_start_utc(day):
+    """When the shop's day (midnight on the shop's clock) begins, in UTC."""
+    return to_utc(datetime.combine(day, datetime.min.time()))
+
+
+@app.template_filter('shop_time')
+def shop_time_filter(moment):
+    """Used in templates as {{ (sale.created_at|shop_time).strftime(...) }}."""
+    return to_shop_time(moment)
+
+
 # ---------------- Database upgrades (v0.12.0; migrations since v0.23.0) ----------------
 # Until v0.22.0 this was a list of columns (NEW_COLUMNS) added with ALTER TABLE. Since v0.23.0 every
 # change is a numbered script in migrations/versions/ (DEC-023, rule I5). Migration 0001 took over the
@@ -156,7 +189,7 @@ def backup_database(before):
     path = db.engine.url.database
     if db.engine.url.get_backend_name() != 'sqlite' or not path or not os.path.exists(path):
         return None   # a server database (PostgreSQL) is backed up by its provider
-    stamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    stamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')   # file name in this computer's time: people read it here
     target = os.path.join(os.path.dirname(path), f'inventory_backup_{stamp}_before_{before}.db')
     source, copy = sqlite3.connect(path), sqlite3.connect(target)
     with copy:
@@ -244,7 +277,7 @@ LAST_SEEN_EVERY = timedelta(minutes=1)     # write "last seen" at most once a mi
 
 def start_login_session(user):
     """Called right after a correct password: remember this browser's login (v0.20.3)."""
-    now = datetime.now()
+    now = utc_now()   # v0.23.1: UTC
     LoginSession.query.filter(LoginSession.last_seen < now - IDLE_TIMEOUT).delete()   # tidy up old logins
     token = secrets.token_hex(32)
     db.session.add(LoginSession(token=token, user_id=user.id, created_at=now, last_seen=now))
@@ -268,7 +301,7 @@ def load_user(user_id):
     if row is None or str(row.user_id) != str(user_id):
         forget_login()    # logged out elsewhere, or a copied/forged cookie: forget it, basket included
         return None
-    now = datetime.now()
+    now = utc_now()   # v0.23.1: UTC, like last_seen
     if now - row.last_seen > IDLE_TIMEOUT:
         db.session.delete(row)
         db.session.commit()
@@ -284,7 +317,7 @@ def home():
     """Home page. Logged-in users see today's numbers and shortcuts (v0.13.0)."""
     stats = None
     if current_user.is_authenticated:
-        start_of_today = datetime.combine(date.today(), datetime.min.time())
+        start_of_today = shop_day_start_utc(shop_now().date())   # v0.23.1: the shop's day, in UTC
         todays_sales = Sale.query.filter(Sale.created_at >= start_of_today).all()
         stats = {
             'products': Product.query.count(),
@@ -293,7 +326,7 @@ def home():
             'sales_today': len(todays_sales),
             'revenue_today': round(sum(sale.total for sale in todays_sales), 2),
         }
-    return render_template('home.html', stats=stats, today=date.today())
+    return render_template('home.html', stats=stats, today=shop_now().date())
 
 @app.route('/products')
 @login_required
@@ -636,14 +669,14 @@ DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
 def forget_old_failures():
     """v0.19.3 (DEF-50): drop every username whose wrong passwords are all older than the
     lockout window, not just the one being checked, so the list can't grow forever."""
-    cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    cutoff = utc_now() - timedelta(minutes=LOCKOUT_MINUTES)
     for key in [k for k, moments in failed_logins.items() if all(m <= cutoff for m in moments)]:
         del failed_logins[key]
 
 
 def recent_failures(key):
     """Wrong-password times for this key within the lockout window (older ones are forgotten)."""
-    cutoff = datetime.now() - timedelta(minutes=LOCKOUT_MINUTES)
+    cutoff = utc_now() - timedelta(minutes=LOCKOUT_MINUTES)
     recent = [moment for moment in failed_logins.get(key, []) if moment > cutoff]
     if recent:
         failed_logins[key] = recent
@@ -684,7 +717,7 @@ def login():
             start_login_session(user)      # v0.20.3: a login that log-out can really end
             login_user(user)
             return redirect(page_after_login())    # v0.20.6 (DEF-06): back to the page they first asked for
-        failed_logins.setdefault(key, []).append(datetime.now())
+        failed_logins.setdefault(key, []).append(utc_now())
         return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
 
@@ -1395,7 +1428,7 @@ LATEST_DATE = date(2100, 12, 31)
 @admin_required
 def sales_report():
     """Totals, list of sales and top products for a date range (default: today)."""
-    today = date.today()
+    today = shop_now().date()   # v0.23.1: today in the shop
     error = None
     # Dates arrive in the address as text, e.g. /reports/sales?start=2026-10-08&end=2026-10-08
     try:
@@ -1410,9 +1443,10 @@ def sales_report():
     if start > end:
         start, end = end, start   # swap them if entered the wrong way round
 
-    # From the start of the first day up to (but not including) the day after the last day
-    period_start = datetime.combine(start, datetime.min.time())
-    period_end = datetime.combine(end + timedelta(days=1), datetime.min.time())
+    # From the start of the first day up to (but not including) the day after the last day, on the
+    # shop's clock, turned into UTC because that is how sales are stored (v0.23.1)
+    period_start = shop_day_start_utc(start)
+    period_end = shop_day_start_utc(end + timedelta(days=1))
     in_period = (Sale.created_at >= period_start) & (Sale.created_at < period_end)
 
     sales = Sale.query.filter(in_period).order_by(Sale.created_at.desc()).all()

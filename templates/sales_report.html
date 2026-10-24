@@ -83,7 +83,7 @@
         {% for sale in sales %}
         <tr>
             <td><a href="{{ url_for('receipt', sale_id=sale.id) }}">{{ sale.id }}</a></td>
-            <td>{{ sale.created_at.strftime('%Y-%m-%d %I:%M %p') }}</td>
+            <td>{{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</td>
             <td>{{ sale.user.username }}</td>
             <td>{{ sale.items|length }}</td>
             <td>{{ PAYMENT_METHODS.get(sale.payment_method, sale.payment_method) }}</td>

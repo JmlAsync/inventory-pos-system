@@ -10,7 +10,7 @@
         {% if shop.tin %}<p class="text-center small mb-0">TIN: {{ shop.tin }}</p>{% endif %}
         <p class="text-center text-muted mb-3">Sales Receipt</p>
         <p class="mb-1"><strong>Receipt #:</strong> {{ sale.id }}</p>
-        <p class="mb-1"><strong>Date:</strong> {{ sale.created_at.strftime('%Y-%m-%d %I:%M %p') }}</p>
+        <p class="mb-1"><strong>Date:</strong> {{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</p>
         <p class="mb-3"><strong>Served by:</strong> {{ sale.user.username }}</p>
         <table class="table table-sm">
             <thead>

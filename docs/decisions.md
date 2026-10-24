@@ -35,6 +35,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-018](#dec-018) | Keep `main` at the defended version until after Tuesday's defense | Best choice | Decided |
 | [DEC-019](#dec-019) | A crash shows a friendly page; details only in the log | Best choice | Decided |
 | [DEC-020](#dec-020) | Unknown usernames check a dummy password hash | Best choice | Decided |
+| [DEC-021](#dec-021) | Demo menu: one product per drink, sold Hot or Iced | Best choice | Decided |
 
 ---
 
@@ -553,3 +554,15 @@ the final defense. Proceed with the plan.").
 **Why.** The message already didn't reveal whether the username or the password was wrong, but the *time* did: about 100 ms for a real user (scrypt is slow on purpose) and about 1 ms for an unknown one. Measuring that lets someone list which usernames exist, which is the first half of guessing a login. Once the system has many invited cashiers (DEC-003), that list matters more than today with two accounts. One extra hash for wrong usernames costs nothing a real user notices.
 
 **Alternatives checked.** *Add a fixed delay for unknown users* (a fixed number never matches the real hash time on every computer, so the difference still shows). *A random delay* (averages out over many tries). *Leave it* (the audit marked it Low, but it is a five-line fix and gets more important with invitations). Checking a real hash of the same kind is the standard fix. **Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-021
+
+**Demo menu: one product per drink, sold Hot or Iced** *(v0.21.5, DEF-63, audit R10)*
+
+**How it works.** The built-in menu (`DEFAULT_MENU` in `seed_demo_data.py`) now has 8 drinks (Americano, Cafe Latte, Cappuccino, Spanish Latte, Caramel Macchiato, Mocha, Matcha Latte, Chocolate), each with **+ Hot** and **+ Iced** on its tile. The servings cost the same. What makes them different is their own recipe: Hot adds a hot cup; Iced adds an iced cup and 150 g of ice, so the stock bars and the "Uses N ingredients" panel show cups and ice running out. A shop's own `local_demo/menu.json` is unaffected.
+
+**Why.** The demo is what a client, an examiner or a new cashier sees first. With 12oz / 16oz it showed the old design and hid the café's actual Hot / Iced flow (F15, F19): the serving buttons, the cup and ice stock and the colour-coded Hot / Iced buttons never appeared.
+
+**Alternatives checked.** *Rename 12oz / 16oz to Hot / Iced and keep the "Iced ..." products* (gives nonsense such as "Iced Americano — Hot"). *Keep separate hot and iced products with no servings* (twice as many tiles; the serving feature never shows). *Leave it* (the demo contradicts the report and the café). **Verdict:** Best choice. **Status:** Decided, 2026-10-24. *Note:* the final report's tour screenshots show the old 12oz / 16oz menu; they describe v0.21.2 as defended and stay as they are.

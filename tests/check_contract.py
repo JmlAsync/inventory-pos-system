@@ -19,6 +19,7 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
     '/products/add', '/products/edit/<int:product_id>', '/products/delete/<int:product_id>',
     '/options', '/ingredients', '/ingredients/<int:ingredient_id>', '/ingredients/history',
     '/recipe/<kind>/<int:item_id>', '/reports/sales',
+    '/settings/shop',                                  # shop details on receipts (v0.22.0)
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',

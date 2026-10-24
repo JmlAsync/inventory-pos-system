@@ -4,7 +4,10 @@
 <div class="card mx-auto receipt-card" style="max-width: 32rem;">
     <div class="card-body">
         <div class="text-center mb-2"><span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span></div>
-        <h1 class="h4 text-center">Inventory & POS</h1>
+        {# v0.22.0 (F21): the shop's own name, address and TIN, set on Shop details #}
+        <h1 class="h4 text-center">{{ shop.name }}</h1>
+        {% if shop.address %}<p class="text-center small mb-0">{{ shop.address }}</p>{% endif %}
+        {% if shop.tin %}<p class="text-center small mb-0">TIN: {{ shop.tin }}</p>{% endif %}
         <p class="text-center text-muted mb-3">Sales Receipt</p>
         <p class="mb-1"><strong>Receipt #:</strong> {{ sale.id }}</p>
         <p class="mb-1"><strong>Date:</strong> {{ sale.created_at.strftime('%Y-%m-%d %I:%M %p') }}</p>
@@ -38,6 +41,9 @@
                 {% endif %}
             </tfoot>
         </table>
+        {% if shop.footer %}<p class="text-center mb-1">{{ shop.footer }}</p>{% endif %}
+        {# SR6 (v0.22.0): always printed, never a setting. This system is not a BIR-registered POS. #}
+        <p class="text-center small fw-semibold mb-3 receipt-notice">This is not an official receipt.</p>
         <!-- d-print-none: Bootstrap hides these buttons on the printed page -->
         <div class="d-print-none">
             <button type="button" class="btn btn-light-subtle w-100 mb-2" onclick="window.print()"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print Receipt</button>

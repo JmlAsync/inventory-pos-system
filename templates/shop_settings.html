@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Shop details{% endblock %}
+{% block content %}
+{# Admin page: the shop's details printed on every receipt (v0.22.0, F21) #}
+<h1>Shop details</h1>
+<p class="page-subtitle">These appear at the top and bottom of every receipt, including old ones when they are reprinted.</p>
+
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<div class="card" style="max-width: 40rem;"><div class="card-body">
+    <form method="POST" action="{{ url_for('shop_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label class="form-label" for="name">Shop name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ shop.name }}" maxlength="60" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="address">Address <span class="text-body-secondary small">(optional)</span></label>
+            <input type="text" class="form-control" id="address" name="address" value="{{ shop.address }}" maxlength="120">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="tin">TIN <span class="text-body-secondary small">(optional)</span></label>
+            <input type="text" class="form-control" id="tin" name="tin" value="{{ shop.tin }}" maxlength="20" inputmode="numeric"
+                   placeholder="000-000-000-00000">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="footer">Footer <span class="text-body-secondary small">(optional)</span></label>
+            <input type="text" class="form-control" id="footer" name="footer" value="{{ shop.footer }}" maxlength="120"
+                   placeholder="Thank you! See you again.">
+        </div>
+        <p class="small text-body-secondary">Every receipt also says <strong>"This is not an official receipt."</strong>
+            This line can't be turned off: the system is not a BIR-registered POS, so its receipts are order slips
+            for the shop's own records. Official invoices come from the shop's registered POS.</p>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save shop details</button>
+    </form>
+</div></div>
+{% endblock %}

@@ -36,6 +36,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-019](#dec-019) | A crash shows a friendly page; details only in the log | Best choice | Decided |
 | [DEC-020](#dec-020) | Unknown usernames check a dummy password hash | Best choice | Decided |
 | [DEC-021](#dec-021) | Demo menu: one product per drink, sold Hot or Iced | Best choice | Decided |
+| [DEC-022](#dec-022) | Shop details live in the database; the "not an official receipt" line is fixed | Best choice | Decided |
 
 ---
 
@@ -566,3 +567,36 @@ the final defense. Proceed with the plan.").
 **Why.** The demo is what a client, an examiner or a new cashier sees first. With 12oz / 16oz it showed the old design and hid the café's actual Hot / Iced flow (F15, F19): the serving buttons, the cup and ice stock and the colour-coded Hot / Iced buttons never appeared.
 
 **Alternatives checked.** *Rename 12oz / 16oz to Hot / Iced and keep the "Iced ..." products* (gives nonsense such as "Iced Americano — Hot"). *Keep separate hot and iced products with no servings* (twice as many tiles; the serving feature never shows). *Leave it* (the demo contradicts the report and the café). **Verdict:** Best choice. **Status:** Decided, 2026-10-24. *Note:* the final report's tour screenshots show the old 12oz / 16oz menu; they describe v0.21.2 as defended and stay as they are.
+
+---
+
+## DEC-022
+
+**Shop details live in the database; the "not an official receipt" line is fixed** *(v0.22.0, F21, SR6)*
+
+**Decision.** The shop's name, address, TIN and receipt footer are kept in a one-row `shop_profile` table and edited by an
+admin on **Shop details**. The words "This is not an official receipt." are written into the receipt template itself, not
+stored as a setting.
+
+**How it works.** The receipt page reads the row (or sensible defaults if it was never saved) and prints the name, the
+address, "TIN: …" if set, and the footer. Below them it always prints the notice. The form checks every value on the server
+(S7): name required and at most 60 characters, address and footer at most 120, TIN 9 to 14 digits with dashes or spaces
+allowed (9 digits plus a 3- or 5-digit branch code). Typed text is shown as text (S11). An older database gets the table at
+start-up from `db.create_all()` (I5).
+
+**Why.** Receipts are what customers take home, so they should name the café, and the owner must be able to change that
+without a programmer. The notice is the one thing the report rated *Intolerable* (hazard 10): a slip that looks like an
+invoice could be mistaken for one, with tax consequences for the café. Making it part of the template, not an option, means no
+setting, typo or later admin can remove it; changing it needs a code change, a pull request and a review.
+
+**Alternatives checked.**
+
+| Option | Verdict |
+|---|---|
+| **A one-row table with typed columns** | Simple, checked on save, backed up and exported with the shop's data, works on any database the store supports. Chosen |
+| A general key-value settings table | More flexible, but every value is untyped text and harder to check; nothing else needs it yet |
+| `instance/config.toml` (planned for v0.24.0) | Right for technical settings (database, mail), but the owner can't edit it in the app, and it wouldn't travel with an export to the cloud |
+| Environment variables | Not something a café owner can change |
+| The notice as a setting with "on" by default | One click turns it off; the hazard comes back silently |
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.

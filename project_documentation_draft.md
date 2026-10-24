@@ -228,6 +228,7 @@ The tag message summarizes what the increment added.
 | v0.21.6 | 2026-10-24 | — | `requirements.txt` saved as plain UTF-8 instead of UTF-16 (the result of PowerShell's `pip freeze >`), and a new contract rule keeps it that way (DEF-64, audit R11) *(branch `fix/requirements-utf8`, merged after the defense, DEC-018)* |
 | v0.21.7 | 2026-10-24 | — | A browser tab icon (a white cup on the caramel brand colour, `static/favicon.svg`), named on every page, so the browser's request no longer ends in "404 Not Found" (DEF-65) *(branch `fix/favicon`, merged after the defense, DEC-018)* |
 | v0.21.8 | 2026-10-24 | — | Ingredients page, dark theme: a normal stock bar is green (the same green as the New Sale tiles) instead of the amber accent, which was exactly the colour of a Low bar; light theme, Low and Out unchanged (DEF-66) *(branch `fix/dark-low-bar`, merged after the defense, DEC-018)* |
+| v0.22.0 | 2026-10-24 | — | Shop details on receipts (F21): the admin sets the shop's name, address, TIN and a footer on a new **Shop details** page, and every receipt now says **"This is not an official receipt."**, which can't be turned off (SR6 met; closes the report's only *Intolerable* hazard as far as the software can). New `shop_profile` table, created at start-up on older databases (DEC-022) *(branch `feature/receipt-shop-details`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -423,6 +424,9 @@ be low" has opened by itself. The customer hands over ₱500: Juan taps **₱500
 
 ### Story F20 — A calmer, roomier screen *(v0.21.0)*
 Maria works at the counter for eight hours. The old white-and-teal screen felt cramped and cold. She now sees a warm cream page (espresso brown at night) with bigger text and more space between the drink tiles. When she needs the whole width for the menu she taps **Fold menu**: the sidebar shrinks to a strip of icons (hover shows each name) and stays that way the next time she opens the app. One more tap opens it again. On a phone nothing changes: the menu still slides in from the left.
+
+### Story F21 — The shop's own receipt *(v0.22.0)*
+Maria wants the receipts to carry her café's name, not "Inventory & POS". She opens **Shop details** in the admin part of the sidebar, types the café's name, its address, her TIN and a footer ("Thank you! See you again."), and clicks **Save shop details**. The next receipt Jun prints shows them at the top and bottom, and old receipts show them too when reprinted. At the very bottom every receipt says **"This is not an official receipt."** Maria can't switch that line off: the official invoice still comes from the café's BIR-registered POS, and this slip is for the shop's own records. When she types a TIN with letters in it, the page says it must have 9 to 14 digits. Jun, as a cashier, has no Shop details link, and typing its address gives the 403 page.
 
 ---
 
@@ -995,6 +999,21 @@ the look was checked by hand in Chromium on a demo copy (light and dark theme, f
 | TC-25.9 | Phone 375 px, Ingredients | Tap **New ingredient** | The panel fits the screen with margins on both sides | v0.21.0–v0.21.1: cut off on the right · v0.21.2: fits | ❌→✅ DEF-60 |
 | TC-25.6 | Light, then dark theme | Open New Sale | Cream and caramel / espresso and amber; text readable; stock bars, Hot / Iced buttons and the Running-low banner still clear | As expected | ✅ |
 
+### F21 — Shop details and receipt notice *(v0.22.0)*
+
+**Input:** shop name (required, up to 60 characters), address and footer (optional, up to 120), TIN (optional, 9 to 14 digits, dashes and spaces allowed). **Tests:** 1. The notice on every receipt. 2. Who may change the details. 3. Saving and showing them. 4. Every wrong value. 5. Typed HTML. 6. An older database. **Output:** the receipt shows the details and always the notice; anything wrong gives a plain message and changes nothing. Automated in `tests/test_shop_details.py` (22 checks); checked in Edge on screen and in print preview.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-27.1 | Nothing set yet | Open a receipt | Default name; "This is not an official receipt." | **v0.21.8:** no notice (SR6 not met) · **v0.22.0:** as expected | ❌→✅ SR6 |
+| TC-27.2 | Visitor; cashier; admin | Open or send `/settings/shop`; look at the sidebar | Login page; 403 for page and form; admin opens it; only the admin has the link | As expected | ✅ |
+| TC-27.3 | Admin | Save name, address, TIN `123-456-789-00000`, footer | "Shop details saved" | As expected | ✅ |
+| TC-27.4 | Details saved | Open a receipt, also in print preview | Name, address, "TIN: …", footer and the notice; the old fixed name gone | As expected (Edge, print preview) | ✅ |
+| TC-27.5 | Admin | Empty name; name 61, address 121, footer 121 characters; TIN `12345`, `abc-def-ghi` | Each refused with its own message; nothing changed | As expected (6 cases) | ✅ |
+| TC-27.6 | Admin | Name `<script>alert(1)</script>` | Shown as text, never run (S11) | As expected | ✅ |
+| TC-27.7 | TIN emptied | Open a receipt | No "TIN:" line | As expected | ✅ |
+| TC-27.8 | A database without `shop_profile` | Start the app; open a receipt | Table added, data kept; default name and the notice | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1094,7 +1113,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
 | `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62), tab icon (DEF-65), dark-theme bar colour (DEF-66) | 22 |
-| **23 files** | | **495 checks + 59 rule checks** |
+| `test_shop_details.py` | F21 / TC-27.x (v0.22.0): notice on every receipt (SR6), who may change the details, saving, wrong values, HTML as text, older database | 22 |
+| **24 files** | | **517 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1126,7 +1146,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
 | Phase 1 patches (v0.21.3 onward) | 15 | 4 → **15** | 11 → **0** | 0 |
-| **Total** | **280** | **185 → 280** | **78 → 0** | **4 → 0** |
+| F21 Shop details (v0.22.0) | 8 | 7 → **8** | 1 → **0** | 0 |
+| **Total** | **288** | **192 → 288** | **79 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1227,7 +1248,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Recipe amounts are estimates** (e.g. 18 g beans per shot, 150 g ice for Iced) until the café owner confirms them; the admin can edit them. If a shop uses sizes instead, a size's scale also multiplies add-ons (an extra shot in a 16oz counts 1.33 shots).
 > - **GCash is recorded, not verified:** the cashier checks the amount on the customer's screen. Automatic checking needs a GCash merchant account.
 > - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
-> - **The shop name on receipts is fixed** ("Inventory & POS").
+> - ~~**The shop name on receipts is fixed**~~ *(fixed in v0.22.0, F21: name, address, TIN and footer on Shop details)*
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
 > - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
@@ -2429,7 +2450,7 @@ The same columns as Sommerville's insulin pump table. *Acceptability:* **Intoler
 | 7. Stock count overwrites a sale made at the same second | Low | Low | Low | Acceptable (known limitation; Restock adds safely) |
 | 8. GCash reference recorded but the money was never received | Low | Medium | Medium | ALARP: the cashier checks the customer's screen; automatic checks would need a GCash merchant account |
 | 9. Server error page (HTTP 500) during a sale | Very low (0 crashes in 6,417 fuzzing requests) | Low (nothing is saved half-way) | Low | Acceptable |
-| 10. Using this system as the shop's official cash register | Medium (it looks like a POS) | High (tax penalties: not BIR-registered) | **High** | **Intolerable**: receipts are order slips only; official invoices must come from the café's registered POS |
+| 10. Using this system as the shop's official cash register | Medium (it looks like a POS) | High (tax penalties: not BIR-registered) | **High** | **Intolerable**: receipts are order slips only; official invoices must come from the café's registered POS. *v0.22.0: every receipt now says "This is not an official receipt." (SR6), which lowers the probability; the hazard stays until the shop uses only its registered POS for invoices* |
 
 ### 14.6 Software fault tree *(item 36, L12 p. 18)*
 
@@ -2455,7 +2476,7 @@ tested; ⏳ = not yet met.
 | SR3 | The system shall not accept a cash amount below the total, or a value that is not a finite number. | ✅ TC-7.28 |
 | SR4 | The system shall print every chosen serving and add-on on the receipt line of the drink it belongs to, and shall keep it unchanged if options are later renamed or hidden. | ✅ TC-16.x |
 | SR5 | The system shall save a sale and all its stock and ingredient changes together, or none of them. | ✅ one transaction, rollback, TC-7.27 |
-| SR6 | The receipt shall not be presented as an official sales invoice. | ⏳ the receipt does not yet say "Not an official receipt"; small template change for a later version |
+| SR6 | The receipt shall not be presented as an official sales invoice. | ✅ v0.22.0: every receipt says "This is not an official receipt.", and it can't be turned off (TC-27.1, TC-27.4) |
 | SR7 | The owner shall be able to restore the sales and stock records after the computer fails. | ⏳ manual only (copy `instance/`); an automatic backup is a future increment |
 
 ### 14.8 Functional reliability requirements *(item 38, L12 p. 39)*

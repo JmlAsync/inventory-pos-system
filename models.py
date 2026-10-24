@@ -48,6 +48,17 @@ class LoginSession(db.Model):
     last_seen = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
 
+class ShopProfile(db.Model):
+    """The shop's own details for receipts (v0.22.0, F21, DEC-022). One row only (id 1); the owner
+    edits it on Shop details. Kept in the database so it moves with the shop's data."""
+    __tablename__ = 'shop_profile'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), nullable=False, default='Inventory & POS')
+    address = db.Column(db.String(120), nullable=False, default='')
+    tin = db.Column(db.String(20), nullable=False, default='')       # Tax Identification Number, optional
+    footer = db.Column(db.String(120), nullable=False, default='')   # e.g. "Thank you! See you again."
+
+
 class Sale(db.Model):
     """One customer purchase (one 'receipt'). A Sale contains one or more SaleItems."""
     id = db.Column(db.Integer, primary_key=True)

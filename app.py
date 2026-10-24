@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile
 from functools import wraps
 import math
 import os
@@ -1324,7 +1324,56 @@ def complete_sale():
 def receipt(sale_id):
     # Show a saved sale as a printable receipt, built from the copies kept in SaleItem (v0.8.0)
     sale = find_by_id(Sale, sale_id) or abort(404)
-    return render_template('receipt.html', sale=sale)
+    return render_template('receipt.html', sale=sale, shop=shop_profile())   # v0.22.0: the shop's own details
+
+
+# ---------------- Shop details on receipts (v0.22.0, F21, DEC-022) ----------------
+# The receipt shows the shop's name, address, TIN and a footer that the admin sets here, and ALWAYS
+# "This is not an official receipt." (SR6): the system is not a BIR-registered POS, so its receipts
+# must never look like official sales invoices. That line is in the template, not a setting.
+SHOP_LIMITS = {'name': 60, 'address': 120, 'footer': 120}
+
+
+def shop_profile():
+    """The shop's details: the saved row, or the defaults if nothing was saved yet (not stored)."""
+    return db.session.get(ShopProfile, 1) or ShopProfile(name='Inventory & POS', address='', tin='', footer='')
+
+
+def validate_shop_form(form):
+    """Clean values from the Shop details form, or an error message (v0.22.0)."""
+    values = {key: form.get(key, '').strip() for key in ('name', 'address', 'tin', 'footer')}
+    if not values['name']:
+        return None, 'Shop name is required.'
+    labels = {'name': 'Shop name', 'address': 'Address', 'footer': 'Footer'}
+    for key, limit in SHOP_LIMITS.items():
+        if len(values[key]) > limit:
+            return None, f'{labels[key]} can be at most {limit} characters.'
+    # A Philippine TIN is 9 digits, plus a 3- or 5-digit branch code; dashes and spaces are allowed
+    digits = values['tin'].replace('-', '').replace(' ', '')
+    if values['tin'] and (not digits.isdigit() or not digits.isascii() or not 9 <= len(digits) <= 14):
+        return None, 'TIN must have 9 to 14 digits (dashes and spaces are fine), or be left empty.'
+    return values, None
+
+
+@app.route('/settings/shop', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def shop_settings():
+    # Admin page for the shop's name, address, TIN and receipt footer (v0.22.0)
+    shop = shop_profile()
+    if request.method == 'POST':
+        values, error = validate_shop_form(request.form)
+        if error:
+            return render_template('shop_settings.html', shop=request.form, error=error)
+        if shop.id is None:   # first save: create the one row
+            shop.id = 1
+            db.session.add(shop)
+        for key, value in values.items():
+            setattr(shop, key, value)
+        db.session.commit()
+        flash('Shop details saved. They now appear on every receipt.', 'success')
+        return redirect(url_for('shop_settings'))
+    return render_template('shop_settings.html', shop=shop)
 
 
 # ---------------- Sales report (v0.10.0) ----------------

@@ -206,8 +206,9 @@ from store.stock import (INGREDIENT_UNITS, INGREDIENT_CATEGORIES, guess_ingredie
                          limiting_ingredient, running_low)
 from store.shop import shop_profile
 from blueprints import accounts, catalog, ingredients, sales, reports, shop, users   # users: v0.27.0
+from blueprints import adjustments   # voids and refunds (v0.31.0)
 
-for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp, users.bp):
+for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp, users.bp, adjustments.bp):
     app.register_blueprint(blueprint)
 login_manager.user_loader(accounts.load_user)   # who is logged in, checked on every request (v0.20.3)
 

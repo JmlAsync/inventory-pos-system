@@ -47,6 +47,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-030](#dec-030) | A code at every login, trusted devices, backup codes, the authenticator app and demo mode | Best choice | Decided (two points by the owner) |
 | [DEC-031](#dec-031) | Sign in with Google, linking it from Profile, and joining with it | Best choice | Decided (two points by the owner) |
 | [DEC-032](#dec-032) | Undo on the basket, a safe stock count, and undoing a count | Best choice | Decided |
+| [DEC-033](#dec-033) | Voids and refunds: how they are asked for, approved, put back on the shelf and counted | Best choice | Decided |
 
 ---
 
@@ -1143,5 +1144,77 @@ count (750 instead of 75) had no way back except a second count.
 
 **Honest limits.** The basket undo belongs to one browser and goes back 5 steps only. A count undo isn't possible
 after the 5 minutes or once a sale has used that ingredient; then the admin simply counts again.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-25.
+
+---
+
+## DEC-033
+
+**Voids and refunds: how they are asked for, approved, put back on the shelf and counted** *(v0.31.0, F28; plan
+§4.1; rules I1, I2, I3, I7, I8, S14, S15; DEC-007; report §10.4 known limitations)*
+
+**How it works.**
+
+1. **A new record, never an edit.** A void or refund is a `sale_adjustment` row with one `adjustment_line` per
+   receipt line (how many, the money, back on the shelf or waste). It names who asked, who decided, when, how
+   (password or emailed code), the reason, and how the money went back (cash from the drawer, or GCash with the
+   13-digit reference of the transfer made in the shop's GCash app). The receipt's own rows never change (I3, I8);
+   the receipt page and the printed receipt show "VOIDED on …" or "Refunded ₱… of ₱…", with a link to a printable
+   **slip** for each void or refund.
+2. **Void** = the whole receipt, **only on the day of the sale** (until v0.32.0 brings the Z reading, the day ends
+   at midnight on the shop's clock). Anyone may **ask** for it on the receipt (with a reason); nothing changes until
+   an admin approves. An admin approves on **Voids & refunds** or on the receipt, typing **their own password**; an
+   admin can also void a receipt at once (asked and approved by them, with their password). Approving puts
+   **everything** back on the shelf. A request still waiting the next day can only be rejected; then a refund is
+   used.
+3. **No admin at the till: an emailed code.** The cashier picks an admin (one with a confirmed email) and presses
+   Send. That admin gets the receipt, the items, who asks and why, and a 6-digit code. If they agree, they tell the
+   cashier the code; the cashier types it and the void is approved **in that admin's name**. The code works for that
+   void only, for 10 minutes, once, with 5 tries, and is kept only as a keyed hash (S14), like every other code.
+   Sending is limited to one a minute and five an hour per admin, like other codes.
+4. **Refund** = chosen lines and quantities, **any day**, **admins only**, confirmed with their password. Each line
+   goes **back on the shelf** (an unopened pastry, a bottled drink) or is **waste** (a made drink). The page chooses
+   waste first for anything made from a recipe.
+5. **No double money, no double stock (I1, I2).** Approving changes the request from "requested" to "approved" and
+   marks the sale voided, each with a conditional update, inside the same transaction as the stock: a second admin
+   clicking at the same moment finds nothing to change and gets "already decided". A refund raises the sale's
+   refunded total only `WHERE refunded_total + amount <= total` and each line's refunded quantity only `WHERE
+   refunded_quantity + n <= quantity`; if either finds 0 rows, everything is rolled back. A GCash reference can be
+   used once (a unique rule).
+6. **Exactly the ingredients that line used.** From this version every receipt line keeps its own ingredients
+   (`sale_item_usage`). Returning one latte of two returns exactly half of that line's milk and beans, even if the
+   recipe has changed since. The history gets `void` or `refund` lines (+), and waste gets a `refund` line (+) and a
+   `waste` line (−), so the shelf is unchanged but the owner can see what was thrown away (I7).
+7. **Reports.** The Sales Report shows **Net sales** = gross − voids − refunds, with each part. A void counts on its
+   sale's day (it can only happen that day); a refund counts on the day the money went back, even for an older
+   receipt. "Cash" and "GCash" are what came in that way minus what went back that way, so Cash is what should be
+   in the drawer. Units and top products count what the customers kept. Home's "revenue today" is net too. Voids
+   and refunds are also in the audit log (area "Voids & refunds").
+
+**Why.** The report listed "no void or refund" as a known limitation (§10.4); the café's only way to fix a wrong sale
+was to leave the numbers wrong. DEC-007 decided the principle (keep the receipt, add a correction, a second person
+approves). This entry decides how it works day to day.
+
+**Alternatives checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Approval at the till | The admin's own password on their own screen, or an emailed code | **The admin types their username and password on the cashier's screen** (a common "manager override"): it checks only the password, not the second step every login needs (S13), so a cashier who once saw the admin type it could approve their own voids. The emailed code proves the admin has their mailbox, works when they are not in the shop, and names them |
+| Who gets the emailed code | The one admin the cashier chooses, each with their own code | One code to every admin (the void could not say *which* admin agreed); a link in the email that approves (the local package can't be reached from outside the shop, and a link can be clicked by a mail scanner) |
+| Password on approval | Asked again, even though the admin is logged in | Not asked (anyone at an admin's unlocked screen could approve) |
+| An admin's own void | Allowed at once, with their password | Requiring a second admin (impossible in a shop with one admin, who is often the owner) |
+| Void after the day | Refused; a refund instead | Allowed any day (it would change a day already counted, and from v0.32.0 a day closed by the Z reading) |
+| Refund on the same day | Allowed (a customer returns one of two drinks) | Only on later days (no safety gained: refunds are admin-only already) |
+| Ingredients to return | Each line's own amounts, kept at the sale | Working them out again from today's recipe (the recipe or the options may have changed); returning them in proportion to the sale's total (wrong whenever a sale has two different drinks) |
+| Lines sold before v0.31.0 | Void: the sale's own history lines are put back; refund of a recipe line: waste only | Guessing each line's share (could put back the wrong amounts) |
+| Waste in the history | A `refund` (+) and a `waste` (−) line | No line (waste would be invisible to the owner); one `waste` line that changes the amount (the shelf did not change: the history would no longer add up to what is on hand) |
+| Money back for a GCash sale | The admin chooses; GCash needs the reference of the transfer back | Always the sale's method (some customers prefer cash back); GCash with no reference (nothing to check it against later) |
+| Where a refund counts in the report | The day the money went back | The sale's day (a report already printed and counted would change afterwards) |
+
+**Honest limits.** The code by email needs the internet and a working mail server (the screen says so when it can't
+send). Approving needs an admin with a confirmed email for the code route. A request waiting overnight can't be
+approved any more. Refunds of the product's own count put units back on the shelf, which the admin should only choose
+for things that can really be sold again.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-25.

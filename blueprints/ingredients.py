@@ -150,7 +150,8 @@ def ingredient_detail(ingredient_id):
                            last_count=count if count and count.ingredient_id == ingredient.id else None)
 
 
-HISTORY_REASONS = {'sale': 'Sale', 'restock': 'Restock', 'count': 'Stock count', 'count-undo': 'Count undone'}   # v0.30.0
+HISTORY_REASONS = {'sale': 'Sale', 'restock': 'Restock', 'count': 'Stock count', 'count-undo': 'Count undone',   # v0.30.0
+                   'void': 'Void', 'refund': 'Refund', 'waste': 'Waste'}   # v0.31.0
 
 
 @bp.route('/ingredients/history')

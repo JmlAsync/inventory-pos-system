@@ -239,6 +239,7 @@ The tag message summarizes what the increment added.
 | v0.28.0 | 2026-10-25 | — | A code at every login (F25, rule S13): after the password, a 6-digit code by email, unless the browser is **trusted** (30 days; 7 for admins and the owner; ended by Remove, **Log out everywhere**, a password change, switching off or a role change). Each user may use an **authenticator app** instead (works with no internet; QR code drawn by `segno`, key encrypted with `cryptography`, a step never accepted twice) and print 10 one-time **backup codes**. Accounts with no email get one from the owner on Users (owner's decision). **Demo mode** (`DEMO_MODE=1`) prints codes and emails in the server window, lets the demo passwords work, and is refused with real mail settings (rule P3). Migration `0006`; rule S1 lists `/verify` (owner's decision); the tests of other features log in with `TEST_PLAIN_LOGIN`, which the contract check allows only in `tests/` (DEC-030) *(branch `feature/login-codes`, merged after the defense, DEC-018)* |
 | v0.29.0 | 2026-10-25 | — | Sign in with Google (F26): the OpenID Connect code flow with state, nonce and PKCE (Authlib); Google's answer is checked here: signature against Google's keys, issuer, audience, expiry, nonce and a verified email. Accounts are linked by Google's permanent id, never the email; linking from Profile needs the password and a fresh code, and the Google email must be the account's email (owner's decision). People can join from an invitation with Google (the invited address; the code still follows). The login code still follows Google unless the browser is trusted. Works on `localhost` and HTTPS only (Google's rule), so the login page says where. `setup_shop.py` asks for the client ID and secret (optional). Migration `0007`; packages Authlib, joserfc, requests and its four (D1); rule S1 lists the two Google pages (owner's decision) (DEC-031) *(branch `feature/google-signin`, merged after the defense, DEC-018)* |
 | v0.30.0 | 2026-10-25 | — | Undo and a safe count (F27, plan §4.2 and §4.8). **Undo** on New Sale takes the order back one change at a time (the last 5; the copies stay small for the session cookie; emptied when the sale is completed, so a sold order never comes back; the stock is checked again). A **stock count** is saved only if the amount on hand is still the one the admin saw on the page, in one conditional step (I1); otherwise "count again". **Undo count** for 5 minutes adds the opposite history line (`count-undo`), refused if anything else changed the ingredient since. Found in the browser check: the Undo button wrapped on phones; the hint now makes room (DEC-032) *(branch `feature/undo-and-safe-count`, merged after the defense, DEC-018)* |
+| v0.31.0 | 2026-10-25 | — | Voids and refunds (F28, plan §4.1, rules I8 and S15). A receipt is never changed: a void or refund is a new record that names who asked and who approved, with a printable **slip**. **Void** = the whole receipt, today only: anyone asks (with a reason), an admin approves with their **own password** (on **Voids & refunds**, which shows a count in the menu, or on the receipt), or, with no admin at the till, by a **code emailed** to the admin the cashier chooses (that void only, 10 minutes, once, 5 tries, keyed hash). Everything goes back on the shelf. **Refund** = chosen items, any day, admins only, each **back on the shelf** or **waste** (a `refund` + and a `waste` − line). Conditional updates stop a double approval and refunds above what was paid (I1, I2). Each receipt line now keeps its own ingredients, so a refund returns exactly what it used. **Today's receipts** for everyone; the Sales Report and Home show **net** sales (gross − voids − refunds) and cash after money given back. Migration `0008` (DEC-033) *(branch `feature/voids-and-refunds`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -455,6 +456,9 @@ Maria set up Google sign-in with the café's own Google Cloud client. On her Pro
 
 ### Story F27 — Taking it back *(v0.30.0)*
 Jun taps Iced Latte twice by mistake while a queue waits; one tap on **Undo** and the order is back as it was, and a second Undo takes back the change before that. At closing, Maria counts the espresso beans and types 75 instead of 750; the Ingredients page offers **Undo count** for the next five minutes and puts the 750 back, with both lines in the history. Another evening she counts the milk while Jun sells a latte; when she saves, the page says the milk changed since she opened it and asks her to count again, so Jun's sale isn't lost.
+
+### Story F28 — Giving the money back *(v0.31.0)*
+Jun rings up a Spanish Latte, but the customer wanted a Matcha. He opens **Today's receipts**, picks the receipt, taps **Void this receipt**, types "wrong drink rung up" and asks for the void. Maria is at the market, so Jun picks her name and taps **Send**; her phone shows the receipt and a code, and because the story matches she texts him the code. Jun types it, the receipt says VOIDED, the milk and beans are back on the shelf, and the slip that prints names Jun as the one who asked and Maria as the one who approved. Two days later a customer returns an unopened croissant from a bigger order; Maria opens that receipt, taps **Refund items**, chooses one croissant **back on the shelf**, types her password and hands back ₱85 from the drawer. The Sales Report shows the void and the refund under Net sales, and the cash total matches the drawer.
 
 ---
 
@@ -1231,6 +1235,30 @@ Automated in `tests/test_undo.py` (36 checks). The race cases put "another till"
 | TC-40.7 | An undo list | Log out and in | Empty | As expected | ✅ |
 | TC-40.8 | Demo copy in the browser, demo mode | Count from the Update window (a row showing 2,000); Undo count; New Sale at 375 px, dark: add, Undo | The window sends 2000; the banner; back to 2,000 g; Undo empties the order; no sideways scroll | **First try:** at 375 px the Undo button wrapped onto two lines beside "Tap a line to change it" · **Fixed:** the hint hides on phones while Undo shows | ❌→✅ |
 
+### F28 — Voids and refunds *(v0.31.0)*
+
+Automated in `tests/test_voids.py` (79 checks). The race cases put "another admin" exactly between reading and writing, as `test_race.py` does. `seed_demo_data.py` now marks the demo drinks as recipe lines (demo sales take no ingredients, so they are refunded as waste only).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-41.1 | A v0.30.0 database with a latte (recipe) and a cookie sold | Upgrade; undo migration 0008 | Tables added; the latte line marked "used a recipe", the cookie not; undo removes the tables | As expected | ✅ |
+| TC-41.2 | Cookie (own count), Latte (180 ml milk, 18 g beans) | Sell 2 cookies and 2 lattes | The latte line keeps 360 ml and 36 g; stock 18 cookies, 1640 ml, 464 g | As expected | ✅ |
+| TC-41.3 | Today's receipt, cashier | Ask for a void with no reason; 201 characters; "Wrong drink rung up"; again | Refused; refused; "Void requested", nothing changed, email and code forms shown; "already waiting"; Today's receipts and the admin menu (1) show it | As expected | ✅ |
+| TC-41.4 | A waiting void | Cashier opens or posts to Voids & refunds, approve, reject, void now, refund | 403 each; still waiting (S15) | As expected | ✅ |
+| TC-41.5 | Same, admin | Approve with a wrong password; "card"; the right password | Refused; refused; voided: all stock back, `void` history lines, the receipt unchanged and marked VOIDED, slip names both people, audit line | As expected | ✅ |
+| TC-41.6 | An approved void; another waiting | Approve again; another admin approves exactly between reading and writing | "already decided", stock back once (I1) | As expected | ✅ |
+| TC-41.7 | A waiting void | Reject with a note; reject again; ask again | Rejected, nothing changed; "already decided"; a new request is allowed | As expected | ✅ |
+| TC-41.8 | A request left from yesterday; yesterday's receipt | Approve; ask for a void | Refused "earlier day" (reject, then refund); refused "Only today's", no button | As expected | ✅ |
+| TC-41.9 | A GCash sale | Void now without a reference; with one; the same reference on another void | Refused; voided by the admin alone with the reference kept; refused, nothing saved | **First try:** the repeated reference crashed the page (the unique rule fired on the update, not at the commit) · **Fixed** before commit: caught and explained | ❌→✅ |
+| TC-41.10 | Two admins with a confirmed email; a waiting void | Ask a cashier's id; ask admin2; a wrong code; the right one; the code on another void; 5 wrong tries then the right one; again within a minute; mail down | Refused; email with receipt, items, reason, code; "4 tries left"; voided in admin2's name "by emailed code"; refused; refused; "Wait a minute"; the error shown | As expected | ✅ |
+| TC-41.11 | 3 cookies and 2 lattes sold | Refund: wrong password; 4 cookies; "two"; nothing; 1 cookie to the shelf + 1 latte as waste; 1 latte to the shelf; more; void; the rest; a voided receipt | Refused ×4; ₱200 back, 1 cookie back, milk unchanged with `refund` +180 / `waste` −180; exactly one latte's milk and beans back; "At most 0"; "already refunded"; refused when all refunded; "is voided" | As expected | ✅ |
+| TC-41.12 | 2 cookies sold | Another refund lands between reading and writing (the money; then the line) | Refused, nothing saved; the money step undone too (I2) | As expected | ✅ |
+| TC-41.13 | A sale from before v0.31.0 | Refund its latte "to the shelf"; void it | Waste only (the form and the server); the void returns what its history lines took | As expected | ✅ |
+| TC-41.14 | The day's voids and refunds; a refund today of a 3-day-old receipt | Sales Report today and 3 days ago; Home | Net = gross − voids − refunds; Cash and GCash after money given back; the old refund counts today; badges in the list; Home shows net; a negative day shows −₱130.00 | As expected (the negative format: see TC-41.17) | ✅ |
+| TC-41.15 | — | Open a slip (cashier), a missing slip, ingredient history, the audit log's new area, Voids & refunds | Prints; 404; "Void slip #…", "Waste"; void requested / voided / void rejected / refunded; latest decisions with both names | As expected | ✅ |
+| TC-41.16 | Demo mode, a server window that can't show "₱" | Send the void email | Shown with "?" for "₱" | **v0.30.0:** the page crashed (500) · **v0.31.0:** as expected | ❌→✅ DEF-71 |
+| TC-41.17 | Demo copy in the browser, demo mode (Edge) | Cashier: sale, ask for a void, email the admin, type the code; admin: refund an older receipt as waste by GCash; Voids & refunds; Sales Report; 375 px, light and dark | All work; codes and the email in the server window | **First try:** the void email crashed the page (DEF-71); at 375 px the refund lines hid the number and shelf / waste boxes off to the side; the report showed ₱-130.00 · **Fixed:** one stacked row per item; −₱130.00 | ❌→✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1343,7 +1371,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_login_codes.py` | F25 / TC-38.x (v0.28.0): RFC 6238 codes, migration 0006, the code step and its 5 minutes, limits, trusted devices and every way they end, backup codes, offline login, the authenticator app (no replay), admin reset, accounts with no email, demo mode, the test-only switch | 69 |
 | `test_google.py` | F26 / TC-39.x (v0.29.0): migration 0007, where it works, the trip (state, nonce, PKCE), every check on Google's answer with a test-made key, login by Google's id and the code after it, linking and unlinking, joining with Google, setup and the environment | 55 |
 | `test_undo.py` | F27 / TC-40.x (v0.30.0): the safe count (seen amount, decimals, a sale in between), undo count (5 minutes, nothing since, once, races), basket undo step by step, 5 steps and the cookie size, after a sale, stock checked again, a new login | 36 |
-| **36 files** | | **961 checks + 129 rule checks** |
+| `test_voids.py` | F28 / TC-41.x (v0.31.0): migration 0008, each line's ingredients, asking for a void, 403s, approving by password and by emailed code, races, only today, GCash references, refunds to the shelf or as waste, older sales, net sales and the drawer, slips, history, audit log, DEF-71 | 79 |
+| **37 files** | | **1,040 checks + 148 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1386,7 +1415,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F25 Login codes (v0.28.0) | 14 | 13 → **14** | 1 → **0** | 0 |
 | F26 Sign in with Google (v0.29.0) | 11 | 10 | 0 | 1 |
 | F27 Undo and a safe count (v0.30.0) | 8 | 7 → **8** | 1 → **0** | 0 |
-| **Total** | **407** | **292 → 404** | **95 → 0** | **6 → 3** |
+| F28 Voids and refunds (v0.31.0) | 17 | 14 → **17** | 3 → **0** | 0 |
+| **Total** | **424** | **306 → 421** | **98 → 0** | **6 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1470,6 +1500,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-68 | Medium | Money was stored as decimal numbers (REAL/float). Sums of many amounts can drift by a centavo, and a price typed with three decimals (₱0.125) showed as ₱0.12 per item but ₱0.38 for three, so the receipt didn't add up (audit R5) | Security audit 2026-10-11 (R5); the receipt case found by TC-30.3 | `Money` column type: whole centavos in the database, exact `Decimal` pesos in Python, rounded once, half up, on saving; migration 0003 (DEC-025); TC-30.1–30.10 | ✅ Fixed v0.23.2 |
 | DEF-69 | Low | Change password checked the current password with no limit, so someone using a stolen login could guess it there as fast as they liked (audit A7) | Security audit 2026-10-11 (A7) | The login page's 5-tries limit, counted per user (DEC-028); TC-33.5 | ✅ Fixed v0.26.0 |
 | DEF-70 | Low (Medium once online) | The login limit was kept in memory: a restart forgot it, and each server process had its own count (audit R2) | Security audit 2026-10-11 (R2) | Tries are rows in `login_attempt` (migration 0004), recorded before they are counted, keys stored as keyed hashes (DEC-028); TC-33.1–33.4, TC-33.6 | ✅ Fixed v0.26.0 |
+| DEF-71 | Medium (demo) | Demo mode crashed the page (500) when an email held a character the server window's text encoding can't show: Windows writes a redirected window or log in cp1252, which has no "₱", and the void email has prices (the earlier emails had none) | Browser check of v0.31.0 (TC-41.17) | `mail.py` prints the demo email with "?" for any such character; TC-41.16 fails before and passes after | ✅ Fixed v0.31.0 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1497,7 +1528,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
 > - ~~**No "undo" for a tap**~~ *(fixed in v0.30.0, F27: Undo on New Sale, the last 5 changes)*.
-> - **No refunds or voids.** To be handled by a *void with admin approval* flow (Completed → Void requested → Voided / Rejected), which also gives the state diagram.
+> - ~~**No refunds or voids.**~~ *(fixed in v0.31.0, F28: a void with admin approval (Completed → Void requested → Voided / Rejected), refunds of chosen items, both kept as their own records; DEC-033)*.
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
 > - **Sold products can't be deleted, only set to 0**, so they stay in the list with an "Out of stock" badge. Fix: an "archive" option.
 > - **One low-stock threshold (5) for every product.** Fix: a per-product threshold (needs a database column, i.e. a migration).

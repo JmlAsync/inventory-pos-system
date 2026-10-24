@@ -7,6 +7,7 @@
     reports.py      Home and the Sales Report
     shop.py         the shop's details for receipts
     users.py        the Users page, invitations, signing up, the audit log (v0.27.0)
+    adjustments.py  today's receipts, voids and refunds, the void / refund slip (v0.31.0)
 
 Each file is a Flask "blueprint": a group of pages that app.py registers. Page names in templates
 start with the group, e.g. url_for('sales.new_sale'). The pages never write to the database

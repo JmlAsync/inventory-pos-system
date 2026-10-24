@@ -1,0 +1,6 @@
+{# Why an ingredient's amount changed, for the history tables (v0.30.0; moved here in v0.31.0, which added void,
+   refund and waste with a link to their slip). Needs `move`. #}
+{% if move.reason == 'sale' %}Sale <a href="{{ url_for('sales.receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>
+{%- elif move.reason in ('void', 'refund', 'waste') %}{{ {'void': 'Void', 'refund': 'Refund', 'waste': 'Waste'}[move.reason] }}
+{%- if move.adjustment_id %} <a href="{{ url_for('adjustments.slip', adjustment_id=move.adjustment_id) }}">slip #{{ move.adjustment_id }}</a>{% endif %}
+{%- elif move.reason == 'restock' %}Restock{% elif move.reason == 'count-undo' %}Count undone{% else %}Stock count{% endif %}

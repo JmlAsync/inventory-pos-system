@@ -1,0 +1,88 @@
+{# Void and refund on the receipt page (v0.31.0, F28, rules I8 and S15, DEC-007, DEC-033, plan §4.1).
+   Anyone may ASK for a void of today's receipt; only an admin approves it, with their password here, or by a code
+   emailed to them that they pass to the cashier. Refunds are for admins. Every button is checked again by the server. #}
+<div class="mt-3 pt-3 border-top">
+{% if void_request %}
+    {# A void is waiting #}
+    <div class="alert alert-warning">
+        <strong>Void requested</strong> by {{ void_request.requester.username }}
+        at {{ (void_request.requested_at|shop_time).strftime('%I:%M %p') }}: “{{ void_request.reason }}”.
+        No money is given back until an admin approves it.
+    </div>
+    {% if current_user.is_admin %}
+    <form method="POST" action="{{ url_for('adjustments.approve_void', adjustment_id=void_request.id) }}" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="receipt">
+        {% with prefix='approve', paid_by=sale.payment_method %}{% include "_money_back.html" %}{% endwith %}
+        <div class="mb-2">
+            <label class="form-label" for="approve-password">Your password, to approve</label>
+            <input type="password" class="form-control" id="approve-password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-danger w-100"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve void: give back {{ sale.total|peso }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('adjustments.reject_void', adjustment_id=void_request.id) }}" class="d-flex gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="receipt">
+        <label class="visually-hidden" for="reject-note">Why it is rejected (optional)</label>
+        <input type="text" class="form-control" id="reject-note" name="note" maxlength="200" placeholder="Why not (optional)">
+        <button type="submit" class="btn btn-light-subtle text-nowrap">Reject</button>
+    </form>
+    {% else %}
+    {# The cashier: ask an admin who isn't here, then type the code they give #}
+    {% if admins %}
+    <form method="POST" action="{{ url_for('adjustments.ask_by_email', adjustment_id=void_request.id) }}" class="mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-label" for="ask-admin">No admin here? Email one the details and a code</label>
+        <div class="d-flex gap-2">
+            <select class="form-select" id="ask-admin" name="admin_id">
+                {% for admin in admins %}<option value="{{ admin.id }}">{{ admin.username }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-light-subtle text-nowrap"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Send</button>
+        </div>
+    </form>
+    <form method="POST" action="{{ url_for('adjustments.approve_by_code', adjustment_id=void_request.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-2">
+            <label class="form-label" for="void-code">The code the admin gave you</label>
+            <input type="text" class="form-control" id="void-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+        </div>
+        {% with prefix='code', paid_by=sale.payment_method %}{% include "_money_back.html" %}{% endwith %}
+        <button type="submit" class="btn btn-danger w-100"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Approve with the code</button>
+    </form>
+    {% else %}
+    <p class="small text-body-secondary mb-0">An admin approves it on their own screen (Voids &amp; refunds). No admin
+        has a confirmed email yet, so it can't be approved by email.</p>
+    {% endif %}
+    {% endif %}
+{% elif not void_problem %}
+    {# Today's receipt: a void can be asked for (cashier) or done at once (admin, with their password) #}
+    <details class="mb-2">
+        <summary class="btn btn-light-subtle w-100"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Void this receipt</summary>
+        <form method="POST" class="mt-2"
+              action="{{ url_for('adjustments.void_now', sale_id=sale.id) if current_user.is_admin else url_for('adjustments.request_void', sale_id=sale.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-2">
+                <label class="form-label" for="void-reason">Reason</label>
+                <input type="text" class="form-control" id="void-reason" name="reason" maxlength="200" required
+                       placeholder="e.g. wrong drink rung up">
+            </div>
+            {% if current_user.is_admin %}
+            {% with prefix='void', paid_by=sale.payment_method %}{% include "_money_back.html" %}{% endwith %}
+            <div class="mb-2">
+                <label class="form-label" for="void-password">Your password</label>
+                <input type="password" class="form-control" id="void-password" name="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-danger w-100">Void now: give back {{ sale.total|peso }}</button>
+            {% else %}
+            <p class="small text-body-secondary">An admin must approve the void before any money is given back.</p>
+            <button type="submit" class="btn btn-danger w-100">Ask for a void</button>
+            {% endif %}
+        </form>
+    </details>
+{% elif not sale.voided_at %}
+    <p class="small text-body-secondary mb-2">{{ void_problem }}</p>
+{% endif %}
+{% if current_user.is_admin and not refund_problem %}
+    <a href="{{ url_for('adjustments.refund', sale_id=sale.id) }}" class="btn btn-light-subtle w-100 mt-2"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Refund items</a>
+{% endif %}
+</div>

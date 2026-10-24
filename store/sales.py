@@ -2,7 +2,7 @@
 Moved from complete_sale() in app.py in v0.25.0 (DEC-027); the steps are unchanged. Rules I1 and I2:
 stock and ingredients go down with conditional updates inside ONE transaction, all or nothing."""
 from sqlalchemy.exc import IntegrityError
-from models import db, Product, Ingredient, Sale, SaleItem, IngredientMovement
+from models import db, Product, Ingredient, Sale, SaleItem, SaleItemUsage, IngredientMovement
 
 
 class SaleRefused(Exception):
@@ -59,9 +59,13 @@ def record_sale(user_id, lines, units, needed, total, cash, method, reference, t
     for line in lines:
         # One receipt line per basket line. The price includes the size and add-ons,
         # and the options are copied as text, so old receipts stay correct (v0.16.0, rule I3)
-        sale.items.append(SaleItem(product_id=line['product'].id, product_name=line['product'].name,
-                                   unit_price=line['unit_price'], quantity=line['quantity'],
-                                   options=line['options'] or None))
+        # v0.31.0 (DEC-033): and the ingredients this line used, so a refund returns exactly those
+        item = SaleItem(product_id=line['product'].id, product_name=line['product'].name,
+                        unit_price=line['unit_price'], quantity=line['quantity'],
+                        options=line['options'] or None, used_recipe=line.get('used_recipe', False))
+        item.usage.extend(SaleItemUsage(ingredient_id=ingredient_id, amount=amount)
+                          for ingredient_id, amount in line.get('usage', {}).items())
+        sale.items.append(item)
     db.session.add(sale)
     try:
         db.session.commit()   # saves the sale, its items and the new stock levels together

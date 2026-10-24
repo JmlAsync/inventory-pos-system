@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Today's receipts{% endblock %}
+{% block content %}
+{# v0.31.0 (F28): today's receipts for everyone, so a cashier can find one to void. Older ones: Sales Report (admins). #}
+<h1>Today's receipts</h1>
+<p class="page-subtitle">{{ today.strftime('%b %d, %Y') }}. Open a receipt to print it again or to ask for a void.</p>
+{% if sales %}
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-hover">
+    <thead><tr><th>Receipt #</th><th>Time</th><th>Served by</th><th>Paid by</th><th class="text-end">Total</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for sale in sales %}
+        <tr>
+            <td><a href="{{ url_for('sales.receipt', sale_id=sale.id) }}">{{ sale.id }}</a></td>
+            <td>{{ (sale.created_at|shop_time).strftime('%I:%M %p') }}</td>
+            <td>{{ sale.user.username }}</td>
+            <td>{{ PAYMENT_METHODS.get(sale.payment_method, sale.payment_method) }}</td>
+            <td class="text-end">{{ sale.total|peso }}</td>
+            <td>{% include "_sale_status.html" %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div></div>
+{% else %}
+<p class="text-body-secondary">No sales yet today.</p>
+{% endif %}
+{% endblock %}

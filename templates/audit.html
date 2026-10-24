@@ -6,13 +6,15 @@
 {% set FIELD_NAMES = {'name': 'Name', 'sku': 'SKU', 'price': 'Price', 'quantity': 'Stock', 'category': 'Category',
     'has_options': 'Hot / Iced and add-ons', 'picture': 'Picture', 'active': 'Shown', 'scale': 'Recipe scale',
     'unit': 'Unit', 'low_at': 'Low at', 'full_at': 'Full at', 'amount': 'Amount', 'address': 'Address', 'tin': 'TIN',
-    'footer': 'Footer', 'role': 'Role', 'email': 'Email'} %}
+    'footer': 'Footer', 'role': 'Role', 'email': 'Email', 'total': 'Amount', 'reason': 'Reason', 'method': 'Money back by',
+    'approved': 'Approved with', 'note': 'Why rejected'} %}
 {% set ACTIONS = {'add': 'added', 'update': 'changed', 'delete': 'deleted', 'remove': 'removed', 'invite': 'invited',
     'invite-again': 'invitation sent again', 'invite-cancel': 'invitation cancelled', 'join': 'joined',
     'role': 'role changed', 'switch-off': 'switched off', 'switch-on': 'switched on',
     'require-password': 'must choose a new password', 'may-invite': 'invite permission', 'password': 'changed own password',
     'password-reset': 'new password by emailed code', 'password-chosen': 'chose a new password',
-    'email': 'email changed', 'email-confirmed': 'email confirmed', 'owner': 'made the owner (setup)'} %}
+    'email': 'email changed', 'email-confirmed': 'email confirmed', 'owner': 'made the owner (setup)',
+    'void-request': 'void requested', 'void': 'voided', 'void-reject': 'void rejected', 'refund': 'refunded'} %}
 <h1>Audit log</h1>
 <p class="page-subtitle">Who changed what, and when. Sales are on their receipts; ingredient restocks and counts are
     in <a href="{{ url_for('ingredients.ingredients_history') }}">Ingredients history</a>.</p>

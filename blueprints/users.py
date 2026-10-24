@@ -311,7 +311,7 @@ def google_signup_finish(claims, extra):
 
 # ---------------- The audit log (admins) ----------------
 AREAS = {'product': 'Products', 'option': 'Servings & add-ons', 'ingredient': 'Ingredients', 'recipe': 'Recipes',
-         'shop': 'Shop details', 'user': 'Accounts'}
+         'shop': 'Shop details', 'user': 'Accounts', 'sale': 'Voids & refunds'}   # sale: v0.31.0
 
 
 @bp.route('/admin/audit')

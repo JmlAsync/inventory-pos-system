@@ -148,11 +148,23 @@ class Sale(db.Model):
     payment_reference = db.Column(db.String(20), unique=True)
     # The basket's one-time sale ticket (v0.20.4, DEF-48): unique, so one basket makes one receipt
     ticket = db.Column(db.String(32), unique=True)
+    # v0.31.0 (rule I8, DEC-007, DEC-033): the receipt itself never changes. A void or refund is a SaleAdjustment;
+    # these two columns only say where the sale stands, so two admins at the same moment can't void it twice or
+    # refund more than was paid (each is changed with a conditional update, like stock, rule I1).
+    voided_at = db.Column(db.DateTime)                                     # empty = not voided
+    refunded_total = db.Column(Money, nullable=False, default=0)          # refunds so far, in whole centavos
 
     # Relationships: let us write sale.items and sale.user in Python
     items = db.relationship('SaleItem', backref='sale', lazy=True)
     movements = db.relationship('IngredientMovement', backref='sale', lazy=True)   # v0.17.0
     user = db.relationship('User')
+    adjustments = db.relationship('SaleAdjustment', backref='sale', lazy=True,
+                                  order_by='SaleAdjustment.id')                 # v0.31.0
+
+    @property
+    def net_total(self):
+        """What the shop kept from this sale: nothing if voided, otherwise the total minus refunds (v0.31.0)."""
+        return to_money(0) if self.voided_at else self.total - (self.refunded_total or 0)
 
 
 class SaleItem(db.Model):
@@ -168,10 +180,74 @@ class SaleItem(db.Model):
     # Size and add-ons chosen, copied as text, e.g. "16oz, Oat Milk" (v0.16.0).
     # unit_price already includes their extra cost.
     options = db.Column(db.String(200))
+    # v0.31.0 (DEC-033): how many of this line were refunded so far (never more than quantity: a conditional update),
+    # and whether its stock came from a recipe (True: ingredients, listed in SaleItemUsage) or from the product's own
+    # count (False). Empty for lines sold before v0.31.0.
+    refunded_quantity = db.Column(db.Integer, nullable=False, default=0)
+    used_recipe = db.Column(db.Boolean)
+    usage = db.relationship('SaleItemUsage', lazy=True)
 
     @property
     def subtotal(self):
         return round(self.unit_price * self.quantity, 2)
+
+    @property
+    def refundable_quantity(self):
+        return self.quantity - (self.refunded_quantity or 0)
+
+
+class SaleItemUsage(db.Model):
+    """How much of one ingredient ONE receipt line used (v0.31.0, DEC-033). The sale's history lines add these up
+    per ingredient; keeping each line's share means a refund of one latte returns exactly that latte's milk, even if
+    the recipe has changed since."""
+    __tablename__ = 'sale_item_usage'
+    id = db.Column(db.Integer, primary_key=True)
+    sale_item_id = db.Column(db.Integer, db.ForeignKey('sale_item.id'), nullable=False, index=True)
+    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)   # for the line's whole quantity
+
+
+ADJUSTMENT_KINDS = ('void', 'refund')
+ADJUSTMENT_STATUSES = ('requested', 'approved', 'rejected')
+
+
+class SaleAdjustment(db.Model):
+    """A void or a refund of a sale (v0.31.0, rules I8 and S15, DEC-007, DEC-033, plan §4.1). A new record that points
+    to the receipt, which itself never changes. A void is requested (by anyone) and approved or rejected by an admin;
+    a refund is made by an admin and is approved at once. Never edited after the decision, never deleted."""
+    __tablename__ = 'sale_adjustment'
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False, index=True)
+    kind = db.Column(db.String(10), nullable=False)                           # ADJUSTMENT_KINDS
+    status = db.Column(db.String(10), nullable=False, default='requested')    # ADJUSTMENT_STATUSES
+    total = db.Column(Money, nullable=False, default=0)                       # money given back
+    # How the money went back: 'cash' from the drawer, or 'gcash' sent in the shop's GCash app, with that transfer's
+    # 13-digit reference (unique, so one transfer can't be claimed twice). Set when approved.
+    method = db.Column(db.String(10))
+    reference = db.Column(db.String(20), unique=True)
+    reason = db.Column(db.String(200), nullable=False)
+    requested_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    requested_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    decided_by = db.Column(db.Integer, db.ForeignKey('user.id'))              # the admin who approved or rejected
+    decided_at = db.Column(db.DateTime)
+    decided_how = db.Column(db.String(10))           # 'password' (on the admin's own screen) or 'code' (by email)
+    note = db.Column(db.String(200))                 # why it was rejected
+    lines = db.relationship('AdjustmentLine', backref='adjustment', lazy=True, order_by='AdjustmentLine.id')
+    requester = db.relationship('User', foreign_keys=[requested_by])
+    decider = db.relationship('User', foreign_keys=[decided_by])
+
+
+class AdjustmentLine(db.Model):
+    """One receipt line in a void or refund (v0.31.0): how many, the money, and whether the stock went back on the
+    shelf (restock) or was thrown away (waste: a made drink can't be sold again)."""
+    __tablename__ = 'adjustment_line'
+    id = db.Column(db.Integer, primary_key=True)
+    adjustment_id = db.Column(db.Integer, db.ForeignKey('sale_adjustment.id'), nullable=False, index=True)
+    sale_item_id = db.Column(db.Integer, db.ForeignKey('sale_item.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    amount = db.Column(Money, nullable=False)
+    restock = db.Column(db.Boolean, nullable=False, default=True)
+    item = db.relationship('SaleItem')
 
 
 class MenuOption(db.Model):
@@ -218,7 +294,8 @@ class RecipeItem(db.Model):
 
 class IngredientMovement(db.Model):
     """One change to an ingredient's stock, so every change can be traced (v0.17.0):
-    'sale' (used up by a sale), 'restock' (delivery received) or 'count' (stock count)."""
+    'sale' (used up by a sale), 'restock' (delivery received) or 'count' (stock count).
+    v0.30.0 added 'count-undo'; v0.31.0 'void' and 'refund' (back on the shelf) and 'waste' (came back, thrown away)."""
     id = db.Column(db.Integer, primary_key=True)
     ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
     change = db.Column(db.Float, nullable=False)               # + added, - used
@@ -226,6 +303,8 @@ class IngredientMovement(db.Model):
     sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    # v0.31.0: the void or refund that wrote this line (reason 'void', 'refund' or 'waste')
+    adjustment_id = db.Column(db.Integer, db.ForeignKey('sale_adjustment.id'))
     ingredient = db.relationship('Ingredient')
     user = db.relationship('User')
 
@@ -253,13 +332,14 @@ class Invitation(db.Model):
 
 class EmailCode(db.Model):
     """A 6-digit code sent by email (v0.27.0, rule S14, DEC-029): stored only as a keyed hash, valid for 10 minutes,
-    one use, one purpose ('signup', 'reset' or 'email'), at most 5 wrong tries."""
+    one use, one purpose ('signup', 'reset' or 'email'; v0.31.0 'void': approving one void), at most 5 wrong tries."""
     __tablename__ = 'email_code'
     id = db.Column(db.Integer, primary_key=True)
     purpose = db.Column(db.String(10), nullable=False)
     email = db.Column(db.String(254), nullable=False, index=True)   # where it was sent
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     invitation_id = db.Column(db.Integer, db.ForeignKey('invitation.id'))
+    adjustment_id = db.Column(db.Integer, db.ForeignKey('sale_adjustment.id'))   # v0.31.0: purpose 'void'
     code_hash = db.Column(db.String(64), nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=utc_now, nullable=False)

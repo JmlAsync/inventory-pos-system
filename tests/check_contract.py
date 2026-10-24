@@ -30,6 +30,8 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
     '/admin/invitations/<int:invitation_id>/cancel', '/admin/audit',
     '/admin/users/<int:user_id>/email', '/admin/users/<int:user_id>/reset-second-step',   # v0.28.0
     '/ingredients/count/<int:movement_id>/undo',       # undo a stock count within 5 minutes (v0.30.0)
+    '/voids', '/voids/<int:adjustment_id>/approve', '/voids/<int:adjustment_id>/reject',   # voids and refunds (v0.31.0,
+    '/sales/<int:sale_id>/void-now', '/sales/<int:sale_id>/refund',                          # rule S15, DEC-033)
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',
@@ -40,6 +42,8 @@ USER_ROUTES = {                                        # @login_required (admin 
     '/profile/devices/<int:device_id>/remove', '/profile/logout-everywhere', '/profile/backup-codes',   # v0.28.0
     '/profile/authenticator', '/profile/authenticator/confirm', '/profile/authenticator/off',
     '/profile/google', '/profile/google/code', '/profile/google/unlink',   # linking Google (v0.29.0)
+    '/sales/today', '/sales/<int:sale_id>/void', '/sales/adjustment/<int:adjustment_id>',   # v0.31.0: ask for a void,
+    '/voids/<int:adjustment_id>/ask', '/voids/<int:adjustment_id>/code',    # or approve it with an admin's emailed code
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',

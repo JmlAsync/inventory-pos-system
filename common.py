@@ -83,7 +83,10 @@ def network_address():
 # ---------------- Showing money and amounts ----------------
 def peso(amount):
     """Show money the Philippine way, e.g. 6079.5 -> '₱6,079.50' (v0.11.2).
-    Used in templates as {{ sale.total|peso }}."""
+    Used in templates as {{ sale.total|peso }}.
+    v0.31.0: a negative amount (a day with more refunds than sales) shows as −₱130.00, not ₱-130.00."""
+    if amount < 0:
+        return f'−₱{-amount:,.2f}'
     return f'₱{amount:,.2f}'
 
 

@@ -34,6 +34,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-017](#dec-017) | Authenticator apps as a second step, and how they are kept safe | Best choice | Decided |
 | [DEC-018](#dec-018) | Keep `main` at the defended version until after Tuesday's defense | Best choice | Decided |
 | [DEC-019](#dec-019) | A crash shows a friendly page; details only in the log | Best choice | Decided |
+| [DEC-020](#dec-020) | Unknown usernames check a dummy password hash | Best choice | Decided |
 
 ---
 
@@ -540,3 +541,15 @@ the final defense. Proceed with the plan.").
 **Why.** The plain page tells a cashier nothing, and leaving the database session half-done can make the *next* page fail too. Showing details in the browser would help an attacker (file paths, library versions), so they go to the log, where the owner or developer can read them. The answer stays a real 500 so logs and monitoring still see the failure. Nothing can be "half saved" anyway, because every sale is one transaction (I2).
 
 **Alternatives checked.** *Show the error details* (helps attackers, scares staff). *Redirect to Home with a flash message* (hides the failure from logs and loses the page the user was on). *Debug mode's error page* (can run code; forbidden by S4). **Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-020
+
+**Unknown usernames check a dummy password hash** *(v0.21.4, DEF-62, audit A8)*
+
+**How it works.** At start-up the app hashes a random password nobody knows with the same slow method as real passwords (scrypt) and keeps the hash as `DUMMY_PASSWORD_HASH`. When someone logs in with a username that doesn't exist, the typed password is checked against that hash anyway, and the answer is always "no". Both cases now do one slow check and show the same message.
+
+**Why.** The message already didn't reveal whether the username or the password was wrong, but the *time* did: about 100 ms for a real user (scrypt is slow on purpose) and about 1 ms for an unknown one. Measuring that lets someone list which usernames exist, which is the first half of guessing a login. Once the system has many invited cashiers (DEC-003), that list matters more than today with two accounts. One extra hash for wrong usernames costs nothing a real user notices.
+
+**Alternatives checked.** *Add a fixed delay for unknown users* (a fixed number never matches the real hash time on every computer, so the difference still shows). *A random delay* (averages out over many tries). *Leave it* (the audit marked it Low, but it is a five-line fix and gets more important with invitations). Checking a real hash of the same kind is the standard fix. **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

@@ -621,6 +621,9 @@ failed_logins = {}   # (username, IP address) -> times of recent wrong passwords
 # v0.19.3 (DEF-50): usernames are at most 50 characters (models.py), so only that much is
 # remembered. Before, a 450 KB "username" was kept in memory at full length.
 MAX_USERNAME_LENGTH = 50
+# v0.21.4 (DEF-62): a hash of a random password nobody knows, made the same slow way as real ones,
+# checked when the username doesn't exist (see login())
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
 
 
 def forget_old_failures():
@@ -665,7 +668,10 @@ def login():
             return render_template('login.html', error=f'Too many failed attempts. Please wait '
                                    f'{LOCKOUT_MINUTES} minutes and try again.'), 429
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
+        # v0.21.4 (DEF-62, audit A8): an unknown username checks a dummy hash too, so it takes as long as a
+        # wrong password and the time taken can't tell anyone which usernames exist
+        password_ok = check_password_hash(user.password_hash if user else DUMMY_PASSWORD_HASH, password)
+        if user and password_ok:
             failed_logins.pop(key, None)   # a correct password resets the count
             session.clear()                # nothing from a previous login on this browser is kept
             start_login_session(user)      # v0.20.3: a login that log-out can really end

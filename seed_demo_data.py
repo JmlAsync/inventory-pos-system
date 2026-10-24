@@ -32,16 +32,16 @@ LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_dem
 # Products: [name, SKU, price in pesos, quantity, category, has sizes/add-ons, photo file or null]
 DEFAULT_MENU = {
     "products": [
-        ["Americano",              "HC-001", 110.00, 40, "Hot Coffee",  True,  None],
-        ["Cafe Latte",             "HC-002", 140.00, 35, "Hot Coffee",  True,  None],
-        ["Cappuccino",             "HC-003", 140.00, 30, "Hot Coffee",  True,  None],
-        ["Spanish Latte",          "HC-004", 155.00, 25, "Hot Coffee",  True,  None],
-        ["Iced Americano",         "IC-001", 120.00, 40, "Iced Coffee", True,  None],
-        ["Iced Latte",             "IC-002", 150.00, 35, "Iced Coffee", True,  None],
-        ["Iced Caramel Macchiato", "IC-003", 170.00, 25, "Iced Coffee", True,  None],
-        ["Iced Mocha",             "IC-004", 170.00, 20, "Iced Coffee", True,  None],
+        # v0.21.5 (DEF-63): one product per drink, sold Hot or Iced like the café (was 12oz / 16oz,
+        # with separate "Iced ..." products)
+        ["Americano",              "CF-001", 110.00, 40, "Coffee",      True,  None],
+        ["Cafe Latte",             "CF-002", 140.00, 35, "Coffee",      True,  None],
+        ["Cappuccino",             "CF-003", 140.00, 30, "Coffee",      True,  None],
+        ["Spanish Latte",          "CF-004", 155.00, 25, "Coffee",      True,  None],
+        ["Caramel Macchiato",      "CF-005", 170.00, 25, "Coffee",      True,  None],
+        ["Mocha",                  "CF-006", 170.00, 20, "Coffee",      True,  None],
         ["Matcha Latte",           "NC-001", 160.00, 20, "Non-Coffee",  True,  None],
-        ["Hot Chocolate",          "NC-002", 130.00, 20, "Non-Coffee",  True,  None],
+        ["Chocolate",              "NC-002", 130.00, 20, "Non-Coffee",  True,  None],
         ["Butter Croissant",       "PA-001",  95.00,  5, "Pastries",    False, None],   # low stock (5 = threshold)
         ["Ensaymada",              "PA-002",  65.00, 12, "Pastries",    False, None],
         ["Chocolate Chip Cookie",  "PA-003",  60.00, 18, "Pastries",    False, None],
@@ -50,10 +50,9 @@ DEFAULT_MENU = {
         ["Chocolate Cake (slice)", "CK-002", 150.00,  3, "Cakes",       False, None],   # low stock
         ["Ube Cheesecake (slice)", "CK-003", 165.00,  0, "Cakes",       False, None],   # sold out
     ],
-    # [name, extra price, recipe scale]. The first size is the default (placeholder sizes:
-    # change them on the Sizes & Add-ons page once the owner confirms). Recipes below are
-    # for a 12oz; a 16oz uses 1.33 times as much of everything.
-    "sizes": [["12oz", 0, 1.0], ["16oz", 20, 1.33]],
+    # Servings: [name, extra price, recipe scale]. The first is the default. Every drink is sold
+    # Hot or Iced at the same price; the serving's own recipe adds the cup (and the ice) (v0.21.5)
+    "sizes": [["Hot", 0, 1.0], ["Iced", 0, 1.0]],
     "addons": [["Extra Shot", 30], ["Oat Milk", 40], ["Syrup", 20]],
     # Ingredients (v0.17.0): [name, unit, on hand, warn at]. Estimated amounts.
     "ingredients": [
@@ -61,20 +60,21 @@ DEFAULT_MENU = {
         ["Oat milk", "ml", 2000, 500], ["Condensed milk", "ml", 1500, 300],
         ["Caramel sauce", "ml", 1000, 200], ["Chocolate sauce", "ml", 1000, 200],
         ["Vanilla syrup", "ml", 1000, 200], ["Matcha powder", "g", 50, 60],   # low on purpose
+        ["Hot cups", "pcs", 200, 40], ["Iced cups", "pcs", 200, 40], ["Ice", "g", 20000, 3000],   # v0.21.5
     ],
     # Recipes (v0.17.0): product SKU, or "size:<name>" / "addon:<name>" -> [[ingredient, amount]].
     # Products without a recipe (the pastries) keep counting their own quantity.
     "recipes": {
-        "HC-001": [["Espresso beans", 18]],
-        "HC-002": [["Espresso beans", 18], ["Fresh milk", 200]],
-        "HC-003": [["Espresso beans", 18], ["Fresh milk", 150]],
-        "HC-004": [["Espresso beans", 18], ["Fresh milk", 180], ["Condensed milk", 20]],
-        "IC-001": [["Espresso beans", 18]],
-        "IC-002": [["Espresso beans", 18], ["Fresh milk", 180]],
-        "IC-003": [["Espresso beans", 18], ["Fresh milk", 180], ["Caramel sauce", 20]],
-        "IC-004": [["Espresso beans", 18], ["Fresh milk", 160], ["Chocolate sauce", 30]],
+        "CF-001": [["Espresso beans", 18]],
+        "CF-002": [["Espresso beans", 18], ["Fresh milk", 200]],
+        "CF-003": [["Espresso beans", 18], ["Fresh milk", 150]],
+        "CF-004": [["Espresso beans", 18], ["Fresh milk", 180], ["Condensed milk", 20]],
+        "CF-005": [["Espresso beans", 18], ["Fresh milk", 180], ["Caramel sauce", 20]],
+        "CF-006": [["Espresso beans", 18], ["Fresh milk", 160], ["Chocolate sauce", 30]],
         "NC-001": [["Matcha powder", 6], ["Fresh milk", 200]],
         "NC-002": [["Chocolate sauce", 40], ["Fresh milk", 200]],
+        "size:Hot": [["Hot cups", 1]],                      # v0.21.5: the cup belongs to the serving
+        "size:Iced": [["Iced cups", 1], ["Ice", 150]],
         "addon:Extra Shot": [["Espresso beans", 18]],
         "addon:Oat Milk": [["Fresh milk", -200], ["Oat milk", 200]],   # replaces the fresh milk
         "addon:Syrup": [["Vanilla syrup", 15]],
@@ -208,7 +208,7 @@ def add_past_sales(days=7):
                 quantity = random.randint(1, 2)
                 unit_price, chosen = product.price, []
                 if product.has_options and sizes:
-                    # Mostly the small size; sometimes an add-on (v0.16.0)
+                    # Mostly the first serving (Hot); sometimes an add-on (v0.16.0, v0.21.5)
                     size = sizes[0] if random.random() < 0.6 else random.choice(sizes)
                     extras = random.sample(addons, 1) if addons and random.random() < 0.3 else []
                     chosen = [size] + extras

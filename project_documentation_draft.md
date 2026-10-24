@@ -224,6 +224,7 @@ The tag message summarizes what the increment added.
 | — | 2026-10-23 | — | Final report: `final_report.md` (+ `.docx`, `.pdf`) written from this draft in Section B order, with a new tour of v0.21.2 (11 screenshots on the generic demo menu), cleaned-up wording and the last two open hand tests closed (TC-4.4 in Edge, TC-19.14 on GitHub); plus `docs/system_overview.canvas`, a one-page map (actors, use cases, MVC layers, data rules, tests, readiness) *(branch `docs/final-report`, no tag)* |
 | v0.21.3 | 2026-10-24 | — | A crash shows a friendly "Something went wrong" page in the normal layout instead of the plain *Internal Server Error*; the half-done database work is undone and the details go only to the server log (DEF-61, audit A11, DEC-019) *(branch `fix/friendly-error-page`, merged after the defense, DEC-018)* |
 | v0.21.4 | 2026-10-24 | — | An unknown username now takes as long to refuse as a wrong password: a dummy password hash is checked, so the time taken no longer tells anyone which usernames exist (DEF-62, audit A8, DEC-020) *(branch `fix/login-timing`, merged after the defense, DEC-018)* |
+| v0.21.5 | 2026-10-24 | — | The built-in demo menu sells drinks **Hot or Iced**, like the café: one product per drink (8 drinks instead of 4 hot + 4 "Iced ..."), servings Hot and Iced at the same price, and the cup and ice in each serving's own recipe (new demo ingredients Hot cups, Iced cups, Ice). Was 12oz / 16oz (DEF-63, audit R10, DEC-021) *(branch `fix/demo-hot-iced`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1004,6 +1005,9 @@ Small fixes from the security audit and the known limitations, one per version, 
 | TC-26.5 | No user called `nobody-here` | Log in as `nobody-here` | A password hash is still checked, made the same slow way (scrypt) as real ones | **v0.21.2:** no hash checked (about 1 ms instead of about 100 ms) · **v0.21.4:** one scrypt check | ❌→✅ DEF-62 |
 | TC-26.6 | Same; and `admin` with a wrong password | Read the message; count hash checks | Same "Invalid username or password"; a real user still costs exactly one check | As expected | ✅ |
 | TC-26.7 | — | `admin` / right password | Logged in | As expected | ✅ |
+| TC-26.8 | Fresh database | `python seed_demo_data.py` | Servings are exactly Hot and Iced | **v0.21.4:** 12oz, 16oz · **v0.21.5:** Hot, Iced | ❌→✅ DEF-63 |
+| TC-26.9 | Same | Look at the servings' recipes | Hot: 1 hot cup; Iced: 1 iced cup + 150 g ice | **v0.21.4:** no serving recipes · **v0.21.5:** as expected | ❌→✅ DEF-63 |
+| TC-26.10 | Same | List the drinks | Each drink once; no "Iced ..." product beside its Iced serving | **v0.21.4:** Iced Americano, Iced Latte… beside 12oz / 16oz · **v0.21.5:** 8 drinks, each + Hot / + Iced (also checked in Edge: 8 Hot and 8 Iced buttons, an iced latte uses 4 ingredients, no script errors) | ❌→✅ DEF-63 |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
@@ -1074,7 +1078,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_ingredients.py` | F16 / TC-17.x | 38 |
 | `test_ingredients_page.py` | F17 / TC-18.x | 34 |
 | `test_number_boxes.py` | DEF-43, 5 pages | 5 |
-| `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42 | 6 |
+| `test_seed.py` | Demo data: both menus, run twice, photos, `--fresh` backup, DEF-42; Hot / Iced demo servings (DEF-63, v0.21.5) | 9 |
 | `test_theme.py` | F11 / TC-12.10–12.13 (v0.19.1–v0.19.2): icon-only switch on 3 pages, label, position; avatar menu width (DEF-46) | 16 |
 | `test_offline.py` | DEF-53 / TC-21.1 (v0.19.4): no outside addresses, every asset and font file exists | 11 |
 | `test_new_sale.py` | F19 / TC-22.1–22.8, TC-22.11, TC-22.13 (v0.20.0–v0.20.5): tiles, banner, − / +, change on the basket line, ingredient panel, quick cash, login and token on the new pages, full-width layout, no shared style names (DEF-58) | 55 |
@@ -1082,7 +1086,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
 | `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62) | 11 |
-| **23 files** | | **481 checks + 58 rule checks** |
+| **23 files** | | **484 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1113,8 +1117,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
-| Phase 1 patches (v0.21.3 onward) | 7 | 3 → **7** | 4 → **0** | 0 |
-| **Total** | **272** | **184 → 272** | **71 → 0** | **4 → 0** |
+| Phase 1 patches (v0.21.3 onward) | 10 | 3 → **10** | 7 → **0** | 0 |
+| **Total** | **275** | **184 → 275** | **74 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1190,6 +1194,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-60 | Medium | Phone: the "New ingredient" panel was 100 % of the screen wide but started at the button, so its right part was cut off (made worse by v0.21.0's bigger padding) | Layout audit of all pages at 375 px (2026-10-23) | On phones the panel floats under the top bar with 1 rem margins and scrolls if tall; TC-25.9 | ✅ Fixed v0.21.2 |
 | DEF-61 | Low | A crash showed the plain *Internal Server Error* page: no layout, no advice, and the database session was left half-done until the next request (audit A11) | Security audit 2026-10-11 (A11), seen with A1 | `server_error()` undoes the unfinished database work, writes the details to the server log and shows `500.html`; if even that fails, a plain friendly message (DEC-019); TC-26.1–26.4 | ✅ Fixed v0.21.3 |
 | DEF-62 | Low (security) | Usernames could be found by timing: a wrong password for a real user took about 100 ms (the password hash is checked), an unknown username about 1 ms (audit A8) | Security audit 2026-10-11 (A8, measured) | `login()` checks `DUMMY_PASSWORD_HASH` (a random password hashed with scrypt at start-up) when the username doesn't exist (DEC-020); TC-26.5–26.7 | ✅ Fixed v0.21.4 |
+| DEF-63 | Low (demo) | The built-in demo menu sold drinks as 12oz / 16oz, with separate "Iced ..." products, while the app, the stories (F15, F19) and the café use Hot / Iced, so the demo didn't show the feature as designed (audit R10) | Security audit 2026-10-11 (R10) | `seed_demo_data.py`: one product per drink, servings Hot and Iced, cup and ice recipes on the servings (DEC-021); TC-26.8–26.10 | ✅ Fixed v0.21.5 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now

@@ -3,7 +3,7 @@
 {% block content %}
 {# Recipe of a product or of a size/add-on (v0.17.0) #}
 <div style="max-width: 44rem;">
-<a href="{{ url_for('products') if kind == 'product' else url_for('manage_options') }}" class="small text-decoration-none"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
+<a href="{{ url_for('catalog.products') if kind == 'product' else url_for('catalog.manage_options') }}" class="small text-decoration-none"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back</a>
 <div class="mt-2"></div>
 <h1>Recipe: {{ owner.name }}</h1>
 <p class="page-subtitle">
@@ -66,7 +66,7 @@
     </form>
 </div></div>
 {% else %}
-<p>First add ingredients on the <a href="{{ url_for('ingredients') }}">Ingredients</a> page.</p>
+<p>First add ingredients on the <a href="{{ url_for('ingredients.ingredients') }}">Ingredients</a> page.</p>
 {% endif %}
 </div>
 {% endblock %}

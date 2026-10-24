@@ -29,7 +29,7 @@ check('TC-26.4 a visitor also gets the friendly page', 'Something went wrong' in
 
 
 # ---- v0.21.4 (DEF-62, audit A8): an unknown username takes as long as a wrong password
-import app as app_module
+import blueprints.accounts as app_module   # v0.25.0: login() and its check_password_hash live in blueprints/accounts.py
 hash_checks = []
 real_check = app_module.check_password_hash
 

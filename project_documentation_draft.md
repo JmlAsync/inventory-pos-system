@@ -233,6 +233,7 @@ The tag message summarizes what the increment added.
 | v0.23.1 | 2026-10-24 | — | Times stored in **UTC** and shown, and counted into days, on the shop's clock (UTC+8): receipts, the report, Home's "today", ingredient history, logins and the login limit. Migration `0002` turns every stored time from this computer's local time into UTC (and back when undone). Needed before any cloud server, which runs on UTC (DEF-67, audit R1, DEC-024). Tested on a copy of the owner's database: times 8 hours earlier in storage, the same on screen *(branch `fix/utc-times`, merged after the defense, DEC-018)* |
 | v0.23.2 | 2026-10-24 | — | Money stored as **whole centavos** (INTEGER: ₱75.50 = 7550) through a new `Money` column type, and handled in Python as exact `Decimal` pesos, so totals can't drift and a receipt always adds up. A price typed with more than two decimals is rounded once, half up, when saved. Migration `0003` converts every price and total (and back when undone). Tested on a copy of the owner's database: all 58 receipts, 120 lines and 12 prices identical to the centavo (DEF-68, audit R5, DEC-025) *(branch `fix/money-centavos`, merged after the defense, DEC-018)* |
 | v0.24.0 | 2026-10-24 | — | Setting up and running a shop's own copy (F22): `setup_shop.py` asks once for the network (this computer only, or also phones on the shop's network), the shop's details and the owner's own admin account, writes `instance/config.toml`, brings the database up to date and never creates the demo accounts; `serve.py` / `start_shop.bat` run it with **waitress** instead of Flask's development server (audit R3) and show the address for phones. Packages split into `requirements/local.txt` (rule D1); waitress 3.0.2. Tried end to end: a fresh install, started by `start_shop.bat`, used from the network address in Edge (DEC-026) *(branch `feature/serve-and-setup`, merged after the defense, DEC-018)* |
+| v0.25.0 | 2026-10-24 | — | `app.py` (1,722 lines) split into six **blueprints** (`accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop`), shared rules in `common.py`, and a **`store/`** data layer through which every database change goes (selling, restock and count, products, options, recipes, logins, passwords, pictures, shop details). `app.py` (242 lines) only starts the app. No visible change: every page, message and rule is the same; 26 of 27 test files unchanged (one line in `test_hardening.py`). The contract check now fails if a page writes to the database itself (rule I1, now checked) (DEC-027) *(branch `feature/blueprints-store`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1088,6 +1089,17 @@ Automated in `tests/test_setup.py` (30 checks; `setup_shop.py` is run as a progr
 | TC-31.11 | A fresh scratch install | `start_shop.bat`; Edge at `http://192.168.100.88:5081` | Served by waitress through the network address; `admin`/`admin123` refused; "maria" logs in; shop details there; the start-up window shows both addresses | As expected | ✅ |
 | TC-31.12 | A fresh install, typing the answers | `python setup_shop.py` (no answers file) | The questions read clearly; passwords hidden; a wrong answer asked again | **To try by hand on Sunday** (the password prompt reads from the keyboard, so it can't be automated) | ⏳ |
 
+### Blueprints and the store/ layer *(v0.25.0)*
+
+A change with no visible effect is tested by showing that nothing changed: the whole existing suite, plus a walk through every page.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-32.1 | The split code | `python tests/run_tests.py` | All 28 files pass; the only test edit is one line in `test_hardening.py` (it swaps the password check where `login()` now lives) | As expected, first run | ✅ |
+| TC-32.2 | — | Count the pages | The same 24 pages and addresses, now in `blueprints/` | 24 + static | ✅ |
+| TC-32.3 | A copy with a page that sets a stock quantity and commits | `python tests/check_contract.py` | Both lines reported ("writes to the database itself") | Both caught | ✅ |
+| TC-32.4 | Demo copy in Edge, admin and cashier | Open all 14 kinds of page; sell an iced drink; cashier opens Shop details | Every page 200 with the right sidebar link highlighted; the sale saved through `store/` and its receipt shown; 403 for the cashier; no script errors | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1192,7 +1204,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
 | `test_money.py` | Money in centavos / TC-30.x (v0.23.2): migration 0003 both ways, INTEGER storage, Decimal in Python, one rounding on save, receipts add up, exact sums, limits unchanged | 19 |
 | `test_setup.py` | F22 / TC-31.x (v0.24.0): config file, setup run with good and wrong answers, run twice, broken config, `DATABASE_URL`, waitress serving, server settings, `start_shop.bat`, answers file with a byte-order mark | 30 |
-| **28 files** | | **598 checks + 59 rule checks** |
+| **28 files** | | **598 checks + 62 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1229,7 +1241,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Times in UTC (v0.23.1) | 9 | 5 → **9** | 4 → **0** | 0 |
 | Money in centavos (v0.23.2) | 9 | 4 → **9** | 5 → **0** | 0 |
 | F22 Setup and serve (v0.24.0) | 12 | 9 → **11** | 2 → **0** | 0 → **1** |
-| **Total** | **327** | **218 → 326** | **91 → 0** | **4 → 1** |
+| Blueprints and store/ (v0.25.0) | 4 | 4 | 0 | 0 |
+| **Total** | **331** | **222 → 330** | **91 → 0** | **4 → 1** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -2336,7 +2349,7 @@ exactly this split.
 |---|---|---|
 | **Model** | `models.py`: 9 classes, one table each, kept in SQLite (`instance/inventory.db`) | `Sale`, `SaleItem`, `Product.quantity`, `Ingredient.quantity`, `IngredientMovement` |
 | **View** | `templates/*.html` (Jinja2) + `static/css/theme.css` + Bootstrap, icons and font in `static/vendor/` | `new_sale.html` (basket, payment), `receipt.html` |
-| **Controller** | the 23 routes in `app.py`, with their checks | `complete_sale()`: checks the ticket, stock and payment, saves everything in one transaction, then redirects to the receipt |
+| **Controller** | the 24 routes, with their checks: in `app.py` until v0.24.0, in `blueprints/` since v0.25.0 (and every database change in `store/`) | `complete_sale()`: checks the ticket, stock and payment, saves everything in one transaction, then redirects to the receipt |
 
 **b. Layered architecture.** Each layer offers services to the layer above and uses only the layer below. In the code
 the layers are *logical*: layers 2 and 3 are both in `app.py`, separated into commented blocks, because the course

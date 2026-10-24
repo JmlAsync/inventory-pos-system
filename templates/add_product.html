@@ -8,7 +8,7 @@
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 <div class="card"><div class="card-body p-4">
-<form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
+<form method="POST" action="{{ url_for('catalog.add_product') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <label class="form-label">Name</label>
@@ -33,7 +33,7 @@
     <div class="form-check mb-3">
         <input class="form-check-input" type="checkbox" id="has_options" name="has_options" value="1"{% if request.form.get('has_options') %} checked{% endif %}>
         <label class="form-check-label" for="has_options">Drink: the customer chooses a serving (e.g. Hot / Iced) and may add add-ons</label>
-        <div class="form-text">Servings and add-ons are set on the <a href="{{ url_for('manage_options') }}">Servings &amp; Add-ons</a> page.</div>
+        <div class="form-text">Servings and add-ons are set on the <a href="{{ url_for('catalog.manage_options') }}">Servings &amp; Add-ons</a> page.</div>
     </div>
     <div class="mb-3">
         <label class="form-label" for="picture">Picture <span class="text-body-secondary fw-normal">(optional)</span></label>
@@ -41,7 +41,7 @@
         <div class="form-text">PNG, JPG or WebP, up to 2 MB. Without a picture, an icon is shown. If the form shows an error, choose the picture again.</div>
     </div>
     <button type="submit" class="btn btn-primary">Add Product</button>
-    <a href="{{ url_for('products') }}" class="btn btn-light-subtle">Cancel</a>
+    <a href="{{ url_for('catalog.products') }}" class="btn btn-light-subtle">Cancel</a>
 </form>
 </div></div>
 </div>

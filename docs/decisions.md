@@ -41,6 +41,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-024](#dec-024) | Times stored in UTC; shown in the shop's fixed UTC+8 | Best choice | Decided |
 | [DEC-025](#dec-025) | Money: whole centavos in the database, exact Decimal pesos in Python | Best choice | Decided |
 | [DEC-026](#dec-026) | A shop's copy: set up once, settings in `config.toml`, served by waitress | Best choice | Decided |
+| [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice | Decided |
 
 ---
 
@@ -752,5 +753,48 @@ place for settings that a person can read, and an install that can't accidentall
 are a hand test for Sunday (TC-31.12). Windows Firewall may ask once whether Python may use the network; the README
 says to allow it on private networks only. The owner role, the owner's email and the licence come later (v0.27.0,
 v0.38.0); until then the setup creates an ordinary admin.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-027
+
+**Six blueprints, `common.py`, and `store/` for every database change** *(v0.25.0, rules I1 and the AGENTS.md §2 note)*
+
+**How it works.** The pages moved out of `app.py` into Flask *blueprints*, one per part of the system, named after the
+subsystems in the report's high-level architecture: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop`.
+Rules every part needs (limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files) are in
+`common.py`. Every change to the database is a function in `store/`: `record_sale()` (the all-or-nothing sale),
+`restock()`, `count()`, products, options, recipes, logins, passwords, pictures and shop details; the stock
+calculations (`Recipes`, `can_make`, `stock_levels`…) are in `store/stock.py`. `app.py` only starts the app and
+re-exports the old names, so `seed_demo_data.py`, `setup_shop.py`, the migrations and the tests keep working.
+
+**Why.** `app.py` was 1,722 lines and the upgrade would roughly double it (DEC-008). With every database change in one
+place, the stock rule I1 can be *checked by a program* instead of by review: `check_contract.py` now fails if a page
+writes to the database itself. The code was moved, not rewritten: the same steps, messages and checks, which is why
+26 of the 27 test files pass without a single change.
+
+**Details checked.**
+
+| Detail | Choice | Alternative rejected |
+|---|---|---|
+| How to split | By part of the system (matches the report's architecture) | By kind of code (all forms in one file, all queries in another): a change to selling would touch many files |
+| Moving code | Copied with only the necessary edits (page names, `store` calls, `current_app`) | Rewriting while moving: any behaviour change would be hidden inside a huge diff |
+| Page names | `part.page` (Flask's blueprint naming), all templates updated | Keeping one flat list of names by registering routes on `app` from each file: not real blueprints, and the parts can't be tested or moved separately |
+| Proof of "no visible change" | The unchanged suite + a page-by-page walk in Edge | Writing new tests for the move (they would test the new code against itself) |
+| The one test edit | `test_hardening.py` now swaps `check_password_hash` in `blueprints/accounts.py`, where `login()` lives | Making `login()` look the function up through `app`: hiding the real location to keep a test line unchanged |
+
+**Open: reads.** The AGENTS.md §2 note (2026-10-24) says "all database access in `store/`". v0.25.0 moves every
+**write** and the shared stock reads; the pages still read with simple queries (lists, look-ups, the report). Moving
+every read too would double the change for no benefit today: SQLite and PostgreSQL both use this same SQL code, and a
+second kind of store (Firestore) is built only for a client already on Firebase (DEC-014). The reads would move then.
+**The owner decides** (C8): either move the reads in a follow-up version, or reword the note to "every database change
+in `store/`; reads move when a second store is built".
+
+**Owner's decision (2026-10-24):** reword the note: "every database change goes through `store/`; reads move there
+when a second kind of store is built." Applied in AGENTS.md §2, with the old wording kept in an *Overridden* note.
+*Check of this decision:* it matches the recommendation above and keeps the rule true of the code today; the I1
+contract check enforces the part that protects the data (writes). **Best choice.**
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

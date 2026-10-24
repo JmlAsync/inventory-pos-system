@@ -11,7 +11,7 @@
     <h2 class="h5 fw-bold mb-1"><i class="bi {{ icon }} me-2" aria-hidden="true"></i>{{ title }}</h2>
     <p class="text-body-secondary small mb-3">{{ hint }}</p>
     {% for option in options %}
-    <form method="POST" action="{{ url_for('manage_options') }}" class="row g-2 align-items-center option-row{% if not option.active %} is-hidden{% endif %}">
+    <form method="POST" action="{{ url_for('catalog.manage_options') }}" class="row g-2 align-items-center option-row{% if not option.active %} is-hidden{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="option_id" value="{{ option.id }}">
         <div class="col-sm-{{ 3 if kind == 'size' else 5 }}"><input type="text" class="form-control" name="name" value="{{ option.name }}" maxlength="50" required aria-label="Name"></div>
@@ -34,13 +34,13 @@
             </div>
         </div>
         <div class="col-3 col-sm-2 text-end text-nowrap">
-            <a href="{{ url_for('edit_recipe', kind='option', item_id=option.id) }}" class="btn btn-sm btn-light-subtle" title="Ingredients this {{ 'serving' if kind == 'size' else 'add-on' }} uses"><i class="bi bi-journal-text" aria-hidden="true"></i><span class="visually-hidden">Recipe</span></a>
+            <a href="{{ url_for('ingredients.edit_recipe', kind='option', item_id=option.id) }}" class="btn btn-sm btn-light-subtle" title="Ingredients this {{ 'serving' if kind == 'size' else 'add-on' }} uses"><i class="bi bi-journal-text" aria-hidden="true"></i><span class="visually-hidden">Recipe</span></a>
             <button type="submit" class="btn btn-sm btn-outline-primary">Save</button></div>
     </form>
     {% else %}
     <p class="text-body-secondary">None yet.</p>
     {% endfor %}
-    <form method="POST" action="{{ url_for('manage_options') }}" class="row g-2 align-items-center mt-2 pt-3 border-top">
+    <form method="POST" action="{{ url_for('catalog.manage_options') }}" class="row g-2 align-items-center mt-2 pt-3 border-top">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="kind" value="{{ kind }}">
         <div class="col-sm-5"><input type="text" class="form-control" name="name" maxlength="50" required placeholder="New {{ 'serving' if kind == 'size' else 'add-on' }} name" aria-label="Name"></div>

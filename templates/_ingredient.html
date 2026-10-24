@@ -10,7 +10,7 @@
 
 {% macro restock_form(ing=None, return_to='') %}
 {% set refill = (ing.full_at - ing.quantity) if ing and ing.full_at and ing.full_at > ing.quantity else 0 %}
-<form method="POST" action="{{ url_for('ingredients') }}" data-panel="restock" data-refill="{{ refill }}">
+<form method="POST" action="{{ url_for('ingredients.ingredients') }}" data-panel="restock" data-refill="{{ refill }}">
     {{ hidden_fields(ing, 'restock', return_to) }}
     <label class="form-label" for="restock{{ ing.id if ing else '' }}">Amount received</label>
     <div class="input-group">
@@ -24,7 +24,7 @@
 {% endmacro %}
 
 {% macro count_form(ing=None, return_to='') %}
-<form method="POST" action="{{ url_for('ingredients') }}" data-panel="count">
+<form method="POST" action="{{ url_for('ingredients.ingredients') }}" data-panel="count">
     {{ hidden_fields(ing, 'count', return_to) }}
     <label class="form-label" for="count{{ ing.id if ing else '' }}">Counted on the shelf</label>
     <div class="input-group">
@@ -37,7 +37,7 @@
 {% endmacro %}
 
 {% macro edit_form(ing=None, units=(), categories=(), return_to='', action='edit') %}
-<form method="POST" action="{{ url_for('ingredients') }}" data-panel="{{ action }}" class="row g-2">
+<form method="POST" action="{{ url_for('ingredients.ingredients') }}" data-panel="{{ action }}" class="row g-2">
     {{ hidden_fields(ing, action, return_to) }}
     <div class="col-12"><label class="form-label">Name</label>
         <input type="text" class="form-control js-f-name" name="name" maxlength="50" required value="{{ ing.name if ing else '' }}" placeholder="e.g. Oat milk"></div>

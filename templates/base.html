@@ -44,7 +44,7 @@
     <aside id="sidebar" class="app-sidebar offcanvas-lg offcanvas-start d-print-none" tabindex="-1" aria-label="Main menu">
         <div class="sidebar-inner">
             <div class="d-flex align-items-center justify-content-between">
-                <a class="brand" href="{{ url_for('home') }}">
+                <a class="brand" href="{{ url_for('reports.home') }}">
                     <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
                     <span>Inventory & POS</span>
                 </a>
@@ -58,23 +58,23 @@
 
             <div class="side-label">Menu</div>
             <nav class="d-flex flex-column gap-1">
-                {{ side_link(request.endpoint, 'home', 'bi-house-door', 'Home') }}
+                {{ side_link(request.endpoint, 'reports.home', 'bi-house-door', 'Home') }}
                 {% if current_user.is_authenticated %}
                 {% set recipe_kind = request.view_args.get('kind') if request.view_args else None %}
-                {{ side_link(request.endpoint, 'products', 'bi-box-seam', 'Products', ('add_product', 'edit_product') + (('edit_recipe',) if recipe_kind == 'product' else ())) }}
-                {{ side_link(request.endpoint, 'new_sale', 'bi-cart-plus', 'New Sale', ('receipt',)) }}
+                {{ side_link(request.endpoint, 'catalog.products', 'bi-box-seam', 'Products', ('catalog.add_product', 'catalog.edit_product') + (('ingredients.edit_recipe',) if recipe_kind == 'product' else ())) }}
+                {{ side_link(request.endpoint, 'sales.new_sale', 'bi-cart-plus', 'New Sale', ('sales.receipt',)) }}
                 {% else %}
-                {{ side_link(request.endpoint, 'login', 'bi-box-arrow-in-right', 'Log in') }}
+                {{ side_link(request.endpoint, 'accounts.login', 'bi-box-arrow-in-right', 'Log in') }}
                 {% endif %}
             </nav>
 
             {% if current_user.is_authenticated and current_user.role == 'admin' %}
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
-                {{ side_link(request.endpoint, 'sales_report', 'bi-bar-chart-line', 'Sales Report') }}
-                {{ side_link(request.endpoint, 'manage_options', 'bi-sliders', 'Servings & Add-ons', ('edit_recipe',) if recipe_kind == 'option' else ()) }}
-                {{ side_link(request.endpoint, 'ingredients', 'bi-droplet-half', 'Ingredients', ('ingredient_detail', 'ingredients_history')) }}
-                {{ side_link(request.endpoint, 'shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}
+                {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report') }}
+                {{ side_link(request.endpoint, 'catalog.manage_options', 'bi-sliders', 'Servings & Add-ons', ('ingredients.edit_recipe',) if recipe_kind == 'option' else ()) }}
+                {{ side_link(request.endpoint, 'ingredients.ingredients', 'bi-droplet-half', 'Ingredients', ('ingredients.ingredient_detail', 'ingredients.ingredients_history')) }}
+                {{ side_link(request.endpoint, 'shop.shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}
             </nav>
             {% endif %}
 
@@ -95,12 +95,12 @@
                     {# user-menu (v0.19.2): at least as wide as the name button, wider when the words need it (DEF-46) #}
                     <ul class="dropdown-menu user-menu">
                         <li><span class="dropdown-item-text small text-body-secondary">Signed in as {{ current_user.role|capitalize }}</span></li>
-                        <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-camera" aria-hidden="true"></i>Change picture</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('profile') }}#password"><i class="bi bi-key" aria-hidden="true"></i>Change password</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('accounts.profile') }}"><i class="bi bi-camera" aria-hidden="true"></i>Change picture</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('accounts.profile') }}#password"><i class="bi bi-key" aria-hidden="true"></i>Change password</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             {# Log out is a small form, not a link (v0.13.2) #}
-                            <form method="POST" action="{{ url_for('logout') }}">
+                            <form method="POST" action="{{ url_for('accounts.logout') }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right" aria-hidden="true"></i>Log out</button>
                             </form>
@@ -123,7 +123,7 @@
         <header class="app-topbar d-lg-none d-print-none">
             <button type="button" class="btn btn-light-subtle" data-bs-toggle="offcanvas" data-bs-target="#sidebar"
                     aria-controls="sidebar" aria-label="Open menu"><i class="bi bi-list" aria-hidden="true"></i></button>
-            <a class="brand" href="{{ url_for('home') }}">
+            <a class="brand" href="{{ url_for('reports.home') }}">
                 <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
                 <span>Inventory & POS</span>
             </a>

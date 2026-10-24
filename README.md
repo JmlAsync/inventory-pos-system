@@ -116,7 +116,10 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 
 | Path | What it holds |
 |---|---|
-| `app.py` | Every page, the checks on every form, start-up and the database upgrade |
+| `app.py` | Starts the app: settings, database, security checks, error pages (v0.25.0: the pages moved to `blueprints/`) |
+| `blueprints/` | The pages, one file per part of the system: accounts, catalog, ingredients, sales, reports, shop |
+| `store/` | Every change to the database (selling, stock, products, logins, shop details) and the stock calculations |
+| `common.py` | Rules and helpers every part uses (limits, money, the shop's clock, pictures) |
 | `models.py` | The database tables: products, users, sales, servings and add-ons, ingredients, recipes, ingredient history |
 | `templates/` | The HTML pages (`base.html` is the shared layout) |
 | `static/css/theme.css` | The custom look, light and dark |

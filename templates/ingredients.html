@@ -11,8 +11,8 @@
     </div>
 </div>
 <ul class="nav nav-pills page-tabs mb-3">
-    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
-    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
+    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients.ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients.ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
 </ul>
 
 {# ---------- Search, filters and "New ingredient" ---------- #}
@@ -45,7 +45,7 @@
     <div class="ing-name"><span class="product-name">{{ ing.name }}</span> {{ status_badge(state) }}</div>
     <div class="ing-bar">{{ stock_bar(ing, pct, state) }}</div>
     <div class="ing-amount" title="Warn at {{ ing.low_at|amount }} {{ ing.unit }}"><span class="fw-semibold">{{ ing.quantity|amount }} {{ ing.unit }}</span>{% if ing.full_at %}<span class="small text-body-secondary"> / {{ ing.full_at|amount }}</span>{% endif %}</div>
-    <a href="{{ url_for('ingredient_detail', ingredient_id=ing.id) }}" class="btn btn-sm btn-light-subtle js-update"
+    <a href="{{ url_for('ingredients.ingredient_detail', ingredient_id=ing.id) }}" class="btn btn-sm btn-light-subtle js-update"
        data-id="{{ ing.id }}" data-name="{{ ing.name }}" data-unit="{{ ing.unit }}" data-category="{{ ing.category }}"
        data-quantity="{{ ing.quantity|amount }}" data-low="{{ ing.low_at|amount }}" data-full="{{ ing.full_at|amount }}"
        data-refill="{{ ((ing.full_at - ing.quantity) if ing.full_at > ing.quantity else 0)|amount }}">Update</a>

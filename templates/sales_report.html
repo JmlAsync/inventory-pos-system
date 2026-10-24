@@ -11,7 +11,7 @@
 
 <!-- Choose the period. GET form: the dates appear in the address bar -->
 <div class="card mb-4 d-print-none"><div class="card-body">
-<form method="GET" action="{{ url_for('sales_report') }}" class="row g-2 align-items-end">
+<form method="GET" action="{{ url_for('reports.sales_report') }}" class="row g-2 align-items-end">
     <div class="col-md-4">
         <label class="form-label">From</label>
         <input type="date" name="start" min="2000-01-01" max="2100-12-31" class="form-control" value="{{ start.isoformat() }}">
@@ -82,7 +82,7 @@
     <tbody>
         {% for sale in sales %}
         <tr>
-            <td><a href="{{ url_for('receipt', sale_id=sale.id) }}">{{ sale.id }}</a></td>
+            <td><a href="{{ url_for('sales.receipt', sale_id=sale.id) }}">{{ sale.id }}</a></td>
             <td>{{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</td>
             <td>{{ sale.user.username }}</td>
             <td>{{ sale.items|length }}</td>

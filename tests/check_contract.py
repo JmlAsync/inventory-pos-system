@@ -71,30 +71,50 @@ def decorator_names(function):
     return names
 
 
-# S1-S2: every route is classified and protected the way its list says
-tree = ast.parse(read('app.py'))
+# S1-S2: every route is classified and protected the way its list says.
+# v0.25.0: pages are in app.py and in the blueprints (blueprints/*.py, decorated with @bp.route)
+PAGE_FILES = ['app.py'] + sorted(os.path.join('blueprints', f) for f in os.listdir(os.path.join(ROOT, 'blueprints'))
+                                 if f.endswith('.py') and f != '__init__.py')
 seen = set()
-for node in ast.walk(tree):
-    if not isinstance(node, ast.FunctionDef):
-        continue
-    for d in node.decorator_list:
-        if isinstance(d, ast.Call) and ast.unparse(d.func) == 'app.route':
-            path = d.args[0].value
-            seen.add(path)
-            names = decorator_names(node)
-            where = f'app.py line {node.lineno}: {path} ({node.name})'
-            if path in ADMIN_ROUTES:
-                result(f'S2 admin page {path} has @login_required and @admin_required',
-                       names[:3] == ['app.route', 'login_required', 'admin_required'], where + ' - decorators must be @app.route, @login_required, @admin_required in that order')
-            elif path in USER_ROUTES:
-                result(f'S2 user page {path} has @login_required', names[:2] == ['app.route', 'login_required'], where)
-            elif path in PUBLIC_ROUTES:
-                result(f'S2 public page {path} is listed as public', True)
-            else:
-                result(f'S1 new page {path} is listed in tests/check_contract.py', False,
-                       where + ' - add it to PUBLIC_ROUTES, USER_ROUTES or ADMIN_ROUTES (and to AGENTS.md if it is public)')
+for page_file in PAGE_FILES:
+    tree = ast.parse(read(page_file))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for d in node.decorator_list:
+            if isinstance(d, ast.Call) and ast.unparse(d.func) in ('app.route', 'bp.route'):
+                path = d.args[0].value
+                seen.add(path)
+                names = decorator_names(node)
+                route = ast.unparse(d.func)
+                where = f'{page_file} line {node.lineno}: {path} ({node.name})'
+                if path in ADMIN_ROUTES:
+                    result(f'S2 admin page {path} has @login_required and @admin_required',
+                           names[:3] == [route, 'login_required', 'admin_required'], where + ' - decorators must be @route, @login_required, @admin_required in that order')
+                elif path in USER_ROUTES:
+                    result(f'S2 user page {path} has @login_required', names[:2] == [route, 'login_required'], where)
+                elif path in PUBLIC_ROUTES:
+                    result(f'S2 public page {path} is listed as public', True)
+                else:
+                    result(f'S1 new page {path} is listed in tests/check_contract.py', False,
+                           where + ' - add it to PUBLIC_ROUTES, USER_ROUTES or ADMIN_ROUTES (and to AGENTS.md if it is public)')
 for missing in sorted((PUBLIC_ROUTES | ADMIN_ROUTES | USER_ROUTES) - seen):
-    result(f'S1 listed page {missing} still exists in app.py', False, 'remove it from the lists in tests/check_contract.py')
+    result(f'S1 listed page {missing} still exists', False, 'remove it from the lists in tests/check_contract.py')
+
+# I1 (v0.25.0, DEC-027): the pages never write to the database; every change goes through store/.
+# So stock can only change in store/, where the conditional updates are (rule I1).
+WRITES = [(r'db\.session\.(add|add_all|commit|delete|merge|flush)\(', 'db.session write'),
+          (r'\.update\(\{', 'a query .update({...})'), (r'\.delete\(\)', 'a query .delete()'),
+          (r'\.quantity\s*=[^=]', 'setting a stock quantity')]
+for page_file in PAGE_FILES:
+    for number, line in enumerate(read(page_file).splitlines(), 1):
+        if line.strip().startswith('#'):
+            continue
+        for pattern, what in WRITES:
+            if re.search(pattern, line):
+                result(f'I1 {page_file} line {number} writes to the database itself ({what})', False,
+                       line.strip() + '  - call a function in store/ instead')
+result('I1 the pages (app.py, blueprints/) never write to the database; store/ does', True)
 
 # S3: every POST form carries the CSRF token
 templates = os.path.join(ROOT, 'templates')

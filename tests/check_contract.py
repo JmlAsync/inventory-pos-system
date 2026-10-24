@@ -30,7 +30,8 @@ ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'fla
                     'itsdangerous', 'jinja2', 'markupsafe', 'sqlalchemy', 'typing_extensions', 'werkzeug'}
 # ---- Never committed to Git (AGENTS.md rule P1).
 PRIVATE = [r'^instance/', r'\.db$', r'^static/avatars/', r'^static/products/', r'^local_demo/', r'secret_key',
-           r'(^|/)\.env$', r'^venv/', r'^\.venv/']
+           r'(^|/)\.env$', r'^venv/', r'^\.venv/',
+           r'client_secret[^/]*\.json$', r'(?i)service-?account[^/]*\.json$']   # Google sign-in and cloud keys (2026-10-24)
 MAX_AGENTS_LINES = 500
 
 failures = []

@@ -9,3 +9,7 @@ instance/
 static/products/
 # A shop's own menu and photos for demos stay on this computer (v0.16.0)
 local_demo/
+# Google sign-in secrets and cloud (Firestore) keys never go to GitHub (2026-10-24)
+client_secret*.json
+*service-account*.json
+*serviceAccount*.json

@@ -33,6 +33,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-016](#dec-016) | The contract check blocks Google and cloud key files | Best choice | Decided |
 | [DEC-017](#dec-017) | Authenticator apps as a second step, and how they are kept safe | Best choice | Decided |
 | [DEC-018](#dec-018) | Keep `main` at the defended version until after Tuesday's defense | Best choice | Decided |
+| [DEC-019](#dec-019) | A crash shows a friendly page; details only in the log | Best choice | Decided |
 
 ---
 
@@ -527,3 +528,15 @@ all the progress (nothing waits idle), gives Sunday's tests something real to ch
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24 (owner: "We will run tests by Sunday evening. Tuesday is
 the final defense. Proceed with the plan.").
+
+---
+
+## DEC-019
+
+**A crash shows a friendly page; details only in the log** *(v0.21.3, DEF-61, audit A11)*
+
+**How it works.** Flask calls `server_error()` for any unexpected error. It first undoes the unfinished database work (`db.session.rollback()`), so the next request doesn't inherit a broken transaction; then it writes the error and its traceback to the server log; then it shows `500.html` inside the normal layout, with the advice "Nothing was saved. Please go back and try again." If drawing that page fails too (for example, the database itself is down), a plain two-line message is sent instead.
+
+**Why.** The plain page tells a cashier nothing, and leaving the database session half-done can make the *next* page fail too. Showing details in the browser would help an attacker (file paths, library versions), so they go to the log, where the owner or developer can read them. The answer stays a real 500 so logs and monitoring still see the failure. Nothing can be "half saved" anyway, because every sale is one transaction (I2).
+
+**Alternatives checked.** *Show the error details* (helps attackers, scares staff). *Redirect to Home with a flash message* (hides the failure from logs and loses the page the user was on). *Debug mode's error page* (can run code; forbidden by S4). **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

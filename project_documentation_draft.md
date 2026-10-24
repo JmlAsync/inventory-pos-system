@@ -226,6 +226,7 @@ The tag message summarizes what the increment added.
 | v0.21.4 | 2026-10-24 | — | An unknown username now takes as long to refuse as a wrong password: a dummy password hash is checked, so the time taken no longer tells anyone which usernames exist (DEF-62, audit A8, DEC-020) *(branch `fix/login-timing`, merged after the defense, DEC-018)* |
 | v0.21.5 | 2026-10-24 | — | The built-in demo menu sells drinks **Hot or Iced**, like the café: one product per drink (8 drinks instead of 4 hot + 4 "Iced ..."), servings Hot and Iced at the same price, and the cup and ice in each serving's own recipe (new demo ingredients Hot cups, Iced cups, Ice). Was 12oz / 16oz (DEF-63, audit R10, DEC-021) *(branch `fix/demo-hot-iced`, merged after the defense, DEC-018)* |
 | v0.21.6 | 2026-10-24 | — | `requirements.txt` saved as plain UTF-8 instead of UTF-16 (the result of PowerShell's `pip freeze >`), and a new contract rule keeps it that way (DEF-64, audit R11) *(branch `fix/requirements-utf8`, merged after the defense, DEC-018)* |
+| v0.21.7 | 2026-10-24 | — | A browser tab icon (a white cup on the caramel brand colour, `static/favicon.svg`), named on every page, so the browser's request no longer ends in "404 Not Found" (DEF-65) *(branch `fix/favicon`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1010,6 +1011,8 @@ Small fixes from the security audit and the known limitations, one per version, 
 | TC-26.9 | Same | Look at the servings' recipes | Hot: 1 hot cup; Iced: 1 iced cup + 150 g ice | **v0.21.4:** no serving recipes · **v0.21.5:** as expected | ❌→✅ DEF-63 |
 | TC-26.10 | Same | List the drinks | Each drink once; no "Iced ..." product beside its Iced serving | **v0.21.4:** Iced Americano, Iced Latte… beside 12oz / 16oz · **v0.21.5:** 8 drinks, each + Hot / + Iced (also checked in Edge: 8 Hot and 8 Iced buttons, an iced latte uses 4 ingredients, no script errors) | ❌→✅ DEF-63 |
 | TC-26.11 | `requirements.txt` | `python tests/check_contract.py` | "D1 requirements.txt is plain UTF-8" passes; the file has no byte-order mark | **v0.21.5:** FAIL (UTF-16 with a byte-order mark) · **v0.21.6:** PASS; packages and versions unchanged | ❌→✅ DEF-64 |
+| TC-26.12 | Login, Home (visitor), Products (logged in) | Look for the tab icon in each page | Each names an icon file inside the app (`/static/…`, works offline) | **v0.21.6:** none; the browser asked for `/favicon.ico` and got 404 · **v0.21.7:** as expected | ❌→✅ DEF-65 |
+| TC-26.13 | — | Open `/static/favicon.svg` | 200, an SVG picture with no script in it | **v0.21.6:** 404 · **v0.21.7:** as expected; checked by eye at 64 and 16 px | ❌→✅ DEF-65 |
 
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
@@ -1087,8 +1090,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
 | `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62) | 11 |
-| **23 files** | | **484 checks + 59 rule checks** |
+| `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62), tab icon (DEF-65) | 19 |
+| **23 files** | | **492 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1119,8 +1122,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
-| Phase 1 patches (v0.21.3 onward) | 11 | 3 → **11** | 8 → **0** | 0 |
-| **Total** | **276** | **184 → 276** | **75 → 0** | **4 → 0** |
+| Phase 1 patches (v0.21.3 onward) | 13 | 3 → **13** | 10 → **0** | 0 |
+| **Total** | **278** | **184 → 278** | **77 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1198,6 +1201,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-62 | Low (security) | Usernames could be found by timing: a wrong password for a real user took about 100 ms (the password hash is checked), an unknown username about 1 ms (audit A8) | Security audit 2026-10-11 (A8, measured) | `login()` checks `DUMMY_PASSWORD_HASH` (a random password hashed with scrypt at start-up) when the username doesn't exist (DEC-020); TC-26.5–26.7 | ✅ Fixed v0.21.4 |
 | DEF-63 | Low (demo) | The built-in demo menu sold drinks as 12oz / 16oz, with separate "Iced ..." products, while the app, the stories (F15, F19) and the café use Hot / Iced, so the demo didn't show the feature as designed (audit R10) | Security audit 2026-10-11 (R10) | `seed_demo_data.py`: one product per drink, servings Hot and Iced, cup and ice recipes on the servings (DEC-021); TC-26.8–26.10 | ✅ Fixed v0.21.5 |
 | DEF-64 | Low (tooling) | `requirements.txt` was saved as UTF-16 (PowerShell's `pip freeze >` writes UTF-16). pip reads it, but many tools (GitHub's dependency graph, some editors and security scanners) don't, and Git showed it as a binary file (audit R11) | Security audit 2026-10-11 (R11) | Saved as UTF-8 with the same 13 packages; new contract rule "requirements.txt is plain UTF-8" with the command to fix it; TC-26.11 | ✅ Fixed v0.21.6 |
+| DEF-65 | Low (cosmetic) | No browser tab icon: every page load ended with "404 Not Found" for `/favicon.ico` in the browser's console, and the tab showed a blank page icon (known limitation since the report) | Report §10.4 known limitations | `static/favicon.svg` and a `<link rel="icon">` in `base.html`; TC-26.12–26.13 | ✅ Fixed v0.21.7 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1234,7 +1238,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Not a BIR-registered POS.** In the Philippines a machine that issues official sales invoices must use software from a BIR-accredited supplier (RMO 24-2023), each machine needs a Permit to Use, and invoices must follow RR 7-2024. This system's receipts are order slips for the shop's own records, not official invoices.
 > - **No senior citizen / PWD discount and no X- or Z-reading** (end-of-shift and end-of-day sales summaries), which Philippine cafés are expected to have. Found while comparing with the café's own subscription POS (2026-10-14).
 > - **Dark theme: a normal tile bar and a Low tile bar are the same amber colour** (since v0.18.0); the "N left" text and the Low badge still tell them apart. Cosmetic, not fixed yet.
-> - **No tab icon (favicon):** the browser asks for `/favicon.ico` and gets "404 Not Found" in its console. Harmless.
+> - ~~**No tab icon (favicon)**~~ *(fixed in v0.21.7, DEF-65)*
 
 ### Security audit (2026-10-11) — full review of v0.19.2
 

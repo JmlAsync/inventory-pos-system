@@ -5,9 +5,10 @@
 
 It writes instance/config.toml (how the server listens, which database and, if wanted, how to send email),
 brings the database up to date (with a backup first), saves the shop's details for the receipts and creates
-the first admin account with the owner's own password. It never creates the demo accounts (admin / admin123),
-which are for the demo only.
-Running it again is safe: data is kept, an existing admin is left as it is, email settings are kept unless new
+the OWNER account (v0.27.0, rule S12) with the owner's own password and email; the owner confirms the email
+with a code on Profile. On a database without an owner, an existing admin with that username becomes the owner.
+It never creates the demo accounts (admin / admin123), which are for the demo only.
+Running it again is safe: data is kept, the owner is left as it is, email settings are kept unless new
 ones are given (v0.26.0), and the old config.toml is kept as config.toml.bak.
 """
 import getpass
@@ -16,7 +17,7 @@ import os
 import shutil
 import sys
 import tomllib
-from mail import clean_mail_settings, SECURITY_PORTS   # the same checks the app uses (v0.26.0)
+from mail import clean_mail_settings, SECURITY_PORTS, check_email_address   # the same checks the app uses (v0.26.0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INSTANCE = os.path.join(HERE, 'instance')
@@ -27,6 +28,10 @@ MAX_USERNAME_LENGTH = 50     # the user table's limit
 
 class Refused(Exception):
     """An answer that can't be used; the message says why, in plain words."""
+
+
+class Stopped(Exception):
+    """Setup could not finish after the settings were written (v0.27.0); the message says what to do."""
 
 
 # ---------- Checking each answer (the same rules as the app's own forms) ----------
@@ -51,6 +56,15 @@ def check_admin(username, password, repeated=None):
     if password.lower() == username.lower():
         raise Refused('The password can\'t be the same as the username.')
     return username, password
+
+
+def check_owner_email(email):
+    """v0.27.0 (rule S12): the owner's own email, for codes and for getting back into the account.
+    Until the licence check (v0.38.0) it is typed here; the owner confirms it with a code on Profile (DEC-029)."""
+    address = check_email_address(email)
+    if address is None:
+        raise Refused('The owner\'s email is required, like maria@example.com.')
+    return address.lower()
 
 
 def toml_text(value):
@@ -125,14 +139,16 @@ def ask_answers():
     print('\nThe shop\'s details for the receipts (you can change them later on the Shop details page).')
     shop = {'name': input('  Shop name: ').strip(), 'address': input('  Address (optional): ').strip(),
             'tin': input('  TIN (optional): ').strip(), 'footer': input('  Receipt footer (optional): ').strip()}
-    print('\nThe first admin account (the owner). Choose your own password; it is stored only as a hash.')
+    print('\nThe owner\'s account. Choose your own password; it is stored only as a hash.')
     while True:
         try:
-            username, password = check_admin(input('  Admin username: '), getpass.getpass('  Password: '),
+            username, password = check_admin(input('  Owner username: '), getpass.getpass('  Password: '),
                                               getpass.getpass('  Password again: '))
             break
         except Refused as reason:
             print(f'  {reason}')
+    # v0.27.0: the owner's email (confirmed later with a code on Profile)
+    email = ask('  Owner\'s email (yours: codes and invitations replies go here)', check_owner_email)
     # v0.26.0: email sending, optional; skipping keeps any email settings from an earlier run
     print('\nEmail sending (optional). Invitations and sign-in codes will be sent by email; you can set it up later.')
     mail = None
@@ -151,7 +167,7 @@ def ask_answers():
                 break
             print(f'  {problem}')
     return {'network': {'other_devices': other, 'port': port}, 'shop': shop,
-            'admin': {'username': username, 'password': password}, 'mail': mail}
+            'admin': {'username': username, 'password': password, 'email': email}, 'mail': mail}
 
 
 def read_answers(path):
@@ -167,6 +183,7 @@ def set_up(answers):
     port = check_port(network.get('port', 5000))
     host = '0.0.0.0' if network.get('other_devices') else '127.0.0.1'
     username, password = check_admin(admin.get('username'), admin.get('password'))
+    email = check_owner_email(admin.get('email'))   # v0.27.0
     from app import validate_shop_form    # the Shop details page's own checks (v0.22.0)
     shop_values, problem = validate_shop_form(shop)
     if problem:
@@ -181,25 +198,25 @@ def set_up(answers):
     # 2. Settings first: the app reads them when it starts
     write_config(host, port, mail)
     from app import app, upgrade_database
-    from models import db, User, ShopProfile
+    from store.shop import save_shop_profile
+    from store.users import make_owner
     from werkzeug.security import generate_password_hash
     with app.app_context():
         upgrade_database()    # backs up, then runs any missing migrations (v0.23.0)
-        profile = db.session.get(ShopProfile, 1) or ShopProfile(id=1)
-        for key, value in shop_values.items():
-            setattr(profile, key, value)
-        db.session.add(profile)
-        if User.query.filter_by(username=username).first():
-            print(f'The account "{username}" already exists, so it was left as it is '
-                  f'(change its password on the Profile page).')
-        else:
-            db.session.add(User(username=username, password_hash=generate_password_hash(password), role='admin'))
-        db.session.commit()
+        save_shop_profile(shop_values)   # v0.27.0: through store/, so the audit log has it (by: setup)
+        # v0.27.0 (rule S12, DEC-029): the owner. Created, or an existing admin with this username becomes the owner;
+        # an existing owner is left as it is.
+        said = make_owner(username, email, generate_password_hash(password))
+        if said is None:
+            raise Stopped(f'The account "{username}" is not an admin, so it can\'t become the owner. The settings and '
+                          f'shop details were saved. Run setup again with your own admin username or a new one.')
+        print(said)
 
     where = 'this computer and the shop\'s network' if host == '0.0.0.0' else 'this computer only'
     print(f'\nDone. The system will listen on port {port} ({where}).')
     print('Start it by double-clicking start_shop.bat (or: venv\\Scripts\\python.exe serve.py),')
-    print(f'then open http://127.0.0.1:{port} and log in as "{username}".')
+    print(f'then open http://127.0.0.1:{port} and log in as the owner.')
+    print('Then open Profile and confirm your email with the code we send (needs email sending).')
     if mail:
         print('Email: open Email in the admin menu and send a test message to check it works.')
 
@@ -218,6 +235,9 @@ def main():
     except Refused as reason:
         print(f'Setup stopped, nothing was changed: {reason}')
         return 1
+    except Stopped as reason:
+        print(f'Setup stopped: {reason}')
+        return 1
     except (OSError, ValueError) as error:
         print(f'Setup stopped, nothing was changed: the answers file could not be read ({error}).')
         return 1
@@ -230,6 +250,6 @@ if __name__ == '__main__':
 # "mail" is optional (v0.26.0); leave it out to set up email later or to keep the settings already there:
 # {"network": {"other_devices": true, "port": 5000},
 #  "shop": {"name": "Sample Café", "address": "", "tin": "", "footer": "Thank you!"},
-#  "admin": {"username": "maria", "password": "choose-a-long-one"},
+#  "admin": {"username": "maria", "password": "choose-a-long-one", "email": "maria@example.com"},
 #  "mail": {"host": "smtp.gmail.com", "port": 587, "security": "starttls", "from_address": "cafe@gmail.com",
 #           "username": "cafe@gmail.com", "password": "the app password"}}

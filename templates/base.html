@@ -68,7 +68,7 @@
                 {% endif %}
             </nav>
 
-            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            {% if current_user.is_authenticated and current_user.is_admin %}
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
                 {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report') }}
@@ -76,6 +76,8 @@
                 {{ side_link(request.endpoint, 'ingredients.ingredients', 'bi-droplet-half', 'Ingredients', ('ingredients.ingredient_detail', 'ingredients.ingredients_history')) }}
                 {{ side_link(request.endpoint, 'shop.shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}
                 {{ side_link(request.endpoint, 'shop.email_settings', 'bi-envelope', 'Email') }}{# v0.26.0 #}
+                {{ side_link(request.endpoint, 'users.users', 'bi-people', 'Users') }}{# v0.27.0 #}
+                {{ side_link(request.endpoint, 'users.audit', 'bi-journal-text', 'Audit log') }}{# v0.27.0 #}
             </nav>
             {% endif %}
 

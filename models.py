@@ -48,13 +48,37 @@ class Product(db.Model):
     def __repr__(self):
         return f"<Product {self.name}>"
 
+ROLES = ('owner', 'admin', 'cashier')   # v0.27.0: the owner is the one account from the subscription (rule S12)
+
+
 class User(db.Model, UserMixin):
+    # v0.27.0 (DEC-029): the database allows only ONE owner: a unique index on role, only for rows where it is 'owner'
+    __table_args__ = (db.Index('uq_user_one_owner', 'role', unique=True,
+                               sqlite_where=db.text("role = 'owner'"), postgresql_where=db.text("role = 'owner'")),)
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False)
+    role = db.Column(db.String(20), nullable=False)   # 'owner', 'admin' or 'cashier' (ROLES)
     # File name of the profile picture inside static/avatars, or None (v0.12.0)
     avatar = db.Column(db.String(100))
+    # v0.27.0 (DEC-029): the person's own email, in lower case (empty for accounts made before v0.27.0 until they
+    # add one), and when they proved it with a code
+    email = db.Column(db.String(254), unique=True)
+    email_verified_at = db.Column(db.DateTime)
+    # Switched off instead of deleted, because receipts name their cashier. Flask-Login refuses a switched-off account.
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)   # "Require a new password" (audit A5)
+    can_invite = db.Column(db.Boolean, nullable=False, default=False)   # an admin the owner allowed to invite cashiers
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    @property
+    def is_owner(self):
+        return self.role == 'owner'
+
+    @property
+    def is_admin(self):
+        """True for admins AND the owner: the owner can do everything an admin can (v0.27.0)."""
+        return self.role in ('admin', 'owner')
 
     @property
     def initials(self):
@@ -193,4 +217,53 @@ class IngredientMovement(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     ingredient = db.relationship('Ingredient')
+    user = db.relationship('User')
+
+
+class Invitation(db.Model):
+    """An invitation to join the shop (v0.27.0, rule S12, DEC-003, DEC-029). The link in the email carries a random
+    token; only its keyed hash is kept here (S14). It works for 48 hours, once. The role is the inviter's choice:
+    nothing the new person types can change it."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    invited_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime)          # when the account was made
+    cancelled_at = db.Column(db.DateTime)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))   # the account it made
+    # Between the two signup steps: the chosen username and the password's hash, until the code is entered
+    pending_username = db.Column(db.String(50))
+    pending_password_hash = db.Column(db.String(200))
+    inviter = db.relationship('User', foreign_keys=[invited_by])
+
+
+class EmailCode(db.Model):
+    """A 6-digit code sent by email (v0.27.0, rule S14, DEC-029): stored only as a keyed hash, valid for 10 minutes,
+    one use, one purpose ('signup', 'reset' or 'email'), at most 5 wrong tries."""
+    __tablename__ = 'email_code'
+    id = db.Column(db.Integer, primary_key=True)
+    purpose = db.Column(db.String(10), nullable=False)
+    email = db.Column(db.String(254), nullable=False, index=True)   # where it was sent
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    invitation_id = db.Column(db.Integer, db.ForeignKey('invitation.id'))
+    code_hash = db.Column(db.String(64), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime)   # used, cancelled by a newer code, or 5 wrong tries
+
+
+class AuditEntry(db.Model):
+    """One line of the audit log (v0.27.0, audit R9, DEC-029): who changed what, when, with the old and new values.
+    Written by the store/ function that makes the change, in the same commit. Never edited or deleted."""
+    __tablename__ = 'audit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))   # who; empty for setup_shop.py on the computer
+    action = db.Column(db.String(40), nullable=False, index=True)   # e.g. 'product.update', 'user.role'
+    target = db.Column(db.String(120), nullable=False)              # e.g. 'Latte (L1)', 'maria'
+    details = db.Column(db.Text, nullable=False, default='{}')      # JSON: {"price": ["150.00", "160.00"]}
     user = db.relationship('User')

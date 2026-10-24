@@ -43,6 +43,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-026](#dec-026) | A shop's copy: set up once, settings in `config.toml`, served by waitress | Best choice | Decided |
 | [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice | Decided |
 | [DEC-028](#dec-028) | Wrong passwords counted in the database; Change password limited too; email sent with `smtplib` | Best choice | Decided |
+| [DEC-029](#dec-029) | The owner, the Users page, invitations, emailed codes, forgotten passwords and the audit log | Best choice | Decided (two points by the owner) |
 
 ---
 
@@ -855,3 +856,96 @@ The mail password is stored as typed, because the server must hand it to the mai
 secret key in `instance/`, which never leaves the computer.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-029
+
+**The owner, the Users page, invitations, emailed codes, forgotten passwords and the audit log**
+*(v0.27.0, F24; rules S1, S12, S14, S15; DEC-002, DEC-003, DEC-006; audit A5, R9)*
+
+**Owner's decisions (2026-10-24), asked before building (C8):**
+
+1. **The owner before the licence exists.** Rule S12 ties the owner to the subscription purchase email, but the
+   licence check comes in v0.38.0. Until then `setup_shop.py` asks for the owner's username, **email** and password
+   (on an older database it turns an existing admin into the owner), and the owner confirms that email with a code
+   on Profile. v0.38.0 replaces the typed email with the purchase email. S12 carries a dated note saying so.
+2. **Three new public pages** in rule S1: `/signup/<token>` (only with a valid invitation), `/forgot-password` and
+   `/forgot-password/code`.
+
+**How it works.**
+
+1. **Roles.** `owner`, `admin`, `cashier`. The owner counts as an admin everywhere (`User.is_admin`). The database
+   allows **one** owner (a unique index on `role` where it is `owner`). Nobody can change, switch off or demote the
+   owner from the Users page, including the owner.
+2. **Who may do what on Users** (`/admin/users`, every admin may open it):
+
+   | Action | Owner | Admin |
+   |---|---|---|
+   | Invite a cashier | Yes | Only if the owner ticked "may invite" for them |
+   | Invite an admin, change a role, give "may invite" | Yes | No (403) |
+   | Switch an account off or on, require a new password | Anyone but the owner | Cashiers only |
+   | Resend or cancel an invitation | Any | The ones they sent |
+
+   Accounts are **switched off, never deleted**: receipts name their cashier. Switching off ends every login of
+   that account at once.
+3. **Invitations.** The inviter types the person's own email and the role. The invitation stores the email, role,
+   inviter, a 48-hour expiry and a keyed hash of a random token (DEC-006); the email holds the link. Resend makes a
+   new token (the old link stops working); cancel ends it. The link opens `/signup/<token>`: the person chooses a
+   username and password, a 6-digit code goes to the invited address, and entering it creates the account with
+   the inviter's role and logs them in. The invitation is marked used in one conditional step, so it can't make two
+   accounts.
+4. **Emailed codes** (table `email_code`), the rules of plan §2.4 and S14: 6 digits from `secrets`, stored as a keyed
+   hash bound to its purpose and address, 10 minutes, one use, one purpose (`signup`, `reset`, `email`). Each wrong
+   try is counted *before* the check, in one conditional update, and the 5th wrong try cancels the code. A new code
+   cancels the older ones for the same purpose and address. Sending is limited to one a minute and 5 an hour per
+   address (the `login_attempt` table from DEC-028).
+5. **Forgotten password.** `/forgot-password` asks for the email and always answers the same way ("If an account
+   uses that address, we sent it a code"). Only an active account with a **confirmed** email gets a code. The code
+   page takes the code and the new password twice; success ends every login of that account. The page is limited to
+   10 requests an hour per computer.
+6. **Email on Profile.** Everyone sees their email and whether it is confirmed. Cashiers and admins can change it
+   (current password + a code sent to the new address). The owner's email is fixed (S12); the owner can only
+   confirm it. Accounts made before v0.27.0 have no email until they add one; until then they can't use Forgot
+   password.
+7. **Choose a new password.** "Require a new password" on Users sets a flag; from the next page that person sees, they
+   are sent to `/password/new` (current password, new one twice) until they choose one (audit A5).
+8. **Audit log** (table `audit_log`, page `/admin/audit` for admins): who changed which product, price, stock number,
+   serving or add-on, ingredient, recipe line, shop details or account, when, with the old and new values. The
+   line is written by the same `store/` function in the **same commit** as the change, so there is never a change
+   without its line or a line without its change. Lines are never edited or deleted (like receipts, I8).
+   Ingredient restock and count are not repeated there: they already have their own history with the person (I7).
+9. **Links in emails** point at the address that works for the invitee: when the owner uses `127.0.0.1` on a setup
+   that allows other devices, the link uses the computer's network address instead.
+
+**Why.** The café can't use the system with the two demo accounts: everyone would share them, so no sale or change
+could be traced to a person (DEC-003), and a forgotten password needed someone to edit the database. Invitations make
+"who decided this person may sell here?" always answerable; the audit log makes "who changed this price?"
+answerable; codes make email the way back in. Each part reuses what v0.26.0 built: email, the keyed hashes and the
+record-first limits.
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| One owner | A partial unique index in the database | A check in Python only (two setups at once could make two owners) |
+| Admins and the owner | `is_admin` = admin or owner; every admin check uses it | Giving the owner a second flag on an admin row (two fields that can disagree) |
+| Removing someone | Switch off, keep the row | Delete (receipts and the audit log would point at nobody; their id could be reused, like I4) |
+| Admins' powers | Cashiers only; the owner decides who may invite | Admins equal to the owner (an admin could make more admins or lock the owner's team out); only the owner manages anyone (a busy owner becomes a bottleneck) |
+| Invitation token | 32 random bytes in the link, keyed hash in the database, looked up by hash and then compared with `compare_digest` | The token itself in the database (a database copy would hold working links); a short code to type (guessable) |
+| Signup order | Username + password, then the code | Code first (an unfinished signup would leave a confirmed address with no account); no code (the link alone proves only that someone has the email, not that it is still theirs at the end) |
+| Counting wrong code tries | One conditional update before checking | Read, compare, then add 1 (two guesses at once could both be counted as the 1st) |
+| Forgot password answer | The same for every address | "No account with that email" (tells a stranger which emails belong to staff) |
+| Forced new password asks the current one | Yes, with the A7 limit | Not asking (a stolen login could set a new password without knowing the old one) |
+| Owner's email before v0.38.0 | Typed in setup, confirmed on Profile | Confirming inside setup (the setup can't wait for mail in an answers-file install; owner's decision 1) |
+| Where audit lines are written | Inside each `store/` function, same commit | In the pages (they don't write, I1); a database trigger (can't know who is logged in; not on Firestore) |
+| Audit details | The changed fields only, old → new, as JSON text | A copy of the whole row (hard to read); a separate table per kind (many tables for one page) |
+| Link address in emails | Network address when the owner is on `127.0.0.1` and other devices are allowed | Always the address the owner used (a `127.0.0.1` link opens nothing on a phone); a new setting to type (one more thing to get wrong; can be added for the cloud package) |
+| `add_users.py` | Deleted: it made accounts with the public demo passwords, which S12 forbids from v0.27.0 | Keeping it (a second way to make accounts outside invitations) |
+
+**Honest limits.** Forgot password answers a little faster when no account has that address (no email is sent); with
+10 requests an hour per computer and a few staff addresses, this tells a stranger very little. The emailed code on
+every login, trusted devices and backup codes are v0.28.0; until then a login is still username and password. The
+owner's email is typed during setup, not proven by a purchase, until v0.38.0. Google sign-in at signup is v0.29.0.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24 (points 1 and 2 by the owner).

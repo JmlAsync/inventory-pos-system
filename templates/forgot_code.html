@@ -1,0 +1,30 @@
+{% extends "auth_base.html" %}
+{% block title %}Choose a new password{% endblock %}
+{# Forgot password, step 2 (v0.27.0, F24, DEC-029): the emailed code and the new password. #}
+{% block auth_body %}
+<h1 class="h4 fw-bold mb-1">Choose a new password</h1>
+<p class="text-body-secondary mb-4">Type the code sent to <strong>{{ email }}</strong> and your new password.</p>
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+        <label class="form-label" for="code">Code</label>
+        <input type="text" class="form-control form-control-lg text-center" id="code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="7" placeholder="123456" required autofocus>
+        <div class="form-text">It works for 10 minutes.</div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="new_password">New password</label>
+        <input type="password" class="form-control" id="new_password" name="new_password" minlength="8" autocomplete="new-password" required>
+        <div class="form-text">At least 8 characters, not your username.</div>
+    </div>
+    <div class="mb-4">
+        <label class="form-label" for="confirm_password">Type the new password again</label>
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Save the new password</button>
+</form>
+{% endblock %}
+{% block below_card %}
+<p class="text-center mt-3 mb-0"><a href="{{ url_for('accounts.forgot_password') }}">Send me a new code</a>
+    · <a href="{{ url_for('accounts.login') }}">Back to the login page</a></p>
+{% endblock %}

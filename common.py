@@ -1,11 +1,14 @@
 """Rules and helpers that every part of the system uses (v0.25.0, DEC-027): number limits, looking rows up by id,
 the admin check, money and amount formatting, the shop's clock, and picture files.
 Moved here unchanged from app.py; the version in each comment is when the rule was first added."""
+import hashlib
+import hmac
 import os
 import secrets
+import socket
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import abort
+from flask import abort, current_app
 from flask_login import current_user
 from models import db
 
@@ -40,13 +43,41 @@ def find_by_id(model, item_id):
 
 
 def admin_required(f):
-    """Admin pages (v0.7.0): anyone else gets 403, even if they type the address (rule S2)."""
+    """Admin pages (v0.7.0): anyone else gets 403, even if they type the address (rule S2).
+    v0.27.0: the owner is an admin too (User.is_admin)."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'admin':
+        if not current_user.is_authenticated or not current_user.is_admin:
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ---------------- Keyed hashes (v0.26.0 login tries; v0.27.0 tokens and codes; DEC-006) ----------------
+def keyed_hash(*parts):
+    """HMAC-SHA256 with the shop's secret key of the parts joined by "|", as 64 hex characters. Used for the keys of
+    the login limit and for invitation tokens and emailed codes (rule S14): a copy of the database can't be turned
+    back into them, and without the secret key nobody can even test guesses."""
+    text = '|'.join(str(part) for part in parts)
+    return hmac.new(current_app.config['SECRET_KEY'].encode(), text.encode(), hashlib.sha256).hexdigest()
+
+
+def same_secret(a, b):
+    """Compare two hashes in a time that doesn't depend on where they differ (rule S14)."""
+    return hmac.compare_digest(a or '', b or '')
+
+
+# ---------------- The computer's address on the shop's network (v0.24.0; moved here from serve.py in v0.27.0) ------
+def network_address():
+    """This computer's address on the shop's network, e.g. 192.168.1.10, or None.
+    Connecting a UDP socket sends nothing; it only asks Windows which network card would be used.
+    serve.py shows it at start-up; since v0.27.0 links in emails use it too."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(('10.255.255.255', 1))
+            return probe.getsockname()[0]
+    except OSError:
+        return None
 
 
 # ---------------- Showing money and amounts ----------------

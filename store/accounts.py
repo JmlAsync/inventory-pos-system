@@ -3,6 +3,7 @@ the steps are unchanged. Each login is a row in login_session; the cookie only c
 Since v0.26.0 the tries with a limit (wrong passwords) are rows in login_attempt (DEC-028)."""
 import secrets
 from models import db, LoginSession, LoginAttempt, utc_now
+from store.audit import note
 
 
 def start_login(user, idle_timeout):
@@ -40,6 +41,7 @@ def change_password(user, new_hash, current_token, idle_timeout):
     (a stolen copy of the cookie carries the same one); then start a new login for this browser.
     Returns (new token, how many OTHER logins were ended)."""
     user.password_hash = new_hash
+    note(user.id, 'user.password', user.username)   # v0.27.0: who changed a password and when, never the password
     ended = LoginSession.query.filter(LoginSession.user_id == user.id, LoginSession.token != (current_token or '')).count()
     LoginSession.query.filter_by(user_id=user.id).delete()
     return start_login(user, idle_timeout), ended   # commits the new password and the new token together

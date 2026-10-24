@@ -1,8 +1,6 @@
 """Log in, log out, the login limit, profile picture and password (v0.6.0, v0.12.0, v0.13.3, v0.13.5, v0.20.3).
 Moved from app.py in v0.25.0 (DEC-027): the same rules; database changes now go through store/accounts.py.
 Since v0.26.0 (DEC-028) the wrong passwords are counted in the database, on Change password too."""
-import hashlib
-import hmac
 import os
 from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
@@ -10,8 +8,11 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 from models import db, User, utc_now
-from common import AVATAR_FOLDER, detect_image_type, delete_picture_file
+from common import AVATAR_FOLDER, detect_image_type, delete_picture_file, keyed_hash, network_address, shop_now
 from store import accounts as account_store
+from store import users as user_store
+from store.shop import shop_profile
+from mail import send_mail, mail_settings, check_email_address
 
 bp = Blueprint('accounts', __name__)
 
@@ -49,7 +50,20 @@ def load_user(user_id):
         return None
     if now - row.last_seen > LAST_SEEN_EVERY:
         account_store.mark_seen(row, now)
-    return db.session.get(User, row.user_id)
+    user = db.session.get(User, row.user_id)
+    if user is None or not user.is_active:   # v0.27.0: an account switched off since this login started
+        forget_login()
+        return None
+    return user
+
+
+@bp.before_app_request
+def must_choose_password():
+    """v0.27.0 (audit A5, DEC-029): after "Require a new password" on Users, every page sends the person to
+    Choose a new password until they have; they can still log out."""
+    if (current_user.is_authenticated and current_user.must_change_password
+            and request.endpoint not in ('accounts.choose_password', 'accounts.logout', 'static')):
+        return redirect(url_for('accounts.choose_password'))
 
 
 # ---------------- Login attempt limit (v0.13.3; in the database since v0.26.0) ----------------
@@ -74,8 +88,7 @@ def attempt_key(*parts):
     """The key a try is counted under (v0.26.0, DEC-028): a keyed hash (HMAC-SHA256 with the secret key) of the
     parts, e.g. attempt_key('login', 'cashier', '192.168.1.20'). The table never holds what someone typed:
     people sometimes type their password into the username box. Always 64 characters, however long the input."""
-    text = '|'.join(str(part) for part in parts)
-    return hmac.new(current_app.config['SECRET_KEY'].encode(), text.encode(), hashlib.sha256).hexdigest()
+    return keyed_hash(*parts)   # common.py since v0.27.0: tokens and codes use the same keyed hash
 
 
 def page_after_login():
@@ -105,6 +118,9 @@ def login():
         # v0.21.4 (DEF-62, audit A8): an unknown username checks a dummy hash too, so it takes as long as a
         # wrong password and the time taken can't tell anyone which usernames exist
         password_ok = check_password_hash(user.password_hash if user else DUMMY_PASSWORD_HASH, password)
+        if user and password_ok and not user.is_active:
+            # v0.27.0: switched off on the Users page. Said only after the right password, so it reveals nothing new
+            return render_template('login.html', error='This account is switched off. Ask the shop\'s owner.'), 403
         if user and password_ok:
             account_store.forget_tries(key)   # a correct password resets the count
             session.clear()                # nothing from a previous login on this browser is kept
@@ -181,6 +197,42 @@ def remove_avatar():
 MIN_PASSWORD_LENGTH = 8
 
 
+def current_password_ok(current):
+    """Check the current password with the 5-tries limit (v0.26.0, DEF-69, audit A7, DEC-028), counted per user, so
+    someone using a stolen login can't guess it faster than on the login page. Returns None or a message.
+    v0.27.0: shared by Change password, Choose a new password and changing the email on Profile."""
+    key = attempt_key('password', current_user.id)
+    if not account_store.record_try(key, LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
+        return (f'Too many wrong current passwords. Please wait {LOCKOUT_MINUTES} minutes and try again. '
+                'Nothing was changed.')
+    if not check_password_hash(current_user.password_hash, current):
+        return 'Current password is wrong. Nothing was changed.'   # the try stays counted
+    account_store.forget_tries(key)   # the right current password resets the count, as on the login page
+    return None
+
+
+def new_password_problem(new, confirm, username, current=None):
+    """The rules for a new password (v0.13.5), or None if it is fine. Also used by signup and Forgot password."""
+    if new != confirm:
+        return 'The new passwords do not match.'
+    if new.lower() == username.lower():
+        return "Your password can't be the same as your username."
+    if len(new) < MIN_PASSWORD_LENGTH:
+        return f'The new password must be at least {MIN_PASSWORD_LENGTH} characters long.'
+    if current is not None and new == current:
+        return 'The new password is the same as the current one.'
+    return None
+
+
+def save_new_password(new):
+    """v0.20.3 (DEF-51): every login of this user ends, and this browser gets a new one. Returns the message."""
+    token, ended = account_store.change_password(current_user, generate_password_hash(new),   # stored scrambled
+                                                 session.get('login_token', ''), IDLE_TIMEOUT)
+    session['login_token'] = token
+    others = f'{ended} other device(s) logged in as you were logged out.' if ended else 'Other devices logged in as you would have been logged out.'
+    return 'Password changed. Use the new one next time you log in. ' + others
+
+
 @bp.route('/profile/password', methods=['POST'])
 @login_required
 def change_password():
@@ -188,30 +240,188 @@ def change_password():
     current = request.form.get('current_password', '')
     new = request.form.get('new_password', '')
     confirm = request.form.get('confirm_password', '')
-    # v0.26.0 (DEF-69, audit A7, DEC-028): the same 5-tries limit as the login page, counted per user, so someone
-    # using a stolen login can't guess the current password here faster than on the login page
-    key = attempt_key('password', current_user.id)
-    if not account_store.record_try(key, LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
-        flash(f'Too many wrong current passwords. Please wait {LOCKOUT_MINUTES} minutes and try again. '
-              'Nothing was changed.', 'danger')
-        return redirect(url_for('accounts.profile'))
-    if not check_password_hash(current_user.password_hash, current):
-        flash('Current password is wrong. Nothing was changed.', 'danger')   # the try stays counted
-        return redirect(url_for('accounts.profile'))
-    account_store.forget_tries(key)   # the right current password resets the count, as on the login page
-    if new != confirm:
-        flash('The new passwords do not match.', 'danger')
-    elif new.lower() == current_user.username.lower():
-        flash("Your password can't be the same as your username.", 'danger')
-    elif len(new) < MIN_PASSWORD_LENGTH:
-        flash(f'The new password must be at least {MIN_PASSWORD_LENGTH} characters long.', 'danger')
-    elif new == current:
-        flash('The new password is the same as the current one.', 'danger')
+    problem = current_password_ok(current) or new_password_problem(new, confirm, current_user.username, current)
+    if problem:
+        flash(problem, 'danger')
     else:
-        # v0.20.3 (DEF-51): every login of this user ends, and this browser gets a new one
-        token, ended = account_store.change_password(current_user, generate_password_hash(new),   # stored scrambled
-                                                     session.get('login_token', ''), IDLE_TIMEOUT)
-        session['login_token'] = token
-        others = f'{ended} other device(s) logged in as you were logged out.' if ended else 'Other devices logged in as you would have been logged out.'
-        flash('Password changed. Use the new one next time you log in. ' + others, 'success')
+        flash(save_new_password(new), 'success')
     return redirect(url_for('accounts.profile'))
+
+
+# ---------------- Choose a new password (v0.27.0, audit A5, DEC-029) ----------------
+@bp.route('/password/new', methods=['GET', 'POST'])
+@login_required
+def choose_password():
+    """After "Require a new password" on Users: the person must choose one before using anything else.
+    The current password is asked too, so a stolen login can't pick a new password without knowing the old one."""
+    if not current_user.must_change_password:
+        return redirect(url_for('reports.home'))
+    if request.method == 'POST':
+        current = request.form.get('current_password', '')
+        new = request.form.get('new_password', '')
+        problem = (current_password_ok(current)
+                   or new_password_problem(new, request.form.get('confirm_password', ''), current_user.username, current))
+        if problem:
+            return render_template('choose_password.html', error=problem)
+        message = save_new_password(new)
+        user_store.clear_must_change(current_user)
+        flash(message, 'success')
+        return redirect(url_for('reports.home'))
+    return render_template('choose_password.html')
+
+
+# ---------------- Emails with links and codes (v0.27.0, DEC-029) ----------------
+def link_to(endpoint, **values):
+    """A full web address for an email. When the sender uses 127.0.0.1 on a setup that allows other devices, the
+    link uses this computer's network address instead, so it also opens on a cashier's phone."""
+    url = url_for(endpoint, _external=True, **values)
+    host = request.host.split(':')[0]
+    if host in ('127.0.0.1', 'localhost') and current_app.config.get('SERVER_HOST') == '0.0.0.0':
+        lan = network_address()
+        if lan:
+            url = url.replace(f'//{host}', f'//{lan}', 1)
+    return url
+
+
+CODE_EMAILS = {   # purpose: (subject, what the code is for)
+    'signup': ('Your code to join {shop}', 'finish joining {shop}'),
+    'reset': ('Your code to choose a new password', 'choose a new password for your {shop} account'),
+    'email': ('Your code to confirm this email address', 'confirm this email address for your {shop} account'),
+}
+
+
+def email_code(purpose, address, user_id=None, invitation_id=None):
+    """Send a new 6-digit code (plan §2.4: what it is for, when, from which computer). Returns None or a problem
+    to show: the one-a-minute and 5-an-hour limits, or the mail error."""
+    problem = user_store.may_send_code(purpose, address)
+    if problem:
+        return problem
+    code = user_store.new_code(purpose, address, user_id=user_id, invitation_id=invitation_id)
+    shop = shop_profile().name
+    subject, what = (text.format(shop=shop) for text in CODE_EMAILS[purpose])
+    body = (f'Your code is {code[:3]} {code[3:]}\n\n'
+            f'Type it to {what}. It works for {user_store.CODE_MINUTES} minutes, once.\n\n'
+            f'Asked for on {shop_now():%d %b %Y at %I:%M %p} from the computer {request.remote_addr}.\n'
+            f'If this wasn\'t you, ignore this email. If it keeps happening, tell the shop\'s owner'
+            f'{" and change your password" if purpose == "reset" else ""}.\n')
+    return send_mail(address, subject, body, sender_name=shop)
+
+
+def code_problem(tries_left):
+    """The message for a wrong or used-up code."""
+    if tries_left:
+        return f'That code is not right. {tries_left} {"try" if tries_left == 1 else "tries"} left.'
+    return 'That code no longer works (10 minutes passed, it was used, or 5 wrong tries). Ask for a new code.'
+
+
+# ---------------- Forgot password (v0.27.0, DEC-029; public pages, rule S1) ----------------
+FORGOT_PER_HOUR = 10   # requests per computer per hour
+
+
+@bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Ask for the email, and answer the SAME way whether or not an account uses it, so a stranger can't find out
+    which addresses belong to the staff. Only a switched-on account with a confirmed email gets a code."""
+    if request.method == 'POST':
+        _, not_set_up = mail_settings()
+        if not_set_up:   # true for every address alike, so saying it reveals nothing about accounts
+            return render_template('forgot_password.html', error='Email isn\'t set up in this shop yet, so a code '
+                                   'can\'t be sent. Ask the shop\'s owner to set a new password for you.')
+        address = check_email_address(request.form.get('email', ''))
+        if address is None:
+            return render_template('forgot_password.html', error='Type your email address, like name@example.com.')
+        if not account_store.record_try(keyed_hash('forgot', request.remote_addr), timedelta(hours=1), FORGOT_PER_HOUR):
+            return render_template('forgot_password.html', error='Too many requests from this computer. '
+                                   'Please try again in an hour.'), 429
+        user = user_store.active_user_with_email(address)
+        if user:
+            problem = email_code('reset', address, user_id=user.id)
+            if problem:
+                current_app.logger.warning('Forgot password: no code sent (%s)', problem)   # not shown: same answer
+        session['reset_email'] = address.lower()
+        flash(f'If an account uses {address}, we sent it a 6-digit code. It works for 10 minutes.', 'info')
+        return redirect(url_for('accounts.forgot_code'))
+    return render_template('forgot_password.html')
+
+
+@bp.route('/forgot-password/code', methods=['GET', 'POST'])
+def forgot_code():
+    """The emailed code and the new password, twice. Success ends every login of that account."""
+    address = session.get('reset_email')
+    if not address:
+        return redirect(url_for('accounts.forgot_password'))
+    if request.method == 'POST':
+        new = request.form.get('new_password', '')
+        # The rules that don't depend on the account first, so a typo doesn't use up the code
+        problem = new_password_problem(new, request.form.get('confirm_password', ''), username='')
+        if problem:
+            return render_template('forgot_code.html', email=address, error=problem)
+        row, tries_left = user_store.check_code('reset', address, request.form.get('code', ''))
+        user = db.session.get(User, row.user_id) if row else None
+        if user is None or not user.is_active:
+            return render_template('forgot_code.html', email=address, error=code_problem(tries_left if not row else 0))
+        if new.lower() == user.username.lower():
+            # Only checked after the right code, so it can't be used to find out a username. The code is used up.
+            return render_template('forgot_code.html', email=address, error="Your password can't be the same as "
+                                   "your username. Ask for a new code and try again.")
+        user_store.reset_password(user, generate_password_hash(new))
+        session.pop('reset_email', None)
+        flash('Your new password is saved. Log in with it. Every device that was logged in as you was logged out.',
+              'success')
+        return redirect(url_for('accounts.login'))
+    return render_template('forgot_code.html', email=address)
+
+
+# ---------------- The email on Profile (v0.27.0, DEC-029) ----------------
+# Cashiers and admins may change their email: current password, then a code sent to the NEW address proves it.
+# The owner's email is fixed (rule S12); the owner can only confirm it with a code.
+
+@bp.route('/profile/email', methods=['POST'])
+@login_required
+def change_email():
+    if current_user.is_owner:
+        if not current_user.email:
+            flash('The owner\'s email is set by "python setup_shop.py" on the shop\'s computer.', 'danger')
+            return redirect(url_for('accounts.profile'))
+        address = current_user.email
+    else:
+        address = check_email_address(request.form.get('email', ''))
+        if address is None:
+            flash('Type the new email address, like name@example.com.', 'danger')
+            return redirect(url_for('accounts.profile'))
+        problem = current_password_ok(request.form.get('current_password', ''))
+        if problem:
+            flash(problem, 'danger')
+            return redirect(url_for('accounts.profile'))
+        if address.lower() != (current_user.email or '') and user_store.email_taken(address):
+            flash('Another account already uses that email address.', 'danger')
+            return redirect(url_for('accounts.profile'))
+    problem = email_code('email', address, user_id=current_user.id)
+    if problem:
+        flash(problem, 'danger')
+    else:
+        session['pending_email'] = address.lower()
+        flash(f'We sent a 6-digit code to {address}. Type it below to confirm the address.', 'info')
+    return redirect(url_for('accounts.profile') + '#email')
+
+
+@bp.route('/profile/email/confirm', methods=['POST'])
+@login_required
+def confirm_email():
+    address = session.get('pending_email')
+    if not address:
+        return redirect(url_for('accounts.profile'))
+    row, tries_left = user_store.check_code('email', address, request.form.get('code', ''))
+    if row is None or row.user_id != current_user.id:
+        flash(code_problem(tries_left if row is None else 0), 'danger')
+        return redirect(url_for('accounts.profile') + '#email')
+    session.pop('pending_email', None)
+    if current_user.is_owner:
+        user_store.confirm_email(current_user)
+    elif user_store.email_taken(address) and address != (current_user.email or ''):
+        flash('Another account started using that email address a moment ago. Nothing was changed.', 'danger')
+        return redirect(url_for('accounts.profile') + '#email')
+    else:
+        user_store.set_email(current_user, address)
+    flash(f'Email confirmed: {address}. It can now be used if you forget your password.', 'success')
+    return redirect(url_for('accounts.profile') + '#email')

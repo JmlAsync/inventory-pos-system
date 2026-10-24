@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+{# Admin page: who can use the system, invitations, switching accounts off (v0.27.0, F24, DEC-029).
+   A button is only shown when it is allowed, and the server checks again (403) whatever is shown (rule S2). #}
+{% macro token_field() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+<h1>Users</h1>
+<p class="page-subtitle">Everyone who can log in. People join by invitation to their own email; accounts are switched
+    off, never deleted, because receipts name their cashier.</p>
+
+{# ---- Invite ---- #}
+<div class="card app-card mb-3" style="max-width: 48rem;"><div class="card-body">
+    <h2 class="h5 mb-3"><i class="bi bi-envelope-plus me-2" aria-hidden="true"></i>Invite someone</h2>
+    {% if not roles %}
+    <p class="mb-0 text-body-secondary">Only the owner, or an admin the owner allowed, can invite people.</p>
+    {% elif mail_problem %}
+    <div class="alert alert-warning mb-0">{{ mail_problem }} Invitations are sent by email.
+        {% if current_user.is_admin %}<a href="{{ url_for('shop.email_settings') }}">Email settings</a>{% endif %}</div>
+    {% else %}
+    <form method="POST" action="{{ url_for('users.invite') }}" class="row g-2 align-items-end">
+        {{ token_field() }}
+        <div class="col-sm-6">
+            <label class="form-label" for="email">Their own email</label>
+            <input type="email" class="form-control" id="email" name="email" maxlength="254" placeholder="name@example.com" required>
+        </div>
+        <div class="col-sm-3">
+            <label class="form-label" for="role">Role</label>
+            <select class="form-select" id="role" name="role">
+                {% for role in roles %}<option value="{{ role }}">{{ ROLE_NAMES[role] }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-3">
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send me-1" aria-hidden="true"></i>Invite</button>
+        </div>
+    </form>
+    <p class="small text-body-secondary mt-2 mb-0">They get a link that works once, for 48 hours. They choose their
+        own username and password, and the role is the one you choose here.</p>
+    {% endif %}
+</div></div>
+
+{# ---- Accounts ---- #}
+<div class="card app-card mb-3"><div class="table-responsive">
+<table class="table align-middle mb-0">
+    <thead><tr><th>Account</th><th>Role</th><th>Email</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for person in people %}
+    <tr>
+        <td class="fw-semibold">{{ person.username }}{% if person.id == current_user.id %} <span class="text-body-secondary fw-normal">(you)</span>{% endif %}</td>
+        <td>
+            {% if current_user.is_owner and person.role in ('admin', 'cashier') and person.id != current_user.id %}
+            <form method="POST" action="{{ url_for('users.change_role', user_id=person.id) }}" class="d-flex gap-1">
+                {{ token_field() }}
+                <select name="role" class="form-select form-select-sm" aria-label="Role of {{ person.username }}" style="width: 7.5rem;">
+                    <option value="cashier" {{ 'selected' if person.role == 'cashier' }}>Cashier</option>
+                    <option value="admin" {{ 'selected' if person.role == 'admin' }}>Admin</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
+            </form>
+            {% else %}
+            <span class="badge rounded-pill {{ 'text-bg-primary' if person.is_owner else 'text-bg-secondary' }}">{{ ROLE_NAMES.get(person.role, person.role) }}</span>
+            {% endif %}
+            {% if person.role == 'admin' and person.can_invite %}<div class="small text-body-secondary mt-1">May invite cashiers</div>{% endif %}
+        </td>
+        <td>
+            {% if person.email %}{{ person.email }}
+            {% if person.email_verified_at %}<i class="bi bi-patch-check text-success ms-1" title="Confirmed" aria-label="Confirmed"></i>
+            {% else %}<span class="small text-body-secondary">(not confirmed)</span>{% endif %}
+            {% else %}<span class="text-body-secondary">none yet</span>{% endif %}
+        </td>
+        <td>
+            {% if not person.is_active %}<span class="badge rounded-pill text-bg-danger">Switched off</span>
+            {% else %}<span class="badge rounded-pill text-bg-success">Active</span>{% endif %}
+            {% if person.must_change_password %}<div class="small text-body-secondary mt-1">Must choose a new password</div>{% endif %}
+        </td>
+        <td class="text-end">
+            <div class="d-flex flex-wrap gap-1 justify-content-end">
+            {% if may_manage(person) %}
+                <form method="POST" action="{{ url_for('users.switch_active', user_id=person.id) }}">
+                    {{ token_field() }}<input type="hidden" name="active" value="{{ '0' if person.is_active else '1' }}">
+                    <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if person.is_active else 'btn-outline-success' }}">
+                        {{ 'Switch off' if person.is_active else 'Switch on' }}</button>
+                </form>
+                {% if person.is_active and not person.must_change_password %}
+                <form method="POST" action="{{ url_for('users.require_password', user_id=person.id) }}">
+                    {{ token_field() }}
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Require a new password</button>
+                </form>
+                {% endif %}
+            {% endif %}
+            {% if current_user.is_owner and person.role == 'admin' %}
+                <form method="POST" action="{{ url_for('users.may_invite', user_id=person.id) }}">
+                    {{ token_field() }}<input type="hidden" name="allowed" value="{{ '0' if person.can_invite else '1' }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">{{ 'Stop invites' if person.can_invite else 'Allow invites' }}</button>
+                </form>
+            {% endif %}
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+
+{# ---- Invitations not yet used ---- #}
+{% if invitations %}
+<h2 class="h5 mt-4 mb-2">Invitations</h2>
+<div class="card app-card"><div class="table-responsive">
+<table class="table align-middle mb-0">
+    <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Link</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for invitation in invitations %}
+    <tr>
+        <td>{{ invitation.email }}</td>
+        <td>{{ ROLE_NAMES.get(invitation.role, invitation.role) }}</td>
+        <td>{{ invitation.inviter.username if invitation.inviter else '' }}</td>
+        <td>{% if invitation.expires_at > now %}works until {{ (invitation.expires_at|shop_time).strftime('%b %d, %I:%M %p') }}
+            {% else %}<span class="text-body-secondary">expired</span>{% endif %}</td>
+        <td class="text-end">
+            {% if may_handle_invitation(invitation) %}
+            <div class="d-flex flex-wrap gap-1 justify-content-end">
+                {% if invitation.role in roles %}
+                <form method="POST" action="{{ url_for('users.resend_invitation', invitation_id=invitation.id) }}">
+                    {{ token_field() }}<button type="submit" class="btn btn-sm btn-outline-secondary">Send again</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('users.cancel_invitation', invitation_id=invitation.id) }}">
+                    {{ token_field() }}<button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                </form>
+            </div>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div></div>
+{% endif %}
+{% endblock %}

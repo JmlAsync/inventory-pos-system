@@ -1,0 +1,55 @@
+{% extends "auth_base.html" %}
+{% block title %}Join{% endblock %}
+{# Signing up from an invitation (v0.27.0, F24, DEC-003): step 1 username and password, step 2 the emailed code.
+   The role comes from the invitation and is only shown here, never sent back by the form (rule S12). #}
+{% block auth_body %}
+{% if closed %}
+<h1 class="h4 fw-bold mb-2">This link doesn't work any more</h1>
+<p class="mb-0">An invitation link works once, for 48 hours. Ask the person who invited you to send a new one.</p>
+{% elif step == 'code' %}
+<h1 class="h4 fw-bold mb-1">Check your email</h1>
+<p class="text-body-secondary mb-4">We sent a 6-digit code to <strong>{{ invitation.email }}</strong>.
+    Type it to finish joining {{ shop }}.</p>
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="step" value="code">
+    <div class="mb-3">
+        <label class="form-label" for="code">Code</label>
+        <input type="text" class="form-control form-control-lg text-center" id="code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="7" placeholder="123456" required autofocus>
+        <div class="form-text">It works for 10 minutes.</div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Finish</button>
+</form>
+<form method="POST" class="mt-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="step" value="code">
+    <input type="hidden" name="again" value="1">
+    <button type="submit" class="btn btn-link w-100">Send a new code</button>
+</form>
+{% else %}
+<h1 class="h4 fw-bold mb-1">Join {{ shop }}</h1>
+<p class="text-body-secondary mb-4">You were invited as <strong>{{ role }}</strong> with
+    <strong>{{ invitation.email }}</strong>. Choose how you will log in.</p>
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="step" value="details">
+    <div class="mb-3">
+        <label class="form-label" for="username">Username</label>
+        <input type="text" class="form-control" id="username" name="username" value="{{ username or '' }}"
+               minlength="3" maxlength="50" autocomplete="username" required autofocus>
+        <div class="form-text">3 to 50 letters or numbers; dots, dashes and underscores are fine.</div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="password">Password</label>
+        <input type="password" class="form-control" id="password" name="password" minlength="8" autocomplete="new-password" required>
+        <div class="form-text">At least 8 characters, not your username.</div>
+    </div>
+    <div class="mb-4">
+        <label class="form-label" for="confirm_password">Type the password again</label>
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Continue</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -14,18 +14,24 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ---- Every page (route) must be listed here, so a new page is a deliberate decision (AGENTS.md rule S1).
-PUBLIC_ROUTES = {'/', '/login'}                       # anyone, even when not logged in
+PUBLIC_ROUTES = {'/', '/login',                       # anyone, even when not logged in
+                 '/signup/<token>', '/forgot-password', '/forgot-password/code'}   # v0.27.0 (owner's decision, DEC-029)
 ADMIN_ROUTES = {                                       # @login_required AND @admin_required
     '/products/add', '/products/edit/<int:product_id>', '/products/delete/<int:product_id>',
     '/options', '/ingredients', '/ingredients/<int:ingredient_id>', '/ingredients/history',
     '/recipe/<kind>/<int:item_id>', '/reports/sales',
     '/settings/shop',                                  # shop details on receipts (v0.22.0)
     '/settings/email',                                 # email settings and a test message (v0.26.0)
+    '/admin/users', '/admin/users/invite', '/admin/users/<int:user_id>/role',   # Users and invitations (v0.27.0)
+    '/admin/users/<int:user_id>/active', '/admin/users/<int:user_id>/require-password',
+    '/admin/users/<int:user_id>/may-invite', '/admin/invitations/<int:invitation_id>/resend',
+    '/admin/invitations/<int:invitation_id>/cancel', '/admin/audit',
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)
     '/logout', '/products', '/sales/new', '/sales/remove/<int:product_id>', '/sales/remove-line',
     '/sales/complete', '/sales/<int:sale_id>', '/profile', '/profile/remove', '/profile/password',
     '/sales/line-quantity', '/sales/line-options',     # order-line − / + and change add-ons (v0.20.0)
+    '/password/new', '/profile/email', '/profile/email/confirm',   # own account (v0.27.0)
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',

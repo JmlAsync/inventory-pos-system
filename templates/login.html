@@ -34,6 +34,8 @@
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Login</button>
                 </form>
+                {# v0.27.0: a new password by emailed code #}
+                <p class="text-center mt-3 mb-0"><a href="{{ url_for('accounts.forgot_password') }}">Forgot your password?</a></p>
             </div>
         </div>
     </div>

@@ -109,7 +109,7 @@ for i in range(5): login(c, 'cashier' + 'x' * 60, f'wrong{i}')
 check('the limit still works for long usernames (6th try waits)', login(c, 'cashier' + 'x' * 60, 'wrong').status_code == 429)
 A.failed_logins.clear()
 # DEF-49: Werkzeug 3.1.8 has CVE-2026-102598 (Windows device names like NUL: hang static-file requests)
-pins = dict(line.split('==') for line in open('requirements.txt', encoding='utf-16').read().split() if '==' in line)
+pins = dict(line.split('==') for line in open('requirements.txt', encoding='utf-8').read().split() if '==' in line)   # UTF-8 since v0.21.6
 check('DEF-49: requirements.txt pins Werkzeug 3.1.9 or newer', tuple(int(n) for n in pins['Werkzeug'].split('.')) >= (3, 1, 9))
 
 finish('SECURITY')

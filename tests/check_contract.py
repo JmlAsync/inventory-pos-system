@@ -138,6 +138,15 @@ for line in read('requirements.txt').splitlines():
 allowed = {p.replace('_', '-') for p in ALLOWED_PACKAGES}
 result('D1 requirements.txt only has allowed packages', set(packages) <= allowed, 'not allowed: ' + ', '.join(sorted(set(packages) - allowed)))
 result('D1 every package has an exact version (name==1.2.3)', all(packages.values()), 'missing: ' + ', '.join(n for n, v in packages.items() if not v))
+# v0.21.6 (DEF-64, audit R11): saved as plain UTF-8, which every tool reads (PowerShell's "pip freeze >" writes UTF-16)
+with open(os.path.join(ROOT, 'requirements.txt'), 'rb') as f:
+    raw = f.read()
+try:
+    raw.decode('utf-8'); plain_utf8 = not raw.startswith((b'\xff\xfe', b'\xfe\xff', b'\xef\xbb\xbf'))
+except UnicodeDecodeError:
+    plain_utf8 = False
+result('D1 requirements.txt is plain UTF-8 (not UTF-16, no byte-order mark)', plain_utf8,
+       'save it as UTF-8: python -c "import pathlib;p=pathlib.Path(\'requirements.txt\');p.write_text(p.read_text(\'utf-16\'),\'utf-8\')"')
 
 # D2: pages load nothing from the internet (AGENTS.md rule D2, changed in v0.19.4 for offline use)
 ALLOWED_URLS = ()   # no outside address is allowed in a src, href or url(...)

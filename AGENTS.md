@@ -45,7 +45,10 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 
 | Path | What it holds | Notes |
 |---|---|---|
-| `app.py` | Every page (route), the checks on every form, start-up and database upgrade | One file until v0.25.0; then split into blueprints, with all database access in `store/` (see the note below this table) |
+| `app.py` | Start-up only since v0.25.0: settings, database and migrations, login manager, the CSRF check and security headers, error pages, registering the blueprints | Re-exports the old names so scripts and tests keep working (see the note below this table) |
+| `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
+| `blueprints/` | The pages, one file per part: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop` (v0.25.0) | Page names are `part.page`, e.g. `url_for('sales.new_sale')`. Pages never write to the database (I1) |
+| `store/` | The data layer: every database change (`sales`, `ingredients`, `catalog`, `accounts`, `shop`) and the stock calculations (`stock`) (v0.25.0) | Rule I1; DEC-027 |
 | `models.py` | The database tables (Product, User, LoginSession, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement) | |
 | `templates/` | The HTML pages; `base.html` is the shared layout; files starting with `_` are pieces | |
 | `static/css/theme.css` | All custom styling, light and dark theme | |
@@ -131,6 +134,8 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   transaction. On SQL this is a conditional update (`... SET quantity = quantity - n WHERE
   quantity >= n`; 0 rows changed = roll back); on Firestore it is a transaction that reads and writes
   the same documents. From v0.25.0, routes change stock only through a `store/` operation.
+  **[checked from v0.25.0]** `tests/check_contract.py` fails if `app.py` or a file in `blueprints/` writes to the
+  database itself (a session add/commit/delete, a query update or delete, or setting a stock quantity).
 
   > *Overridden 2026-10-24.* Old wording: "Selling MUST subtract stock and ingredients with a
   > conditional update (`... SET quantity = quantity - n WHERE quantity >= n`) inside one

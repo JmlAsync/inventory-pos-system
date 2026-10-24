@@ -9,7 +9,7 @@
         <span class="badge rounded-pill text-bg-secondary text-capitalize">{{ current_user.role }}</span>
 
         <!-- enctype="multipart/form-data" is needed to send a file with a form -->
-        <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data" class="mt-4 text-start">
+        <form method="POST" action="{{ url_for('accounts.profile') }}" enctype="multipart/form-data" class="mt-4 text-start">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="form-label" for="picture">Change picture</label>
             <input class="form-control" type="file" id="picture" name="picture"
@@ -19,7 +19,7 @@
         </form>
 
         {% if current_user.avatar %}
-        <form method="POST" action="{{ url_for('remove_avatar') }}" class="mt-2">
+        <form method="POST" action="{{ url_for('accounts.remove_avatar') }}" class="mt-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-outline-danger w-100">Remove picture</button>
         </form>
@@ -31,7 +31,7 @@
 <div class="card mx-auto mt-3" style="max-width: 28rem;" id="password">
     <div class="card-body">
         <h2 class="h5 fw-bold mb-3"><i class="bi bi-key me-2" aria-hidden="true"></i>Change password</h2>
-        <form method="POST" action="{{ url_for('change_password') }}">
+        <form method="POST" action="{{ url_for('accounts.change_password') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label class="form-label" for="current_password">Current password</label>

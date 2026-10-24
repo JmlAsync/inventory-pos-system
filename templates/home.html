@@ -14,7 +14,7 @@
         </div></div>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <a href="{{ url_for('products') }}" class="card stat-card h-100 text-decoration-none text-reset"><div class="card-body d-flex align-items-center gap-3">
+        <a href="{{ url_for('catalog.products') }}" class="card stat-card h-100 text-decoration-none text-reset"><div class="card-body d-flex align-items-center gap-3">
             <span class="stat-icon warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
             <div><div class="stat-label">Low stock</div><div class="stat-value">{{ stats.low_stock }}</div></div>
         </div></a>
@@ -37,7 +37,7 @@
 
 {% if current_user.role == 'admin' and stats.low_ingredients %}
 {# Ingredients at or below their warning level (v0.17.0) #}
-<a href="{{ url_for('ingredients', filter='attention') }}" class="alert alert-warning d-flex align-items-center gap-2 text-decoration-none mt-3">
+<a href="{{ url_for('ingredients.ingredients', filter='attention') }}" class="alert alert-warning d-flex align-items-center gap-2 text-decoration-none mt-3">
     <i class="bi bi-droplet-half" aria-hidden="true"></i>
     <span><strong>{{ stats.low_ingredients }} ingredient{{ '' if stats.low_ingredients == 1 else 's' }}</strong> running low. Open Ingredients to restock.</span>
 </a>
@@ -46,20 +46,20 @@
 <h2 class="section-title">Shortcuts</h2>
 <div class="row g-3">
     <div class="col-md-6 col-xl-4">
-        <a href="{{ url_for('new_sale') }}" class="card tile h-100">
+        <a href="{{ url_for('sales.new_sale') }}" class="card tile h-100">
             <span class="stat-icon"><i class="bi bi-cart-plus" aria-hidden="true"></i></span>
             <span><span class="tile-title d-block">New Sale</span><span class="tile-text">Ring up a customer and print the receipt</span></span>
         </a>
     </div>
     <div class="col-md-6 col-xl-4">
-        <a href="{{ url_for('products') }}" class="card tile h-100">
+        <a href="{{ url_for('catalog.products') }}" class="card tile h-100">
             <span class="stat-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span>
             <span><span class="tile-title d-block">Products</span><span class="tile-text">Check stock{% if current_user.role == 'admin' %}, add or edit products{% endif %}</span></span>
         </a>
     </div>
     {% if current_user.role == 'admin' %}
     <div class="col-md-6 col-xl-4">
-        <a href="{{ url_for('sales_report') }}" class="card tile h-100">
+        <a href="{{ url_for('reports.sales_report') }}" class="card tile h-100">
             <span class="stat-icon"><i class="bi bi-bar-chart-line" aria-hidden="true"></i></span>
             <span><span class="tile-title d-block">Sales Report</span><span class="tile-text">Revenue and top products for any dates</span></span>
         </a>
@@ -72,7 +72,7 @@
     <span class="brand-mark mb-3" style="width:64px;height:64px;font-size:1.8rem;border-radius:18px;"><i class="bi bi-shop" aria-hidden="true"></i></span>
     <h1>Inventory & POS System</h1>
     <p class="page-subtitle fs-5">Manage your store's products and sales in one place.</p>
-    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4"><i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>Log in to start</a>
+    <a href="{{ url_for('accounts.login') }}" class="btn btn-primary btn-lg px-4"><i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>Log in to start</a>
 </div>
 {% endif %}
 {% endblock %}

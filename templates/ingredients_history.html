@@ -5,8 +5,8 @@
 <h1>Ingredients</h1>
 <p class="page-subtitle">Every change: sales, deliveries (restock) and stock counts, newest first.</p>
 <ul class="nav nav-pills page-tabs mb-3">
-    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
-    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('ingredients.ingredients') }}"><i class="bi bi-box2 me-1" aria-hidden="true"></i>Stock</a></li>
+    <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ url_for('ingredients.ingredients_history') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>History</a></li>
 </ul>
 <div class="card mb-3"><div class="card-body">
 <form method="GET" class="row g-2 align-items-end">
@@ -31,9 +31,9 @@
     {% for move in moves %}
     <tr>
         <td class="text-nowrap">{{ (move.created_at|shop_time).strftime('%b %d, %I:%M %p') }}</td>
-        <td><a href="{{ url_for('ingredient_detail', ingredient_id=move.ingredient_id) }}" class="text-reset">{{ move.ingredient.name }}</a></td>
+        <td><a href="{{ url_for('ingredients.ingredient_detail', ingredient_id=move.ingredient_id) }}" class="text-reset">{{ move.ingredient.name }}</a></td>
         <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ move.ingredient.unit }}</td>
-        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
+        <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('sales.receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>
         <td>{{ move.user.username if move.user else '—' }}</td>
     </tr>
     {% endfor %}

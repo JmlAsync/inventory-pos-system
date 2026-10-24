@@ -20,7 +20,7 @@
     {% if low or out %}
     {% set low_names = low|map(attribute='name')|list %}
     {% set out_names = out|map(attribute='name')|list %}
-    {% if is_admin %}<a href="{{ url_for('ingredients') }}" class="low-banner" title="Open Ingredients">{% else %}<div class="low-banner">{% endif %}
+    {% if is_admin %}<a href="{{ url_for('ingredients.ingredients') }}" class="low-banner" title="Open Ingredients">{% else %}<div class="low-banner">{% endif %}
         <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
         <span>
             {% if low_names %}Running low: {{ low_names[:4]|join(' · ') }}{% if low_names|length > 4 %} +{{ low_names|length - 4 }} more{% endif %}{% endif %}
@@ -83,7 +83,7 @@
                         {% set kind = 'hot' if b.size and 'hot' in b.size.name|lower else ('iced' if b.size and 'ice' in b.size.name|lower else 'plain') %}
                         {% if b.available > 0 %}
                         {# One tap = 1 of this product in this serving, no add-ons (change them in the order) #}
-                        <form method="POST" action="{{ url_for('new_sale') }}">
+                        <form method="POST" action="{{ url_for('sales.new_sale') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="product_id" value="{{ product.id }}">
                             <input type="hidden" name="quantity" value="1">
@@ -116,7 +116,7 @@
         <details class="card mt-3 qty-form">
             <summary class="card-body py-2">Add several at once (type a quantity)</summary>
             <div class="card-body pt-0">
-            <form method="POST" action="{{ url_for('new_sale') }}" class="row g-2 align-items-end">
+            <form method="POST" action="{{ url_for('sales.new_sale') }}" class="row g-2 align-items-end">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="col-md-6">
                     <label class="form-label" for="listProduct">Product</label>
@@ -162,14 +162,14 @@
                         <span class="d-block small text-body-secondary">{{ line.quantity }} × {{ line.unit_price|peso }}</span>
                     </button>
                     <div class="stepper">
-                        <form method="POST" action="{{ url_for('change_line_quantity') }}">
+                        <form method="POST" action="{{ url_for('sales.change_line_quantity') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="line" value="{{ line.key }}">
                             <input type="hidden" name="change" value="-1">
                             <button type="submit" class="step-btn" aria-label="One less {{ line.product.name }}">−</button>
                         </form>
                         <span class="step-qty">{{ '{:,}'.format(line.quantity) }}</span>
-                        <form method="POST" action="{{ url_for('change_line_quantity') }}">
+                        <form method="POST" action="{{ url_for('sales.change_line_quantity') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="line" value="{{ line.key }}">
                             <input type="hidden" name="change" value="1">
@@ -182,7 +182,7 @@
                 <div class="order-line-edit" id="lineEdit{{ n }}" hidden>
                     {% if line.product.has_options and (sizes or addons) %}
                     {% set chosen = line.addons|map(attribute='id')|list %}
-                    <form method="POST" action="{{ url_for('change_line_options') }}" class="js-line-form" data-base="{{ line.product.price }}">
+                    <form method="POST" action="{{ url_for('sales.change_line_options') }}" class="js-line-form" data-base="{{ line.product.price }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="line" value="{{ line.key }}">
                         {% if sizes %}
@@ -208,7 +208,7 @@
                         <button type="submit" class="btn btn-primary w-100 js-line-done">Done</button>
                     </form>
                     {% endif %}
-                    <form method="POST" action="{{ url_for('remove_line') }}" class="mt-2">
+                    <form method="POST" action="{{ url_for('sales.remove_line') }}" class="mt-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="line" value="{{ line.key }}">
                         <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1" aria-hidden="true"></i>Remove this line</button>
@@ -241,12 +241,12 @@
                 </li>
                 {% endfor %}
             </ul>
-            {% if is_admin %}<a href="{{ url_for('ingredients') }}" class="small fw-semibold">Open Ingredients →</a>{% endif %}
+            {% if is_admin %}<a href="{{ url_for('ingredients.ingredients') }}" class="small fw-semibold">Open Ingredients →</a>{% endif %}
         </details>
         {% endif %}
 
         <!-- Payment -->
-        <form method="POST" action="{{ url_for('complete_sale') }}" class="pay-form">
+        <form method="POST" action="{{ url_for('sales.complete_sale') }}" class="pay-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {# How the customer pays (v0.15.0). "btn-check" turns radio buttons into toggle buttons #}
             <div class="pay-methods" role="group" aria-label="Payment method">

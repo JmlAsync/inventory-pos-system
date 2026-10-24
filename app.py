@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate, upgrade as run_migrations
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile, utc_now
+from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem, IngredientMovement, LoginSession, ShopProfile, utc_now, to_money
 from functools import wraps
 import math
 import os
@@ -123,7 +123,7 @@ def validate_product_form(form, current_product_id=None):
         if existing:
             return None, f'SKU "{sku}" is already used by "{existing.name}" ({existing.sku}).'
 
-    return {'name': name, 'sku': sku, 'price': price,
+    return {'name': name, 'sku': sku, 'price': to_money(price),   # exact centavos (v0.23.2)
             'quantity': quantity, 'category': category,
             'has_options': bool(form.get('has_options'))}, None   # tick box (v0.16.0)
 
@@ -447,7 +447,7 @@ def manage_options():
                 option = MenuOption(kind=kind, sort_order=last + 1)
                 db.session.add(option)
             option.name = name
-            option.price = round(price, 2)
+            option.price = to_money(price)   # exact centavos, rounded half up (v0.23.2)
             if kind == 'size':
                 # How much of every ingredient this size uses compared with the recipe (v0.17.0)
                 scale = request.form.get('scale', type=float)
@@ -1304,8 +1304,9 @@ def complete_sale():
         return show_sale_page('Please choose how the customer pays: Cash or GCash.')
 
     # Step 3: everything is fine, so create the sale and deduct stock
+    cash = to_money(cash)   # exact pesos, so the change is exact too (v0.23.2, DEF-68)
     sale = Sale(user_id=current_user.id, total=total,
-                cash_received=round(cash, 2), change_due=round(cash - total, 2),
+                cash_received=cash, change_due=cash - total,
                 payment_method=method, payment_reference=reference, ticket=ticket)
     for product, quantity in units.items():
         name = product.name

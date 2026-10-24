@@ -231,6 +231,7 @@ The tag message summarizes what the increment added.
 | v0.22.0 | 2026-10-24 | — | Shop details on receipts (F21): the admin sets the shop's name, address, TIN and a footer on a new **Shop details** page, and every receipt now says **"This is not an official receipt."**, which can't be turned off (SR6 met; closes the report's only *Intolerable* hazard as far as the software can). New `shop_profile` table, created at start-up on older databases (DEC-022) *(branch `feature/receipt-shop-details`, merged after the defense, DEC-018)* |
 | v0.23.0 | 2026-10-24 | — | Database migrations with Alembic (Flask-Migrate): every database change is now a numbered script in `migrations/versions/`. Migration `0001` brings any older or empty database to the v0.22.0 shape (it took over the `NEW_COLUMNS` list) and can't be undone; start-up backs the database up (`instance/inventory_backup_<date>_before_<number>.db`) before running any missing migration. New packages Flask-Migrate 4.1.0, alembic 1.20.0, Mako 1.4.3 (approved in DEC-011). Tested on a copy of the owner's real database: only `alembic_version` added, every row count unchanged, integrity ok (DEC-023) *(branch `feature/alembic-migrations`, merged after the defense, DEC-018)* |
 | v0.23.1 | 2026-10-24 | — | Times stored in **UTC** and shown, and counted into days, on the shop's clock (UTC+8): receipts, the report, Home's "today", ingredient history, logins and the login limit. Migration `0002` turns every stored time from this computer's local time into UTC (and back when undone). Needed before any cloud server, which runs on UTC (DEF-67, audit R1, DEC-024). Tested on a copy of the owner's database: times 8 hours earlier in storage, the same on screen *(branch `fix/utc-times`, merged after the defense, DEC-018)* |
+| v0.23.2 | 2026-10-24 | — | Money stored as **whole centavos** (INTEGER: ₱75.50 = 7550) through a new `Money` column type, and handled in Python as exact `Decimal` pesos, so totals can't drift and a receipt always adds up. A price typed with more than two decimals is rounded once, half up, when saved. Migration `0003` converts every price and total (and back when undone). Tested on a copy of the owner's database: all 58 receipts, 120 lines and 12 prices identical to the centavo (DEF-68, audit R5, DEC-025) *(branch `fix/money-centavos`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1048,6 +1049,22 @@ Automated in `tests/test_times.py` (18 checks); the conversions are checked with
 | TC-29.9 | — | Search `app.py`, `models.py`, `seed_demo_data.py` | No local-time stamps left (backup file names excepted) | **v0.23.0:** 10 · **v0.23.1:** none | ❌→✅ DEF-67 |
 | TC-29.10 | A copy of the owner's real database | Start v0.23.1 in a scratch folder | Sale #58 stored 15:19 → 07:19 UTC, still shown 3:19 PM; row counts unchanged; backup; integrity ok; real file unchanged | As expected | ✅ |
 
+### Money in centavos *(v0.23.2)*
+
+Automated in `tests/test_money.py` (19 checks). `test_new_sale.py` TC-22.4 now accepts `data-price="0.00"` (exact money) as well as `0.0`; the page's script reads both the same way.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-30.1 | Admin | Add a product at `75.50` | Stored as 7550 (INTEGER) | **v0.23.1:** 75.5 (REAL) · **v0.23.2:** 7550 | ❌→✅ DEF-68 |
+| TC-30.3 | Admin | Add a product at `0.125`; sell 3 | Stored as 13; receipt ₱0.13 each, ₱0.39 for three | **v0.23.1:** ₱0.12 each but ₱0.38 for three (the receipt didn't add up) · **v0.23.2:** as expected | ❌→✅ DEF-68 |
+| TC-30.4 | That sale, cash ₱1 | Read the sale | Total ₱0.39, cash ₱1.00, change ₱0.61 exactly; total = sum of lines | **v0.23.1:** floats · **v0.23.2:** exact | ❌→✅ DEF-68 |
+| TC-30.5 | 1,000 sales of ₱0.10 | Sum in the database; open the report | Exactly 10039 centavos; report ₱100.39 | **v0.23.1:** a float sum · **v0.23.2:** exact | ❌→✅ DEF-68 |
+| TC-30.6 | A database at 0002 with 75.5, 19.99, 0.1 and a sale | Start v0.23.2; then undo 0003 | 7550, 1999, 10 (and the sale, its line and an add-on) as INTEGER; undo gives back 75.5, 19.99, 0.1 | As expected | ✅ |
+| TC-30.7 | Same | Read prices in Python | Exact `Decimal` 75.50, 19.99, 0.10 | **v0.23.1:** float · **v0.23.2:** Decimal | ❌→✅ DEF-68 |
+| TC-30.8 | Admin | ₱1,000,000; `1000000.01`, `nan`, `inf`, `-1`, `abc`; an add-on at ₱30.50 | Limits unchanged; the add-on stored as 3050 | As expected | ✅ |
+| TC-30.9 | A copy of the owner's real database | Start v0.23.2 in a scratch folder | All 58 sales, 120 lines, 12 prices equal to the centavo; every total = sum of its lines; the unique GCash and ticket indexes kept; integrity ok; real file unchanged | As expected | ✅ |
+| TC-30.10 | Demo copy in Edge | Iced latte + Oat Milk; cash ₱200; complete | Live price "₱180.00 each", change ₱20.00, receipt ₱180.00 / ₱200.00 / ₱20.00, no script errors | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1150,7 +1167,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_shop_details.py` | F21 / TC-27.x (v0.22.0): notice on every receipt (SR6), who may change the details, saving, wrong values, HTML as text, older database | 22 |
 | `test_migrations.py` | Migrations / TC-28.x (v0.23.0): older database upgraded with data kept, backup first, no second backup, models match migrations, rebuild after `drop_all`, 0001 can't be undone, log stays on, one line of migrations | 14 |
 | `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
-| **26 files** | | **549 checks + 59 rule checks** |
+| `test_money.py` | Money in centavos / TC-30.x (v0.23.2): migration 0003 both ways, INTEGER storage, Decimal in Python, one rounding on save, receipts add up, exact sums, limits unchanged | 19 |
+| **27 files** | | **568 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1185,7 +1203,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F21 Shop details (v0.22.0) | 8 | 7 → **8** | 1 → **0** | 0 |
 | Database migrations (v0.23.0) | 9 | 8 → **9** | 1 → **0** | 0 |
 | Times in UTC (v0.23.1) | 9 | 5 → **9** | 4 → **0** | 0 |
-| **Total** | **306** | **205 → 306** | **84 → 0** | **4 → 0** |
+| Money in centavos (v0.23.2) | 9 | 4 → **9** | 5 → **0** | 0 |
+| **Total** | **315** | **209 → 315** | **89 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1266,6 +1285,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-65 | Low (cosmetic) | No browser tab icon: every page load ended with "404 Not Found" for `/favicon.ico` in the browser's console, and the tab showed a blank page icon (known limitation since the report) | Report §10.4 known limitations | `static/favicon.svg` and a `<link rel="icon">` in `base.html`; TC-26.12–26.13 | ✅ Fixed v0.21.7 |
 | DEF-66 | Low (cosmetic) | Ingredients page, dark theme: a normal stock bar used the amber accent `#EF9F27`, exactly the colour of a Low bar, so a full shelf and a low one looked alike (the report's known limitation called them "tile bars"; measuring showed it is the Ingredients page; the New Sale tiles were already green and amber) | Report §10.4 known limitations; checked against the CSS (rule C10) | `[data-bs-theme="dark"] .stock-fill.is-ok` uses `--stock-ok` (green); TC-26.14–26.15 | ✅ Fixed v0.21.8 |
 | DEF-67 | Medium (future) | Times were stored in the computer's local time with no zone. On a cloud server (UTC) "today", the report's days and receipt times would have been 8 hours off (audit R1) | Security audit 2026-10-11 (R1) | Store UTC (`models.utc_now`), show and count days in the shop's time (`SHOP_TIMEZONE` UTC+8, `shop_time` filter); migration 0002 converts old times (DEC-024); TC-29.1–29.10 | ✅ Fixed v0.23.1 |
+| DEF-68 | Medium | Money was stored as decimal numbers (REAL/float). Sums of many amounts can drift by a centavo, and a price typed with three decimals (₱0.125) showed as ₱0.12 per item but ₱0.38 for three, so the receipt didn't add up (audit R5) | Security audit 2026-10-11 (R5); the receipt case found by TC-30.3 | `Money` column type: whole centavos in the database, exact `Decimal` pesos in Python, rounded once, half up, on saving; migration 0003 (DEC-025); TC-30.1–30.10 | ✅ Fixed v0.23.2 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1297,7 +1317,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.
 > - **Sold products can't be deleted, only set to 0**, so they stay in the list with an "Out of stock" badge. Fix: an "archive" option.
 > - **One low-stock threshold (5) for every product.** Fix: a per-product threshold (needs a database column, i.e. a migration).
-> - **Money stored as `Float`**, rounded to centavos. Real POS systems store whole centavos or `Decimal`.
+> - ~~**Money stored as `Float`**~~ *(fixed in v0.23.2, DEF-68: whole centavos in the database, `Decimal` in Python)*
 > - **SQLite allows one writer at a time.** Fine for a small shop; many tills would need a server database.
 > - **Not a BIR-registered POS.** In the Philippines a machine that issues official sales invoices must use software from a BIR-accredited supplier (RMO 24-2023), each machine needs a Permit to Use, and invoices must follow RR 7-2024. This system's receipts are order slips for the shop's own records, not official invoices.
 > - **No senior citizen / PWD discount and no X- or Z-reading** (end-of-shift and end-of-day sales summaries), which Philippine cafés are expected to have. Found while comparing with the café's own subscription POS (2026-10-14).

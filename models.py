@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from flask_login import UserMixin
 
 db = SQLAlchemy()
@@ -10,11 +11,33 @@ def utc_now():
     The pages show it in the shop's time (UTC+8) with the shop_time filter in app.py."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
+
+CENT = Decimal('0.01')
+
+
+def to_money(amount):
+    """An amount in pesos as an exact Decimal rounded to the centavo, half up: 0.125 -> 0.13 (v0.23.2).
+    Accepts what forms and code give: text, int, float or Decimal."""
+    return Decimal(str(amount)).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+class Money(db.TypeDecorator):
+    """A money column (v0.23.2, DEF-68, DEC-025): stored as whole centavos (INTEGER: P75.50 -> 7550), so sums are
+    exact on every database; Python sees exact Decimal pesos (75.50), never a float that could drift."""
+    impl = db.Integer
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        return None if value is None else int(to_money(value) * 100)
+
+    def process_result_value(self, value, dialect):
+        return None if value is None else (Decimal(value) / 100).quantize(CENT)
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     sku = db.Column(db.String(50), unique=True, nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    price = db.Column(Money, nullable=False)   # whole centavos in the database (v0.23.2)
     quantity = db.Column(db.Integer, default=0)
     category = db.Column(db.String(50))
     # File name of the product's picture in static/products/, or None (v0.14.0)
@@ -72,9 +95,9 @@ class Sale(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     # Which user (cashier or admin) made the sale. ForeignKey links to the user table.
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    total = db.Column(db.Float, nullable=False, default=0)
-    cash_received = db.Column(db.Float, nullable=False, default=0)  # money the customer handed over
-    change_due = db.Column(db.Float, nullable=False, default=0)     # cash_received - total
+    total = db.Column(Money, nullable=False, default=0)   # Money: whole centavos (v0.23.2)
+    cash_received = db.Column(Money, nullable=False, default=0)  # money the customer handed over
+    change_due = db.Column(Money, nullable=False, default=0)     # cash_received - total
     # How the customer paid (v0.15.0): 'cash' or 'gcash'. For GCash, the 13-digit reference
     # number from the customer's GCash receipt; unique, so one payment can't be used twice.
     payment_method = db.Column(db.String(10), nullable=False, default='cash')
@@ -96,7 +119,7 @@ class SaleItem(db.Model):
     # Copies of the name and price AT THE TIME OF SALE, so old receipts stay correct
     # even if the product is later renamed, repriced or deleted.
     product_name = db.Column(db.String(100), nullable=False)
-    unit_price = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(Money, nullable=False)   # whole centavos (v0.23.2)
     quantity = db.Column(db.Integer, nullable=False)
     # Size and add-ons chosen, copied as text, e.g. "16oz, Oat Milk" (v0.16.0).
     # unit_price already includes their extra cost.
@@ -114,7 +137,7 @@ class MenuOption(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kind = db.Column(db.String(10), nullable=False)       # 'size' or 'addon'
     name = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Float, nullable=False, default=0)
+    price = db.Column(Money, nullable=False, default=0)   # whole centavos (v0.23.2)
     active = db.Column(db.Boolean, nullable=False, default=True)   # hidden options aren't offered
     sort_order = db.Column(db.Integer, nullable=False, default=0)  # smaller numbers first
     # Sizes only (v0.17.0): how much of every ingredient this size uses compared with the

@@ -109,7 +109,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `final_report.md` (+ `.docx`, `.pdf`) | The final project report for submission, in the order of the course's Section B list |
 | `project_documentation_draft.md` | The living working report, updated with every change: version history, user stories, test cases, defects, requirements and UML |
 | `diagrams/` | UML diagrams (PlantUML source and pictures) |
-| `docs/` | Other reports and guides: the security audit, running on another computer, preparing for the professor's session |
+| `docs/` | Other reports and guides: the security audit, running on another computer, preparing for the professor's session, and `system_overview.canvas`, a one-page map of the system (open it in Obsidian) |
 | `screenshots/` | Screenshots used in the report |
 
 **Built with:** Python 3.11+, Flask 3.1, Flask-Login, Flask-SQLAlchemy, SQLite, Jinja2 and

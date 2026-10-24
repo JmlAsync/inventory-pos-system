@@ -37,6 +37,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-020](#dec-020) | Unknown usernames check a dummy password hash | Best choice | Decided |
 | [DEC-021](#dec-021) | Demo menu: one product per drink, sold Hot or Iced | Best choice | Decided |
 | [DEC-022](#dec-022) | Shop details live in the database; the "not an official receipt" line is fixed | Best choice | Decided |
+| [DEC-023](#dec-023) | Migrations: one catch-up first migration, a backup before every upgrade | Best choice | Decided |
 
 ---
 
@@ -600,3 +601,48 @@ setting, typo or later admin can remove it; changing it needs a code change, a p
 | The notice as a setting with "on" by default | One click turns it off; the hazard comes back silently |
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-023
+
+**Migrations: one catch-up first migration, a backup before every upgrade** *(v0.23.0, rules I5 and S5)*
+
+**Decision.** Database changes are numbered Alembic scripts in `migrations/versions/` (`0001`, `0002`…), run through
+Flask-Migrate. The first one, `0001`, describes the whole v0.22.0 database and *catches up* any older database. At
+start-up the app backs the database up and then runs whatever migrations it hasn't had.
+
+**How it works.**
+
+1. `upgrade_database()` (called by `python app.py`, the demo-data script and the tests) looks at the database.
+2. If it holds data and a migration is missing, it first copies the file with SQLite's own backup feature to
+   `instance/inventory_backup_<date-time>_before_<number>.db`.
+3. Alembic runs the missing migrations in order and writes the newest number in a small `alembic_version` table.
+4. Migration `0001` only creates what is missing: every table in an empty database; in a database made before
+   v0.23.0, the missing tables and the columns the old `NEW_COLUMNS` list used to add (with the same first-time
+   fixes for ingredient groups and full levels). So a database from any earlier version keeps all its data.
+5. The v0.17.1 clean-up of recipe lines from deleted products still runs at every start, as before.
+
+**Why.** `NEW_COLUMNS` could only add columns. The next versions change types (money to whole centavos, times to
+UTC) and add tables for sign-in, which needs real, ordered, testable scripts, the standard way a SQLAlchemy project
+changes a live database. Starting with one catch-up migration (instead of pretending every past version had its own
+script) is the usual way to adopt Alembic on a database that already exists. The automatic backup turns "the upgrade
+went wrong" from lost data into restoring one file.
+
+**Details decided along the way (each checked).**
+
+| Detail | Choice | Why, and the alternative rejected |
+|---|---|---|
+| Numbering | Readable `0001`, `0002`… instead of Alembic's random ids | Easier to read in a report and to talk about; Alembic accepts any id (`--rev-id`) |
+| First migration on old databases | Catch up (create what's missing) | "Stamp" the old database as up to date without checking: a database from v0.12 would be missing columns forever |
+| Undoing `0001` | Refused with a message | Its automatic undo would drop every table, i.e. delete the shop's data; restoring a backup is the safe way back |
+| Backups | Only when there is data *and* a migration to run | A backup on every start would fill the disk; an empty database has nothing to lose |
+| Logging | `fileConfig(..., disable_existing_loggers=False)` in `env.py` | Alembic's default switches off loggers that already exist, which would hide crash details (DEF-61); found by TC-28.7 |
+| Every-start clean-up of orphan recipe lines | Kept | A migration runs once; v0.17.1's guarantee ran at every start, so dropping it would have been a silent behaviour change (caught by `test_ingredients.py`) |
+| Package versions | alembic 1.20.0, not the newest 1.20.1 | 1.20.1 was two days old; versions are only used once they have been out for about two weeks |
+| Development environment | A separate venv outside the project and OneDrive (`C:\Users\axdr9\.venvs\inventory-pos-dev`) | Keeps the demo laptop's `venv` exactly as defended until the merge (DEC-018) |
+
+**Alternatives checked for the whole approach.** *Keep `NEW_COLUMNS`* (can't change types or rename). *Plain Alembic
+without Flask-Migrate* (works, but more set-up and no `flask db` commands). *Hand-written SQL scripts with our own
+version table* (re-inventing Alembic, with fewer checks). *Recreate the database from an export on every upgrade*
+(slow and risky in a busy week). **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

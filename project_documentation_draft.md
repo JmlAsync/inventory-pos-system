@@ -229,6 +229,7 @@ The tag message summarizes what the increment added.
 | v0.21.7 | 2026-10-24 | — | A browser tab icon (a white cup on the caramel brand colour, `static/favicon.svg`), named on every page, so the browser's request no longer ends in "404 Not Found" (DEF-65) *(branch `fix/favicon`, merged after the defense, DEC-018)* |
 | v0.21.8 | 2026-10-24 | — | Ingredients page, dark theme: a normal stock bar is green (the same green as the New Sale tiles) instead of the amber accent, which was exactly the colour of a Low bar; light theme, Low and Out unchanged (DEF-66) *(branch `fix/dark-low-bar`, merged after the defense, DEC-018)* |
 | v0.22.0 | 2026-10-24 | — | Shop details on receipts (F21): the admin sets the shop's name, address, TIN and a footer on a new **Shop details** page, and every receipt now says **"This is not an official receipt."**, which can't be turned off (SR6 met; closes the report's only *Intolerable* hazard as far as the software can). New `shop_profile` table, created at start-up on older databases (DEC-022) *(branch `feature/receipt-shop-details`, merged after the defense, DEC-018)* |
+| v0.23.0 | 2026-10-24 | — | Database migrations with Alembic (Flask-Migrate): every database change is now a numbered script in `migrations/versions/`. Migration `0001` brings any older or empty database to the v0.22.0 shape (it took over the `NEW_COLUMNS` list) and can't be undone; start-up backs the database up (`instance/inventory_backup_<date>_before_<number>.db`) before running any missing migration. New packages Flask-Migrate 4.1.0, alembic 1.20.0, Mako 1.4.3 (approved in DEC-011). Tested on a copy of the owner's real database: only `alembic_version` added, every row count unchanged, integrity ok (DEC-023) *(branch `feature/alembic-migrations`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -1014,6 +1015,22 @@ the look was checked by hand in Chromium on a demo copy (light and dark theme, f
 | TC-27.7 | TIN emptied | Open a receipt | No "TIN:" line | As expected | ✅ |
 | TC-27.8 | A database without `shop_profile` | Start the app; open a receipt | Table added, data kept; default name and the notice | As expected | ✅ |
 
+### Database migrations *(v0.23.0)*
+
+Automated in `tests/test_migrations.py` (14 checks), which starts from a database in the v0.21.2 shape (no migration record, no `shop_profile`, a `sale` table without the later columns) holding one sale. Also run by hand on a copy of the owner's real database (2026-10-24).
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-28.1 | A v0.21.2-shaped database with one sale | Start the app (`upgrade_database()`) | Every table and missing column added; the sale, its item and the product unchanged; at the newest migration | As expected | ✅ |
+| TC-28.2 | Same | Look in `instance/` | One backup taken before the change, holding the old shape and the same data | As expected | ✅ |
+| TC-28.3 | Already up to date | Start again | Nothing changes; no second backup | As expected | ✅ |
+| TC-28.4 | A database built by the migrations | Compare it with `models.py` (Alembic `compare_metadata`) | No differences, so a model change without a migration fails this test | As expected | ✅ |
+| TC-28.5 | Tables dropped, migration record left behind (as tests do) | Start the app | Rebuilt from the migrations; no backup (nothing to protect); works | As expected | ✅ |
+| TC-28.6 | Up to date, with data | Undo migration 0001 | Refused: "can't be undone", data kept | As expected | ✅ |
+| TC-28.7 | The app's log exists before the migrations run | Run them; look at the log | Still switched on (Alembic's default logging set-up switches existing logs off) | **Without the `env.py` fix:** log switched off · **v0.23.0:** on | ❌→✅ |
+| TC-28.8 | — | List the migrations | One line (no branches), each with a description | As expected | ✅ |
+| TC-28.9 | A copy of the owner's real database (v0.21.2) | Start v0.23.0 on it in a scratch folder | Only `alembic_version` added; row counts unchanged; backup taken; `integrity_check` ok; the real file unchanged (same SHA-1) | As expected | ✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1114,7 +1131,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
 | `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61), login timing (DEF-62), tab icon (DEF-65), dark-theme bar colour (DEF-66) | 22 |
 | `test_shop_details.py` | F21 / TC-27.x (v0.22.0): notice on every receipt (SR6), who may change the details, saving, wrong values, HTML as text, older database | 22 |
-| **24 files** | | **517 checks + 59 rule checks** |
+| `test_migrations.py` | Migrations / TC-28.x (v0.23.0): older database upgraded with data kept, backup first, no second backup, models match migrations, rebuild after `drop_all`, 0001 can't be undone, log stays on, one line of migrations | 14 |
+| **25 files** | | **531 checks + 59 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1147,7 +1165,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
 | Phase 1 patches (v0.21.3 onward) | 15 | 4 → **15** | 11 → **0** | 0 |
 | F21 Shop details (v0.22.0) | 8 | 7 → **8** | 1 → **0** | 0 |
-| **Total** | **288** | **192 → 288** | **79 → 0** | **4 → 0** |
+| Database migrations (v0.23.0) | 9 | 8 → **9** | 1 → **0** | 0 |
+| **Total** | **297** | **200 → 297** | **80 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 

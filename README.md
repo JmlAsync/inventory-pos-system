@@ -81,8 +81,11 @@ for real.
 | `$env:FLASK_DEBUG = "1"` then `python app.py` | Debug mode while coding (off by default, because it is unsafe on a real network). |
 | `$env:SECRET_KEY = "..."` | Use your own secret key. Without it, one is made once and kept in `instance/secret_key.txt`. |
 
-The database is one file, `instance/inventory.db`. When a new version adds columns, the app
-upgrades your existing database by itself at start-up; you never have to delete it.
+The database is one file, `instance/inventory.db`. When a new version changes the database, the app
+upgrades your existing database by itself at start-up; you never have to delete it. Since v0.23.0 it
+first saves a copy as `instance/inventory_backup_<date-time>_before_<number>.db`, then runs the numbered
+changes in `migrations/` (after updating the code, run `pip install -r requirements.txt` once: v0.23.0 added
+Flask-Migrate).
 
 ## Running the tests
 
@@ -106,6 +109,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `static/vendor/` | Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and the Inter font, stored here so nothing loads from the internet |
 | `seed_demo_data.py` | Fills the database with demo data |
 | `tests/` | Automated tests and the contract check |
+| `migrations/` | Numbered database changes, applied automatically at start-up after a backup (v0.23.0) |
 | `final_report.md` (+ `.docx`, `.pdf`) | The final project report for submission, in the order of the course's Section B list |
 | `project_documentation_draft.md` | The living working report, updated with every change: version history, user stories, test cases, defects, requirements and UML |
 | `diagrams/` | UML diagrams (PlantUML source and pictures) |

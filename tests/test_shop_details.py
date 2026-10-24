@@ -60,7 +60,9 @@ check('TC-27.7 TIN left empty: no TIN line on the receipt', 'TIN:' not in text(c
 
 # ---- An existing database gets the new table at start-up (I5)
 with app.app_context():
-    db.session.execute(db.text('DROP TABLE shop_profile')); db.session.commit()
+    # A database from before v0.23.0 has no shop_profile table and no migration record (alembic_version)
+    db.session.execute(db.text('DROP TABLE shop_profile')); db.session.execute(db.text('DROP TABLE IF EXISTS alembic_version'))
+    db.session.commit()
     upgrade_database()
     check('TC-27.8 an older database gets the shop_profile table at start-up, nothing lost',
           db.inspect(db.engine).has_table('shop_profile') and Sale.query.count() == 1)

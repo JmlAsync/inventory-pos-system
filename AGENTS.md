@@ -53,6 +53,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | `seed_demo_data.py` | Fills the database with demo data; `--fresh` backs up first | |
 | `add_users.py`, `add_test_product.py` | Small helper scripts from the first versions | |
 | `tests/` | Automated tests and the contract check | See section 9 |
+| `migrations/` | Numbered database changes (`versions/0001_…`), run by Alembic at start-up after a backup (v0.23.0) | Rule I5; how to add one: `migrations/README.md` |
 | `project_documentation_draft.md` | The living project report (versions, tests, defects, UML) | MUST be updated with every change (W4) |
 | `diagrams/` | UML diagrams: `.puml` source + `.png` | |
 | `docs/` | Other reports and guides: security audit, running on another computer | |
@@ -81,8 +82,13 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   comes from the `SECRET_KEY` environment variable or `instance/secret_key.txt`. Debug mode only
   with `FLASK_DEBUG=1`.
 - **S5 [checked]** SQL MUST NOT be built by joining text with user input. Use SQLAlchemy queries, or
-  `db.text()` with `:named` parameters. The only exception is `upgrade_database()`, whose table and
-  column names come from the fixed `NEW_COLUMNS` list.
+  `db.text()` with `:named` parameters. Migrations in `migrations/versions/` use Alembic's operations
+  (`op.create_table`, `op.add_column`) and fixed SQL only.
+
+  > *Overridden 2026-10-24 (v0.23.0).* Old wording: "The only exception is `upgrade_database()`, whose
+  > table and column names come from the fixed `NEW_COLUMNS` list." Why: the column list moved into
+  > migration 0001, which adds columns with Alembic's operations instead of joined SQL text, so no
+  > exception is needed any more (DEC-023).
 - **S6** Anything that changes data MUST be a POST (never a GET link): delete, log out, restock.
 - **S7** Every value from a form MUST be checked on the server, even if the browser already checks
   it: empty, too long, not a number, `nan`, `inf`, negative, too big. Show a friendly message;

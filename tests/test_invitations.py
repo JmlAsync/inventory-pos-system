@@ -6,6 +6,7 @@ from helpers import check, finish, text, FakeMailbox
 from werkzeug.security import generate_password_hash as g
 
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, Invitation, EmailCode, utc_now
 
 app.config['CSRF_ENABLED'] = False

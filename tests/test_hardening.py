@@ -2,6 +2,7 @@
 and the report's known limitations, one per version (docs/upgrade_plan.md, Phase 1)."""
 from helpers import check, finish, make_users, text
 from app import app
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, Product
 
 app.config['CSRF_ENABLED'] = False

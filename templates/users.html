@@ -65,7 +65,16 @@
             {% if person.email %}{{ person.email }}
             {% if person.email_verified_at %}<i class="bi bi-patch-check text-success ms-1" title="Confirmed" aria-label="Confirmed"></i>
             {% else %}<span class="small text-body-secondary">(not confirmed)</span>{% endif %}
+            {% elif may_manage(person) %}
+            {# v0.28.0 (owner's decision, DEC-030): their next login sends the code here, which confirms it #}
+            <form method="POST" action="{{ url_for('users.add_email', user_id=person.id) }}" class="d-flex gap-1">
+                {{ token_field() }}
+                <input type="email" name="email" class="form-control form-control-sm" placeholder="their own email"
+                       aria-label="Email for {{ person.username }}" maxlength="254" required style="min-width: 11rem;">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Add</button>
+            </form>
             {% else %}<span class="text-body-secondary">none yet</span>{% endif %}
+            {% if person.second_step == 'app' %}<div class="small text-body-secondary mt-1"><i class="bi bi-phone" aria-hidden="true"></i> Authenticator app</div>{% endif %}
         </td>
         <td>
             {% if not person.is_active %}<span class="badge rounded-pill text-bg-danger">Switched off</span>
@@ -80,6 +89,12 @@
                     <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if person.is_active else 'btn-outline-success' }}">
                         {{ 'Switch off' if person.is_active else 'Switch on' }}</button>
                 </form>
+                {% if person.second_step == 'app' and person.email %}
+                <form method="POST" action="{{ url_for('users.reset_second_step', user_id=person.id) }}">
+                    {{ token_field() }}
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Login code by email</button>
+                </form>
+                {% endif %}
                 {% if person.is_active and not person.must_change_password %}
                 <form method="POST" action="{{ url_for('users.require_password', user_id=person.id) }}">
                     {{ token_field() }}

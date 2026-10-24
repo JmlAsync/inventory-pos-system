@@ -13,6 +13,7 @@ from common import keyed_hash, same_secret
 from models import db, User, Invitation, EmailCode, LoginSession, utc_now
 from store.accounts import record_try
 from store.audit import note
+from store.signin import forget_devices
 
 INVITATION_HOURS = 48
 CODE_MINUTES = 10
@@ -83,19 +84,20 @@ def invitations():
             .order_by(Invitation.id.desc()).all())
 
 
-def _new_token(invitation):
+def _new_token(invitation, now=None):
     """A fresh random token for the link; only its keyed hash is stored. The old link stops working."""
     token = secrets.token_urlsafe(32)
     invitation.token_hash = keyed_hash('invitation', token)
-    invitation.expires_at = utc_now() + timedelta(hours=INVITATION_HOURS)
+    invitation.expires_at = (now or utc_now()) + timedelta(hours=INVITATION_HOURS)
     invitation.pending_username = invitation.pending_password_hash = None
     return token
 
 
 def create_invitation(email, role, by):
     """Store a new invitation; returns (invitation, token). The caller emails the link with the token."""
-    invitation = Invitation(email=email, role=role, invited_by=by, created_at=utc_now())
-    token = _new_token(invitation)
+    now = utc_now()   # one reading of the clock, so it works exactly 48 hours from its creation
+    invitation = Invitation(email=email, role=role, invited_by=by, created_at=now)
+    token = _new_token(invitation, now)
     db.session.add(invitation)
     note(by, 'user.invite', email, {'role': ['', role]})
     db.session.commit()
@@ -168,7 +170,10 @@ def may_send_code(purpose, email):
     """None if a new code may be sent now, otherwise a sentence saying when. One a minute, 5 an hour per address."""
     last = (EmailCode.query.filter(EmailCode.purpose == purpose, func.lower(EmailCode.email) == email.lower())
             .order_by(EmailCode.id.desc()).first())
-    if last and utc_now() - last.created_at < timedelta(seconds=CODE_EVERY_SECONDS):
+    # v0.28.0: a code already used successfully doesn't make the next login wait (log out and in again within a
+    # minute); the wait stops repeated resends of an open code, or of one cancelled by 5 wrong tries
+    used_successfully = last is not None and last.used_at is not None and last.attempts < MAX_CODE_TRIES
+    if last and not used_successfully and utc_now() - last.created_at < timedelta(seconds=CODE_EVERY_SECONDS):
         return 'A code was sent less than a minute ago. Wait a minute before asking for another one.'
     if not record_try(keyed_hash('code-sent', purpose, email.lower()), timedelta(hours=1), CODES_PER_HOUR):
         return f'{CODES_PER_HOUR} codes were sent to this address in the last hour. Please try again later.'
@@ -228,6 +233,7 @@ def end_all_logins(user):
 def set_role(user, role, by):
     note(by, 'user.role', user.username, {'role': [user.role, role]})
     user.role = role
+    forget_devices(user)   # v0.28.0: trust lasts 30 days for cashiers but 7 for admins, so it starts again
     if role != 'admin':
         user.can_invite = False   # "may invite" only means something for admins
     db.session.commit()
@@ -239,6 +245,7 @@ def set_active(user, active, by):
     user.is_active = active
     if not active:
         end_all_logins(user)
+        forget_devices(user)   # v0.28.0 (S13)
     db.session.commit()
 
 
@@ -259,6 +266,7 @@ def reset_password(user, new_hash):
     user.password_hash = new_hash
     user.must_change_password = False
     end_all_logins(user)
+    forget_devices(user)   # v0.28.0 (S13)
     note(user.id, 'user.password-reset', user.username)
     db.session.commit()
 
@@ -282,3 +290,19 @@ def confirm_email(user):
     note(user.id, 'user.email-confirmed', user.username)
     user.email_verified_at = utc_now()
     db.session.commit()
+
+
+def add_email_for(user, email, by):
+    """v0.28.0 (owner's decision 1 in DEC-030): the owner, or an admin for a cashier, types the address of an account
+    that has none. It is confirmed by the code that person's next login sends there."""
+    note(by, 'user.email', user.username, {'email': [user.email or '', email]})
+    user.email, user.email_verified_at = email.lower(), None
+    db.session.commit()
+
+
+def confirm_email_by_login(user):
+    """The login code sent to an unconfirmed address was typed: the address is now proven (v0.28.0)."""
+    if user.email and not user.email_verified_at:
+        note(user.id, 'user.email-confirmed', user.username)
+        user.email_verified_at = utc_now()
+        db.session.commit()

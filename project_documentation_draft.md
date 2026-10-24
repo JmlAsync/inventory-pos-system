@@ -236,6 +236,7 @@ The tag message summarizes what the increment added.
 | v0.25.0 | 2026-10-24 | — | `app.py` (1,722 lines) split into six **blueprints** (`accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop`), shared rules in `common.py`, and a **`store/`** data layer through which every database change goes (selling, restock and count, products, options, recipes, logins, passwords, pictures, shop details). `app.py` (242 lines) only starts the app. No visible change: every page, message and rule is the same; 26 of 27 test files unchanged (one line in `test_hardening.py`). The contract check now fails if a page writes to the database itself (rule I1, now checked) (DEC-027) *(branch `feature/blueprints-store`, merged after the defense, DEC-018)* |
 | v0.26.0 | 2026-10-24 | — | Email sending and a login limit that holds (F23). `mail.py` sends plain-text email with Python's own `smtplib`, always over an encrypted connection, using the `[mail]` settings that `setup_shop.py` now asks for (optional; running it again keeps them). The admin page **Email** shows them (never the password) and sends a test message. Wrong passwords are counted in a new `login_attempt` table (migration `0004`), recorded before they are counted and stored as keyed hashes, so the limit survives a restart and holds for every server process (DEF-70, audit R2); **Change password** now has the same 5-tries limit (DEF-69, audit A7) (DEC-028) *(branch `feature/email-and-attempts`, merged after the defense, DEC-018)* |
 | v0.27.0 | 2026-10-24 | — | The owner, users and invitations (F24). Roles **owner**, admin and cashier; the database allows one owner, made by `setup_shop.py` with the owner's email (confirmed with a code on Profile; the purchase email replaces it in v0.38.0, owner's decision). **Users** page: invite by email (48-hour one-time link, role fixed by the inviter), change roles (owner), let admins invite cashiers, switch accounts off (never deleted; every login ends) and **Require a new password** (audit A5). **Emailed 6-digit codes** (keyed hashes, 10 minutes, one use, one purpose, 5 tries, one a minute and 5 an hour) confirm signups and emails and power **Forgot your password?** (the same answer for every address). **Audit log**: who changed which product, price, stock, option, ingredient, recipe, shop detail or account, old → new, written in the same commit as the change (audit R9). Migration `0005`; `add_users.py` removed (rule S12); rule S1 lists the three new public pages (owner's decision) (DEC-029) *(branch `feature/users-and-invitations`, merged after the defense, DEC-018)* |
+| v0.28.0 | 2026-10-25 | — | A code at every login (F25, rule S13): after the password, a 6-digit code by email, unless the browser is **trusted** (30 days; 7 for admins and the owner; ended by Remove, **Log out everywhere**, a password change, switching off or a role change). Each user may use an **authenticator app** instead (works with no internet; QR code drawn by `segno`, key encrypted with `cryptography`, a step never accepted twice) and print 10 one-time **backup codes**. Accounts with no email get one from the owner on Users (owner's decision). **Demo mode** (`DEMO_MODE=1`) prints codes and emails in the server window, lets the demo passwords work, and is refused with real mail settings (rule P3). Migration `0006`; rule S1 lists `/verify` (owner's decision); the tests of other features log in with `TEST_PLAIN_LOGIN`, which the contract check allows only in `tests/` (DEC-030) *(branch `feature/login-codes`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -443,6 +444,9 @@ Soon the system will email Jun his invitation, and a code when he logs in on a n
 
 ### Story F24 — Everyone with their own account *(v0.27.0)*
 Maria ran `setup_shop.py` with her own email, so she is the café's **owner**; on Profile she confirms the address with a code from her inbox. Jun starts on Monday, so she opens **Users**, types Jun's own Gmail address, picks **Cashier** and clicks **Invite**. Jun gets an email with a link, chooses "jun" and a password, types the 6-digit code that arrives, and is logged in as a cashier; nothing he types could have made him an admin. Maria lets her manager Ana invite cashiers too, but only Maria can make someone an admin. When a part-timer leaves, Ana switches the account off: the till they were logged in on is logged out at once, and their old receipts still show their name. A week later Jun forgets his password; **Forgot your password?** on the login page sends a code to his email and he chooses a new one. When the latte's price changes from ₱150 to ₱160, the **Audit log** shows who changed it and when.
+
+### Story F25 — A code that keeps strangers out *(v0.28.0)*
+Jun types his password on the counter laptop and the system asks for a 6-digit code, which arrives in his Gmail. He ticks **Trust this device**, so for the next 30 days that laptop only asks for his password. When someone sees Jun's password over his shoulder and tries it at home, they get stuck at the code. Maria prefers her phone: on Profile she switches to an authenticator app by scanning a QR code, and prints her backup codes. One morning the Wi-Fi is down; the counter laptop is trusted, so Jun logs in and sells as usual, and Maria logs in on her own laptop with the app, which needs no internet. When a part-timer's phone is lost, Ana resets their login code to email from Users, and the part-timer gets an email saying so.
 
 ---
 
@@ -1165,6 +1169,27 @@ Automated in `tests/test_users.py` (47 checks), `tests/test_invitations.py` (44)
 | TC-37.5 | An account from before v0.27.0 | Add an email: wrong password, another account's address, then right | Refused, refused, a code to the new address; saved and confirmed only after the code | As expected | ✅ |
 | TC-37.6 | Owner with an unconfirmed email | Profile; post another address anyway; enter the code | No box to change it; the code goes to the owner's own address; confirmed, address unchanged | As expected | ✅ |
 
+### F25 — A code at every login *(v0.28.0)*
+
+Automated in `tests/test_login_codes.py` (69 checks), the one test file that logs in the real way. The 32 older test files now say `app.config['TEST_PLAIN_LOGIN'] = True` (one line each: they test other features), and TC-38.13 shows the contract check refuses that line anywhere outside `tests/`. While building, TC-36.1 (v0.27.0) showed it read the clock twice; the invitation now reads it once.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-38.1 | — | Work out codes for RFC 6238's example times; a code two steps away | RFC 6238's codes exactly; one step either side accepted, two refused | As expected | ✅ |
+| TC-38.2 | A database at migration 0005 | Upgrade; undo; upgrade | `trusted_device` and `backup_code` added; existing accounts get emailed codes; undo removes them | As expected | ✅ |
+| TC-38.3 | Cashier with a confirmed email | Right password; wrong code; right code; log out and in again within a minute; wait 5 minutes on the code page | /verify, not logged in yet, the address hidden (c•••@example.com); refused; logged in; a new code is sent at once; after 5 minutes back to the login page | As expected | ✅ |
+| TC-38.4 | Same | 6 wrong codes; a new code within a minute | 429 "Too many"; "less than a minute ago" | As expected | ✅ |
+| TC-38.5 | Same | Tick "Trust this device"; log in again; wrong password; a second cashier on that browser; a copied or made-up cookie; an admin | Only a keyed hash stored; HttpOnly, SameSite=Lax cookie; password alone logs in, no email; the password is still needed; the second cashier needs a code and can trust too (two tokens); copies and made-up tokens ignored; 7 days for an admin | As expected | ✅ |
+| TC-38.6 | A trusted browser | Remove; Log out everywhere; change password; switch off; change role; let it expire | Each one ends trust (Log out everywhere also ends every login); another person's device can't be removed (404) | As expected | ✅ |
+| TC-38.7 | Cashier | Make backup codes (wrong, then right password); log in with one; again; make new ones | Password needed; 10 codes `xxxx-xxxx`, page not kept (`no-store`), only hashes stored; logs in (capitals and spaces fine); refused the second time; Profile says 9 left; old ones stop working | As expected | ✅ |
+| TC-38.8 | No internet | Log in | /verify says the code couldn't be sent and offers a backup code, which logs in (rule D2) | As expected | ✅ |
+| TC-38.9 | Cashier | Set up the app (password); wrong code; right code; log in; the set-up step's code; the next step's; the same again elsewhere; turn off without and with a code | QR as a `data:` SVG and the key as text, `no-store`; key stored encrypted, key file in `instance/`; not switched on a wrong code; switched, new backup codes, an email; no email at login; the used step refused (no replay); next step logs in; refused again; off needs a current code or backup code, then emails | As expected | ✅ |
+| TC-38.10 | Admin; cashier and owner using the app | Reset to email | The cashier's reset, logged and emailed; the owner's refused (403) | As expected | ✅ |
+| TC-38.11 | An account with no email | Log in; a cashier adds an email for it; the owner does; log in | "Ask the owner" (403); 403; saved unconfirmed; the code goes there, logs in and confirms it | As expected | ✅ |
+| TC-38.12 | A `cashier123` account | Log in; again in demo mode; start in demo mode with real mail settings | Refused with what to do (403); the code printed in the window, not emailed, and it logs in; start-up refused with a plain message | As expected | ✅ |
+| TC-38.13 | A file outside `tests/` with `TEST_PLAIN_LOGIN = True` | `check_contract.py` | Fails, naming the file and line | As expected | ✅ |
+| TC-38.14 | Demo copy in the browser, demo mode | Log in as the owner with the printed code and trust; log out and in again; set up the app with its current code; Profile at 375 px, dark | Logged in; trusted for 7 days, listed under Trusted devices; owner's email now confirmed; the QR drawn; switched, backup codes, the change email printed; no sideways scroll; no script errors | **First try:** logging in again within a minute sent no code ("less than a minute ago") though the first code was used · **Fixed:** the minute only applies while a code is open | ❌→✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1274,7 +1299,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_users.py` | F24 / TC-35.x (v0.27.0): migration 0005, one owner, who may do what (403s), roles, switching off, Require a new password, the audit log and its page, setup making the owner on an older database | 47 |
 | `test_invitations.py` | F24 / TC-36.x (v0.27.0): invitation emails and hashed tokens, the link's address, signup in two steps, the role can't be forged, Send again / Cancel / 48 hours, mail down, every code rule, one account per invitation | 44 |
 | `test_password_reset.py` | F24 / TC-37.x (v0.27.0): Forgot password's same answer, code and new password, logins ended, limits, the email on Profile, the owner's fixed email | 24 |
-| **33 files** | | **801 checks + 96 rule checks** |
+| `test_login_codes.py` | F25 / TC-38.x (v0.28.0): RFC 6238 codes, migration 0006, the code step and its 5 minutes, limits, trusted devices and every way they end, backup codes, offline login, the authenticator app (no replay), admin reset, accounts with no email, demo mode, the test-only switch | 69 |
+| **34 files** | | **870 checks + 117 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1314,7 +1340,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Blueprints and store/ (v0.25.0) | 4 | 4 | 0 | 0 |
 | F23 Email and login limit (v0.26.0) | 18 | 15 → **17** | 2 → **0** | 1 → **1** |
 | F24 Owner, users, invitations, audit log (v0.27.0) | 25 | 25 | 0 | 0 |
-| **Total** | **374** | **262 → 372** | **93 → 0** | **5 → 2** |
+| F25 Login codes (v0.28.0) | 14 | 13 → **14** | 1 → **0** | 0 |
+| **Total** | **388** | **275 → 386** | **94 → 0** | **5 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -2671,7 +2698,7 @@ whether the control is feasible (cost and effort).
 
 | Threat | Probability | Control | Feasibility |
 |---|---|---|---|
-| Unauthorised user gets in as the admin by guessing the password | Low | Passwords hashed; 5-try limit per username and computer; demo passwords changed | Done (v0.13.3, v0.19.3, 2026-10-12). Low cost |
+| Unauthorised user gets in as the admin by guessing the password | Low | Passwords hashed; 5-try limit per username and computer; demo passwords changed; since v0.28.0 a code at every login on an untrusted device (S13) | Done (v0.13.3, v0.19.3, 2026-10-12). Low cost |
 | Someone copies a logged-in cookie from the till | Low | Login records; log-out and password change end it; 8 idle hours end it | Done (v0.20.3). Low cost |
 | A cashier opens admin pages by typing the address | Medium | 403 on every admin page; contract check makes sure every page is listed as public, user or admin | Done (v0.7.0, v0.19.0) |
 | Another website makes the browser submit a form (CSRF) | Low | Random token on every form; SameSite=Lax cookie | Done (v0.13.2) |

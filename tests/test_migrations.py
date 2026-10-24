@@ -25,6 +25,7 @@ con.execute("INSERT INTO user VALUES (1,'admin',?,'admin')", (g('admin123'),))
 con.commit(); con.close()
 
 from app import app, upgrade_database, MIGRATIONS_FOLDER
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, Product, Sale, ShopProfile
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext

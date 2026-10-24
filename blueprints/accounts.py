@@ -2,8 +2,10 @@
 Moved from app.py in v0.25.0 (DEC-027): the same rules; database changes now go through store/accounts.py.
 Since v0.26.0 (DEC-028) the wrong passwords are counted in the database, on Change password too."""
 import os
+import time
 from datetime import timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+from flask import (Blueprint, render_template, request, redirect, url_for, session, flash, current_app,
+                   make_response, abort)
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
@@ -11,6 +13,8 @@ from models import db, User, utc_now
 from common import AVATAR_FOLDER, detect_image_type, delete_picture_file, keyed_hash, network_address, shop_now
 from store import accounts as account_store
 from store import users as user_store
+from store import signin as signin_store
+import totp
 from store.shop import shop_profile
 from mail import send_mail, mail_settings, check_email_address
 
@@ -121,14 +125,130 @@ def login():
         if user and password_ok and not user.is_active:
             # v0.27.0: switched off on the Users page. Said only after the right password, so it reveals nothing new
             return render_template('login.html', error='This account is switched off. Ask the shop\'s owner.'), 403
+        plain = current_app.config.get('TEST_PLAIN_LOGIN')   # only automated tests of other features (DEC-030)
+        if user and password_ok and password in DEMO_PASSWORDS and not (current_app.config.get('DEMO_MODE') or plain):
+            # v0.28.0 (rule P3): the published demo passwords work only in demo mode
+            return render_template('login.html', error='That is the demo\'s public password, so it only works in '
+                                   'the demo. Use "Forgot your password?" to choose your own.'), 403
         if user and password_ok:
             account_store.forget_tries(key)   # a correct password resets the count
-            session.clear()                # nothing from a previous login on this browser is kept
-            start_login_session(user)      # v0.20.3: a login that log-out can really end
-            login_user(user)
-            return redirect(page_after_login())    # v0.20.6 (DEF-06): back to the page they first asked for
+            # v0.28.0 (rule S13, DEC-030): a trusted browser skips the code; everyone else goes to /verify
+            if plain or signin_store.trusted_device_for(user, trust_tokens()):
+                return finish_login(user, page_after_login())
+            if user.second_step != 'app' and not user.email:
+                # Owner's decision 1 in DEC-030: the owner adds the address on Users; the next login confirms it
+                return render_template('login.html', error='Your account has no email yet, so the login code can\'t '
+                                       'be sent. Ask the shop\'s owner to add your email on the Users page.'), 403
+            session.clear()   # nothing from a previous login on this browser is kept
+            session['pending_login'] = {'user_id': user.id, 'at': time.time(), 'next': page_after_login()}
+            if user.second_step != 'app':
+                problem = email_code('login', user.email, user_id=user.id)
+                if problem:
+                    flash(f'The code could not be sent: {problem} You can type one of your backup codes instead.',
+                          'danger')
+            return redirect(url_for('accounts.verify'))
         return render_template('login.html', error='Invalid username or password')   # the try stays counted
     return render_template('login.html')
+
+
+# ---------------- The second step: a code, unless the browser is trusted (v0.28.0, S13, DEC-030) ----------------
+PENDING_SECONDS = 5 * 60    # "half logged in" lasts 5 minutes after the right password
+TRUST_COOKIE = 'trusted'    # holds up to 10 random tokens; each counts only for the user it was made for
+DEMO_PASSWORDS = {'admin123', 'cashier123'}   # published in the README for the demo (rule P3)
+
+
+def finish_login(user, next_page):
+    """The real login (v0.6.0, v0.20.3): a login row that log-out can end, then back to the page they asked for."""
+    session.clear()                # nothing from a previous login on this browser is kept
+    start_login_session(user)      # v0.20.3: a login that log-out can really end
+    login_user(user)
+    return redirect(next_page)     # v0.20.6 (DEF-06): back to the page they first asked for
+
+
+def trust_tokens():
+    """The tokens in this browser's trust cookie (random text without dots)."""
+    return [t for t in request.cookies.get(TRUST_COOKIE, '').split('.') if 20 <= len(t) <= 64][:signin_store.MAX_TRUSTED_IN_COOKIE]
+
+
+def device_label():
+    """A short name for this browser, e.g. "Edge on Windows", from what the browser says about itself."""
+    agent = request.headers.get('User-Agent', '')
+    browser = next((name for key, name in [('Edg/', 'Edge'), ('OPR/', 'Opera'), ('Firefox/', 'Firefox'),
+                                           ('Chrome/', 'Chrome'), ('Safari/', 'Safari')] if key in agent), 'A browser')
+    system = next((name for key, name in [('Windows', 'Windows'), ('Android', 'Android'), ('iPhone', 'iPhone'),
+                                          ('iPad', 'iPad'), ('Mac OS', 'Mac'), ('Linux', 'Linux')] if key in agent), '')
+    return f'{browser} on {system}' if system else browser
+
+
+def pending_user():
+    """The person who typed the right password in the last 5 minutes, or None."""
+    pending = session.get('pending_login') or {}
+    if not pending or time.time() - pending.get('at', 0) > PENDING_SECONDS:
+        return None
+    user = db.session.get(User, pending.get('user_id'))
+    return user if user is not None and user.is_active else None
+
+
+def masked(address):
+    """m•••@gmail.com: enough to recognise your own address, not enough to learn someone else's."""
+    name, _, domain = (address or '').partition('@')
+    return f'{name[:1]}•••@{domain}' if domain else ''
+
+
+@bp.route('/verify', methods=['GET', 'POST'])
+def verify():
+    """Type the emailed code, the authenticator app's code, or a backup code. Tick "Trust this device" to skip
+    this step on this browser for 30 days (7 for admins and the owner)."""
+    user = pending_user()
+    if user is None:
+        session.pop('pending_login', None)
+        flash('Please log in again (the 5 minutes to type the code have passed).', 'info')
+        return redirect(url_for('accounts.login'))
+    details = dict(user=user, email=masked(user.email), days=signin_store.trust_days(user),
+                   backup_left=signin_store.backup_codes_left(user))
+    if request.method == 'POST':
+        key = attempt_key('verify', user.id)
+        if not account_store.record_try(key, LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
+            return render_template('verify.html', error=f'Too many wrong codes. Please wait {LOCKOUT_MINUTES} '
+                                   f'minutes and try again.', **details), 429
+        typed = request.form.get('code', '')
+        letters = signin_store.tidy_backup_code(typed)
+        ok, tries_left = False, None
+        if len(letters) == 8:   # backup codes have 8 characters; login codes 6 digits
+            ok = signin_store.use_backup_code(user, typed)
+        elif user.second_step == 'app':
+            ok = signin_store.check_app_code(user, typed)
+        else:
+            row, tries_left = user_store.check_code('login', user.email, typed)
+            ok = row is not None and row.user_id == user.id
+            if ok:
+                user_store.confirm_email_by_login(user)   # owner's decision 1: the code proves an added address
+        if not ok:
+            error = code_problem(tries_left) if tries_left is not None else 'That code is not right.'
+            return render_template('verify.html', error=error, **details)
+        account_store.forget_tries(key)
+        next_page = session['pending_login'].get('next') or url_for('catalog.products')
+        trust = request.form.get('trust') == '1'
+        response = make_response(finish_login(user, next_page))
+        if trust:
+            tokens = [t for t in trust_tokens()][-(signin_store.MAX_TRUSTED_IN_COOKIE - 1):]
+            tokens.append(signin_store.trust_device(user, device_label()))
+            response.set_cookie(TRUST_COOKIE, '.'.join(tokens), max_age=signin_store.trust_days(user) * 86400,
+                                httponly=True, samesite='Lax', secure=request.is_secure)
+        return response
+    return render_template('verify.html', **details)
+
+
+@bp.route('/verify/resend', methods=['POST'])
+def verify_resend():
+    """A new emailed code (one a minute, 5 an hour, as in v0.27.0)."""
+    user = pending_user()
+    if user is None:
+        return redirect(url_for('accounts.verify'))
+    if user.second_step != 'app':
+        problem = email_code('login', user.email, user_id=user.id)
+        flash(problem or f'A new code was sent to {masked(user.email)}.', 'danger' if problem else 'info')
+    return redirect(url_for('accounts.verify'))
 
 
 @bp.route('/logout', methods=['POST'])   # a button, not a link, so other sites can't log you out (v0.13.2)
@@ -180,7 +300,9 @@ def profile():
         account_store.set_avatar(current_user, filename)
         flash('Profile picture updated.', 'success')
         return redirect(url_for('accounts.profile'))
-    return render_template('profile.html')
+    # v0.28.0: the trusted devices and how many backup codes are left, for the sign-in cards
+    return render_template('profile.html', devices=signin_store.devices(current_user),
+                           backup_left=signin_store.backup_codes_left(current_user))
 
 
 @bp.route('/profile/remove', methods=['POST'])
@@ -284,6 +406,7 @@ def link_to(endpoint, **values):
 
 
 CODE_EMAILS = {   # purpose: (subject, what the code is for)
+    'login': ('Your login code for {shop}', 'log in to your {shop} account'),   # v0.28.0
     'signup': ('Your code to join {shop}', 'finish joining {shop}'),
     'reset': ('Your code to choose a new password', 'choose a new password for your {shop} account'),
     'email': ('Your code to confirm this email address', 'confirm this email address for your {shop} account'),
@@ -425,3 +548,112 @@ def confirm_email():
         user_store.set_email(current_user, address)
     flash(f'Email confirmed: {address}. It can now be used if you forget your password.', 'success')
     return redirect(url_for('accounts.profile') + '#email')
+
+
+# ---------------- Trusted devices, Log out everywhere, backup codes (v0.28.0, S13, DEC-030) ----------------
+def no_store(html):
+    """A page the browser must not keep (backup codes, the authenticator key): Cache-Control no-store (DEC-017)."""
+    response = make_response(html)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@bp.route('/profile/devices/<int:device_id>/remove', methods=['POST'])
+@login_required
+def remove_device(device_id):
+    if not signin_store.remove_device(current_user, device_id):
+        abort(404)   # not one of this person's devices
+    flash('That device is no longer trusted: it will ask for a code at the next login.', 'success')
+    return redirect(url_for('accounts.profile') + '#devices')
+
+
+@bp.route('/profile/logout-everywhere', methods=['POST'])
+@login_required
+def logout_everywhere():
+    """Every login of this person ends, here too, and no device stays trusted (S13)."""
+    signin_store.logout_everywhere(current_user)
+    logout_user()
+    session.clear()
+    response = make_response(redirect(url_for('accounts.login')))
+    flash('You were logged out everywhere, and no device is trusted any more.', 'success')
+    return response
+
+
+@bp.route('/profile/backup-codes', methods=['POST'])
+@login_required
+def backup_codes():
+    """New backup codes, shown once. The current password is asked, with the A7 limit."""
+    problem = current_password_ok(request.form.get('current_password', ''))
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('accounts.profile') + '#backup')
+    return no_store(render_template('backup_codes.html', codes=signin_store.new_backup_codes(current_user)))
+
+
+# ---------------- The authenticator app (v0.28.0, DEC-017) ----------------
+def tell_method_changed(user, method):
+    """S13: turning the app on or off emails the person, so a change they didn't make is noticed."""
+    if user.email:
+        shop = shop_profile().name
+        send_mail(user.email, 'Your sign-in method changed',
+                  f'Your {shop} account now uses {method} for the login code.\n\n'
+                  f'Changed on {shop_now():%d %b %Y at %I:%M %p} from the computer {request.remote_addr}.\n'
+                  f'If this wasn\'t you, tell the shop\'s owner at once and change your password.\n',
+                  sender_name=shop)
+
+
+def authenticator_page(key, error=None):
+    shop = shop_profile().name
+    link = totp.setup_link(key, current_user.username, shop)
+    spaced = ' '.join(key[i:i + 4] for i in range(0, len(key), 4))
+    return no_store(render_template('authenticator.html', qr=totp.qr_image(link), key=spaced, error=error))
+
+
+@bp.route('/profile/authenticator', methods=['POST'])
+@login_required
+def authenticator_start():
+    """Step 1: the password again, then a new key as a QR code and as text."""
+    problem = current_password_ok(request.form.get('current_password', ''))
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('accounts.profile') + '#method')
+    return authenticator_page(signin_store.start_app(current_user))
+
+
+@bp.route('/profile/authenticator/confirm', methods=['POST'])
+@login_required
+def authenticator_confirm():
+    """Step 2: the app's current code proves the scan worked; only then does the method change."""
+    key = signin_store.pending_key(current_user)
+    if key is None:
+        return redirect(url_for('accounts.profile') + '#method')
+    if not account_store.record_try(attempt_key('verify', current_user.id), LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
+        return authenticator_page(key, f'Too many wrong codes. Please wait {LOCKOUT_MINUTES} minutes and try again.')
+    if not signin_store.finish_app(current_user, request.form.get('code', '')):
+        return authenticator_page(key, 'That code is not right. Check the app shows this shop, and the phone\'s time.')
+    tell_method_changed(current_user, 'an authenticator app')
+    return no_store(render_template('backup_codes.html', codes=signin_store.new_backup_codes(current_user),
+                                    app_turned_on=True))
+
+
+@bp.route('/profile/authenticator/off', methods=['POST'])
+@login_required
+def authenticator_off():
+    """Back to emailed codes: the password AND a current app code or a backup code (S13)."""
+    if current_user.second_step != 'app':
+        return redirect(url_for('accounts.profile'))
+    problem = current_password_ok(request.form.get('current_password', ''))
+    if problem is None:
+        typed = request.form.get('code', '')
+        if not (signin_store.check_app_code(current_user, typed) or signin_store.use_backup_code(current_user, typed)):
+            problem = 'That code is not right. Type the code your app shows now, or one of your backup codes.'
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('accounts.profile') + '#method')
+    if not current_user.email:
+        flash('Add an email first: without one, the login code couldn\'t be sent.', 'danger')
+        return redirect(url_for('accounts.profile') + '#email')
+    signin_store.back_to_email(current_user, by=current_user.id)
+    tell_method_changed(current_user, 'a code sent by email')
+    flash('Your login code now comes by email again.', 'success')
+    return redirect(url_for('accounts.profile') + '#method')

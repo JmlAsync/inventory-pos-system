@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Backup codes{% endblock %}
+{% block content %}
+{# New backup codes, shown ONCE (v0.28.0, plan §2.6, DEC-030). Sent with Cache-Control: no-store. #}
+<div class="card mx-auto" style="max-width: 28rem;"><div class="card-body">
+    {% if app_turned_on %}
+    <div class="alert alert-success">Your authenticator app is set up. From now on, type the code it shows when you log in.</div>
+    {% endif %}
+    <h1 class="h4 fw-bold mb-2"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Your backup codes</h1>
+    <p>Each code works <strong>once</strong>, instead of a login code, when you have no email or no phone (for example
+        when the internet is down). Print them or write them down and keep them somewhere safe.
+        <strong>They are shown only now.</strong> Any older backup codes no longer work.</p>
+    <ol class="row row-cols-2 g-2 list-unstyled font-monospace fs-5 mb-3">
+        {% for code in codes %}<li class="col"><span class="d-block border rounded text-center py-1">{{ code }}</span></li>{% endfor %}
+    </ol>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary flex-fill" onclick="window.print()"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>
+        <a class="btn btn-primary flex-fill" href="{{ url_for('accounts.profile') }}">Done</a>
+    </div>
+</div></div>
+{% endblock %}

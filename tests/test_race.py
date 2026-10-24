@@ -9,6 +9,7 @@ import sqlalchemy.orm
 from werkzeug.security import generate_password_hash as g
 from helpers import check, finish, text, Browser, start_server
 from app import app
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, Product, User, Sale, SaleItem, Ingredient, RecipeItem, IngredientMovement
 
 app.config['CSRF_ENABLED'] = False

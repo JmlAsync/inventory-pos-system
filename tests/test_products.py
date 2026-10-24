@@ -1,6 +1,7 @@
 """Log in, roles and product add / edit / delete (features F1-F6, test cases TC-1 to TC-6)."""
 from helpers import check, finish, make_users, text
 from app import app
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, Product, User
 
 app.config['CSRF_ENABLED'] = False        # forms are posted directly; test_security.py checks tokens

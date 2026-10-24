@@ -14,9 +14,10 @@ from models import User, Invitation, utc_now
 from mail import mail_settings, send_mail, check_email_address
 from store import users as user_store
 from store import audit as audit_store
+from store import signin as signin_store
 from store.shop import shop_profile
 from blueprints.accounts import (link_to, email_code, code_problem, new_password_problem, start_login_session,
-                                 MAX_USERNAME_LENGTH)
+                                 MAX_USERNAME_LENGTH, tell_method_changed)
 
 bp = Blueprint('users', __name__)
 
@@ -185,6 +186,40 @@ def may_invite(user_id):
     if allowed != user.can_invite:
         user_store.set_can_invite(user, allowed, by=current_user.id)
         flash(f'{user.username} {"may" if allowed else "may no longer"} invite cashiers.', 'success')
+    return redirect(url_for('users.users'))
+
+
+@bp.route('/admin/users/<int:user_id>/email', methods=['POST'])
+@login_required
+@admin_required
+def add_email(user_id):
+    """v0.28.0 (owner's decision 1 in DEC-030): the address of an account made before v0.27.0, typed by the owner (or an
+    admin, for a cashier). That person's next login sends the code there, which confirms it."""
+    user = target_user(user_id)
+    if not may_manage(user) or user.email:
+        abort(403)
+    address = check_email_address(request.form.get('email', ''))
+    if address is None:
+        flash("Type the person's own email address, like name@example.com.", 'danger')
+    elif user_store.email_taken(address):
+        flash(f'{address} is already used by another account.', 'danger')
+    else:
+        user_store.add_email_for(user, address, by=current_user.id)
+        flash(f"{user.username}'s next login sends the code to {address}, which confirms it.", 'success')
+    return redirect(url_for('users.users'))
+
+
+@bp.route('/admin/users/<int:user_id>/reset-second-step', methods=['POST'])
+@login_required
+@admin_required
+def reset_second_step(user_id):
+    """A lost phone (DEC-017): back to emailed codes. Logged and emailed. Never for the owner (may_manage)."""
+    user = target_user(user_id)
+    if not may_manage(user) or user.second_step != 'app' or not user.email:
+        abort(403)
+    signin_store.back_to_email(user, by=current_user.id)
+    tell_method_changed(user, 'a code sent by email (reset by ' + current_user.username + ')')
+    flash(f'{user.username} gets the login code by email again.', 'success')
     return redirect(url_for('users.users'))
 
 

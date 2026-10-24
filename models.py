@@ -70,6 +70,13 @@ class User(db.Model, UserMixin):
     must_change_password = db.Column(db.Boolean, nullable=False, default=False)   # "Require a new password" (audit A5)
     can_invite = db.Column(db.Boolean, nullable=False, default=False)   # an admin the owner allowed to invite cashiers
     created_at = db.Column(db.DateTime, default=utc_now)
+    # v0.28.0 (rule S13, DEC-017, DEC-030): the second step at login, 'email' (a code by email) or 'app' (an
+    # authenticator app). The app's key is stored ENCRYPTED (it can't be hashed: the server works out codes from it);
+    # totp_last_step is the last 30-second step accepted, so a code can't be used twice (S14).
+    second_step = db.Column(db.String(10), nullable=False, default='email')
+    totp_key_encrypted = db.Column(db.Text)
+    totp_pending_encrypted = db.Column(db.Text)   # during set-up, until the first code proves the scan
+    totp_last_step = db.Column(db.Integer)
 
     @property
     def is_owner(self):
@@ -267,3 +274,28 @@ class AuditEntry(db.Model):
     target = db.Column(db.String(120), nullable=False)              # e.g. 'Latte (L1)', 'maria'
     details = db.Column(db.Text, nullable=False, default='{}')      # JSON: {"price": ["150.00", "160.00"]}
     user = db.relationship('User')
+
+
+class TrustedDevice(db.Model):
+    """A browser where this user skips the login code (v0.28.0, rule S13, DEC-005, DEC-030): 30 days, 7 for admins and
+    the owner. The browser's cookie holds a random token; only its keyed hash is here (S14). Ends on Remove, Log out
+    everywhere, a password change, switching the account off or a role change."""
+    __tablename__ = 'trusted_device'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    label = db.Column(db.String(60), nullable=False, default='')   # e.g. "Edge on Windows"
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    last_used_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+
+class BackupCode(db.Model):
+    """One of 10 one-time codes for when no emailed or app code can be had (v0.28.0, plan §2.6, DEC-030), stored only
+    as a keyed hash (S14). Making new ones cancels the old ones."""
+    __tablename__ = 'backup_code'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    code_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    used_at = db.Column(db.DateTime)

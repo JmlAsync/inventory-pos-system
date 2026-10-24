@@ -20,6 +20,7 @@ con.execute("INSERT INTO user VALUES (2,'cashier',?, 'cashier')", (g('cashier123
 con.commit(); con.close()
 
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, Product, Sale
 
 app.config['CSRF_ENABLED'] = False

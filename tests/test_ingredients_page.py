@@ -8,6 +8,7 @@ CREATE TABLE ingredient (id INTEGER PRIMARY KEY, name VARCHAR(50) NOT NULL UNIQU
 INSERT INTO ingredient VALUES (1,'Oat milk','ml',2000,500),(2,'Iced cups','pcs',100,20),(3,'Espresso beans','g',3000,500),
  (4,'Croissant dough','pcs',24,6),(5,'Biscoff spread','g',600,120),(6,'Cocoa powder','g',500,100),(7,'Ice','g',0,1000),(8,'Lotus biscuits','pcs',5,6);"""); c.commit(); c.close()
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Ingredient, IngredientMovement, Product, RecipeItem
 from werkzeug.security import generate_password_hash as g

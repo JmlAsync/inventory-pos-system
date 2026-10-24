@@ -48,6 +48,17 @@ if os.environ.get('MAIL_PASSWORD'):
     app.config['MAIL']['password'] = os.environ['MAIL_PASSWORD']
 # How the server listens (v0.27.0): links in emails use the network address when other devices are allowed
 app.config['SERVER_HOST'] = CONFIG.get('server', {}).get('host', '127.0.0.1')
+# Demo mode (v0.28.0, rule P3, DEC-030): DEMO_MODE=1 prints every email (login codes too) in this window instead of
+# sending it, and lets the published demo passwords log in. Refused when real mail settings exist, so it can't be
+# left on in a shop by mistake.
+app.config['DEMO_MODE'] = os.environ.get('DEMO_MODE') == '1'
+if app.config['DEMO_MODE'] and app.config['MAIL'].get('host'):
+    print('DEMO_MODE=1 is for the demo only, but instance/config.toml has real email settings ([mail]).', file=sys.stderr)
+    print('Start without DEMO_MODE, or remove the [mail] part (python setup_shop.py) on a demo computer.', file=sys.stderr)
+    raise SystemExit(1)
+# Password-only login, with the demo passwords allowed (v0.28.0, DEC-030). ONLY automated tests of other features
+# set this, like CSRF_ENABLED; tests/check_contract.py fails if any file outside tests/ does.
+app.config['TEST_PLAIN_LOGIN'] = False
 
 
 def load_secret_key():

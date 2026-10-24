@@ -3,6 +3,7 @@ import sys, os, re, subprocess
 from datetime import timedelta
 from helpers import check, finish, text, fixture
 from app import app, upgrade_database
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, Product, LoginAttempt
 from werkzeug.security import generate_password_hash as g
 from flask.sessions import SecureCookieSessionInterface

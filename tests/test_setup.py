@@ -30,6 +30,7 @@ GOOD = {'network': {'other_devices': True, 'port': 5050},
 ASK_DB = """
 import logging; logging.disable(50)
 from app import app
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 from models import db, User, ShopProfile
 from werkzeug.security import check_password_hash
 with app.app_context():

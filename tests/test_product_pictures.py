@@ -7,6 +7,7 @@ c = sqlite3.connect('instance/inventory.db'); c.executescript("""
 CREATE TABLE product (id INTEGER PRIMARY KEY, name VARCHAR(100) NOT NULL, sku VARCHAR(50) NOT NULL UNIQUE, price FLOAT NOT NULL, quantity INTEGER, category VARCHAR(50));
 INSERT INTO product VALUES (1,'Old Coke','OC1',20,5,'Drinks');"""); c.commit(); c.close()
 from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER
+app.config['TEST_PLAIN_LOGIN'] = True   # v0.28.0: password-only login; this file isn't about the login code (DEC-030)
 app.config['CSRF_ENABLED'] = False
 from models import db, User, Product, Sale, SaleItem
 from werkzeug.security import generate_password_hash as g

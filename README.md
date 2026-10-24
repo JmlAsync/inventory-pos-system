@@ -55,7 +55,9 @@ pip install -r requirements.txt
 # 3. Fill the database with a demo café menu, the demo accounts and a week of sales
 python seed_demo_data.py
 
-# 4. Start the app
+# 4. Start the app in demo mode (v0.28.0): the demo passwords work, and every login code and email
+#    is shown in this window instead of being sent
+$env:DEMO_MODE = "1"
 python app.py
 ```
 
@@ -70,8 +72,9 @@ On macOS or Linux, activate the virtual environment with `source venv/bin/activa
 | `admin` | `admin123` | The demo shop's **owner** (v0.27.0): changes products, ingredients and recipes, sees reports, manages Users and reads the Audit log |
 | `cashier` | `cashier123` | Cashier: can sell and see receipts |
 
-These passwords are for the demo only. Change them on the **Profile** page before using the app
-for real.
+These passwords are for the demo only and work only in demo mode (`DEMO_MODE=1`, v0.28.0). After the password,
+type the 6-digit **login code** printed in the window where the app runs; tick **Trust this device** to skip it
+next time. A shop's own copy never uses these accounts (see below).
 
 ### Useful extras
 
@@ -106,6 +109,11 @@ and role, and the person chooses their username and password from the emailed li
 Nobody can sign themselves up. Accounts are switched off, never deleted. The owner confirms their own email on
 **Profile**; **Forgot your password?** on the login page sends a code to a confirmed email. **Audit log** shows who
 changed which price, product, recipe or account.
+
+**Login codes (v0.28.0):** every login needs the password and a 6-digit code sent by email, unless the browser is
+trusted (30 days; 7 for admins and the owner). On **Profile** everyone can switch to an **authenticator app**
+(works with no internet), print **backup codes**, see and remove trusted devices, and **log out everywhere**.
+For the counter computer, tick **Trust this device** once, so selling keeps working when the internet is down.
 
 **Email (v0.26.0):** answer yes to the email questions to let the system send email. For Gmail, use the server
 `smtp.gmail.com`, security `starttls`, port 587 and an **App Password** (Google Account → Security → App

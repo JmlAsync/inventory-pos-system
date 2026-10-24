@@ -76,6 +76,82 @@
     </div>
 </div>
 
+{# Signing in (v0.28.0, rule S13, DEC-030): the second step, backup codes, trusted devices #}
+<div class="card mx-auto mt-3" style="max-width: 28rem;" id="method">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-shield-check me-2" aria-hidden="true"></i>Login code</h2>
+        {% if current_user.second_step == 'app' %}
+        <p>Your login code comes from your <strong>authenticator app</strong>. It works without internet.</p>
+        <form method="POST" action="{{ url_for('accounts.authenticator_off') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-2">
+                <label class="form-label" for="off_password">Current password</label>
+                <input type="password" class="form-control" id="off_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="off_code">Code from the app, or a backup code</label>
+                <input type="text" class="form-control" id="off_code" name="code" autocomplete="one-time-code" maxlength="12" required>
+            </div>
+            <button type="submit" class="btn btn-outline-secondary w-100">Get the code by email instead</button>
+        </form>
+        {% else %}
+        <p>Your login code comes <strong>by email</strong>{% if current_user.email %} to {{ current_user.email }}{% endif %}.
+            An authenticator app on your phone works even when the internet is down.</p>
+        <form method="POST" action="{{ url_for('accounts.authenticator_start') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="app_password">Current password</label>
+                <input type="password" class="form-control" id="app_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-outline-primary w-100">Use an authenticator app instead</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mx-auto mt-3" style="max-width: 28rem;" id="backup">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-key me-2" aria-hidden="true"></i>Backup codes</h2>
+        <p>{% if backup_left %}You have <strong>{{ backup_left }}</strong> unused backup code{{ '' if backup_left == 1 else 's' }}.
+            {% else %}You have no backup codes. Make some and keep them on paper, for a day with no internet or no phone.{% endif %}</p>
+        <form method="POST" action="{{ url_for('accounts.backup_codes') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label" for="backup_password">Current password</label>
+                <input type="password" class="form-control" id="backup_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-outline-primary w-100">Make {{ 'new ' if backup_left }}backup codes</button>
+            {% if backup_left %}<div class="form-text">The old ones stop working.</div>{% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card mx-auto mt-3" style="max-width: 28rem;" id="devices">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3"><i class="bi bi-laptop me-2" aria-hidden="true"></i>Trusted devices</h2>
+        {% if devices %}
+        <ul class="list-unstyled mb-3">
+            {% for device in devices %}
+            <li class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom">
+                <span>{{ device.label }}<br><span class="small text-body-secondary">until {{ (device.expires_at|shop_time).strftime('%b %d, %Y') }}</span></span>
+                <form method="POST" action="{{ url_for('accounts.remove_device', device_id=device.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary">No trusted devices: every login asks for a code.</p>
+        {% endif %}
+        <form method="POST" action="{{ url_for('accounts.logout_everywhere') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger w-100">Log out everywhere</button>
+            <div class="form-text">Ends every login of your account, here too, and removes every trusted device.</div>
+        </form>
+    </div>
+</div>
+
 {# Change password (v0.13.5) #}
 <div class="card mx-auto mt-3" style="max-width: 28rem;" id="password">
     <div class="card-body">

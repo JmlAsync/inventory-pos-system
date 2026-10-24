@@ -41,7 +41,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-024](#dec-024) | Times stored in UTC; shown in the shop's fixed UTC+8 | Best choice | Decided |
 | [DEC-025](#dec-025) | Money: whole centavos in the database, exact Decimal pesos in Python | Best choice | Decided |
 | [DEC-026](#dec-026) | A shop's copy: set up once, settings in `config.toml`, served by waitress | Best choice | Decided |
-| [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice (one part open) | Decided; reads: open |
+| [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice | Decided |
 
 ---
 
@@ -792,4 +792,9 @@ second kind of store (Firestore) is built only for a client already on Firebase 
 **The owner decides** (C8): either move the reads in a follow-up version, or reword the note to "every database change
 in `store/`; reads move when a second store is built".
 
-**Verdict:** Best choice for the split and the writes; the reads are **open: owner to decide**. **Status:** Decided, 2026-10-24.
+**Owner's decision (2026-10-24):** reword the note: "every database change goes through `store/`; reads move there
+when a second kind of store is built." Applied in AGENTS.md §2, with the old wording kept in an *Overridden* note.
+*Check of this decision:* it matches the recommendation above and keeps the rule true of the code today; the I1
+contract check enforces the part that protects the data (writes). **Best choice.**
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.

@@ -73,6 +73,15 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 > directly, so the code is split into blueprints and a `store/` data layer (audit risk R7). Until
 > v0.25.0 is merged, keep adding to `app.py` as before. Full reasoning: DEC-008.
 
+**Where database code goes (from v0.25.0).** Every database change goes through `store/`; the pages in
+`blueprints/` and `app.py` only read. Reads move into `store/` too when a second kind of store is built
+(the optional Firebase package, DEC-014). Checked by `tests/check_contract.py` (rule I1).
+
+> *Overridden 2026-10-24 (owner's decision).* Old wording: "split into blueprints, with all database
+> access in `store/`". Why: v0.25.0 moved every write and the shared stock calculations. Moving every
+> read as well would have doubled the change for no benefit yet, because SQLite and PostgreSQL share the
+> same SQL code; reads only need a second home when a second kind of store exists. Full reasoning: DEC-027.
+
 ## 3. Security boundaries
 
 - **S1 [checked]** Every page (`@app.route`) MUST be listed in `tests/check_contract.py` as

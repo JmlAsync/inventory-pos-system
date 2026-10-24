@@ -7,7 +7,8 @@
     store/shop.py         the shop's details for receipts
     store/stock.py        reading what can still be made and sold (recipes, levels)
 
-The pages in blueprints/ never write to the database themselves; tests/check_contract.py fails if one does.
-They may still read with simple queries; those move here when a second kind of database is built
-(DEC-014: Firestore, only for a client already on Firebase). Today SQLite and PostgreSQL share this code.
+The rule (AGENTS.md section 2, decided 2026-10-24): every database change goes through store/; reads move
+here when a second kind of store is built (DEC-014: Firestore, only for a client already on Firebase).
+The pages in blueprints/ never write; tests/check_contract.py fails if one does. Today SQLite and
+PostgreSQL share this code.
 """

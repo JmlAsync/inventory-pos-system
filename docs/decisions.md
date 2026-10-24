@@ -38,6 +38,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-021](#dec-021) | Demo menu: one product per drink, sold Hot or Iced | Best choice | Decided |
 | [DEC-022](#dec-022) | Shop details live in the database; the "not an official receipt" line is fixed | Best choice | Decided |
 | [DEC-023](#dec-023) | Migrations: one catch-up first migration, a backup before every upgrade | Best choice | Decided |
+| [DEC-024](#dec-024) | Times stored in UTC; shown in the shop's fixed UTC+8 | Best choice | Decided |
 
 ---
 
@@ -646,3 +647,31 @@ went wrong" from lost data into restoring one file.
 without Flask-Migrate* (works, but more set-up and no `flask db` commands). *Hand-written SQL scripts with our own
 version table* (re-inventing Alembic, with fewer checks). *Recreate the database from an export on every upgrade*
 (slow and risky in a busy week). **Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-024
+
+**Times stored in UTC; shown in the shop's fixed UTC+8** *(v0.23.1, DEF-67, audit R1)*
+
+**How it works.** Every new time (sales, logins, ingredient changes, the login limit) is stamped with `utc_now()`.
+Pages pass times through the `shop_time` filter, and the report and Home turn "a day" on the shop's clock into a UTC
+range with `shop_day_start_utc()`. Migration `0002` converted the times already stored, from this computer's local
+time to UTC; undoing it converts them back.
+
+**Why.** Until now each time meant "whatever the computer's clock said". On the shop's laptop that happened to be
+right, but a cloud server (DEC-014) runs on UTC, so the same code there would have put a 7 AM sale in the previous
+day's report. Storing one unambiguous time and converting only for people is the standard practice, and it has to
+happen before any cloud package exists.
+
+**Details checked.**
+
+| Detail | Choice | Alternative rejected |
+|---|---|---|
+| Shop time zone | A fixed UTC+8 (`timezone(timedelta(hours=8), 'PHT')`) | `zoneinfo("Asia/Manila")`: correct too, but Windows has no time-zone database, so it needs the `tzdata` package. The Philippines has had no daylight saving since 1978, so a fixed offset is exact. A shop in a country with daylight saving would need `tzdata` (noted for later) |
+| Converting old times | This computer's own time zone | Always subtract 8 hours: wrong if the laptop was ever set to another zone. The old times were written by this computer's clock, so its own setting is the faithful inverse. The database is upgraded where it lives (at start-up on the shop's laptop); moving to the cloud happens after, through export/import |
+| Stored form | UTC without a zone label | Zone-aware columns: SQLite has none, and labels would differ between databases |
+| Backup file names | Still the computer's local time | They are read by a person in File Explorer on that computer |
+| Tests | Fixed dates for the conversions; three older tests moved to the helpers | Relying on the test machine's zone: GitHub runs on UTC, where local and UTC are the same and a mistake would hide (one did: TC-27.8 only failed on the UTC+8 laptop) |
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.

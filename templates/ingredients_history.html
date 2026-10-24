@@ -30,7 +30,7 @@
     <tbody>
     {% for move in moves %}
     <tr>
-        <td class="text-nowrap">{{ move.created_at.strftime('%b %d, %I:%M %p') }}</td>
+        <td class="text-nowrap">{{ (move.created_at|shop_time).strftime('%b %d, %I:%M %p') }}</td>
         <td><a href="{{ url_for('ingredient_detail', ingredient_id=move.ingredient_id) }}" class="text-reset">{{ move.ingredient.name }}</a></td>
         <td class="text-end text-nowrap {{ 'text-success' if move.change > 0 else 'text-danger' if move.change < 0 else '' }}">{{ '+' if move.change > 0 else '' }}{{ move.change|amount }} {{ move.ingredient.unit }}</td>
         <td>{% if move.reason == 'sale' %}Sale <a href="{{ url_for('receipt', sale_id=move.sale_id) }}">#{{ move.sale_id }}</a>{% elif move.reason == 'restock' %}Restock{% else %}Stock count{% endif %}</td>

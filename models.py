@@ -1,8 +1,14 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_login import UserMixin
 
 db = SQLAlchemy()
+
+
+def utc_now():
+    """The current time in UTC, without a time-zone label, as every time is stored (v0.23.1, DEC-024).
+    The pages show it in the shop's time (UTC+8) with the shop_time filter in app.py."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,8 +50,8 @@ class LoginSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False)   # 64 random characters, nothing secret about the user
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    last_seen = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
+    last_seen = db.Column(db.DateTime, default=utc_now, nullable=False)
 
 
 class ShopProfile(db.Model):
@@ -62,8 +68,8 @@ class ShopProfile(db.Model):
 class Sale(db.Model):
     """One customer purchase (one 'receipt'). A Sale contains one or more SaleItems."""
     id = db.Column(db.Integer, primary_key=True)
-    # When the sale happened. default=datetime.now fills it in automatically.
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    # When the sale happened. default=utc_now fills it in automatically.
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     # Which user (cashier or admin) made the sale. ForeignKey links to the user table.
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     total = db.Column(db.Float, nullable=False, default=0)
@@ -152,6 +158,6 @@ class IngredientMovement(db.Model):
     reason = db.Column(db.String(10), nullable=False)
     sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     ingredient = db.relationship('Ingredient')
     user = db.relationship('User')

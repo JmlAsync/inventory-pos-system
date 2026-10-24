@@ -22,7 +22,7 @@ import shutil
 import sys
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-from app import app, upgrade_database, PRODUCT_IMAGE_FOLDER, detect_image_type, stock_levels, guess_ingredient_category
+from app import app, upgrade_database, shop_now, to_utc, PRODUCT_IMAGE_FOLDER, detect_image_type, stock_levels, guess_ingredient_category
 from models import db, Product, User, Sale, SaleItem, MenuOption, Ingredient, RecipeItem
 
 LOCAL_MENU = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'local_demo', 'menu.json')
@@ -190,7 +190,7 @@ def add_past_sales(days=7):
     users = User.query.all()
     sizes = MenuOption.query.filter_by(kind='size', active=True).order_by(MenuOption.sort_order).all()
     addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order).all()
-    now = datetime.now()
+    now = shop_now()   # v0.23.1: the café's opening hours are on the shop's clock (UTC+8)
     used_references = set()
     for days_ago in range(days, -1, -1):   # ... 2 days ago, yesterday, today (0)
         opening = now.replace(hour=OPENING_HOUR, minute=0, second=0, microsecond=0) - timedelta(days=days_ago)
@@ -202,7 +202,7 @@ def add_past_sales(days=7):
         for when in times:
             if when > now:   # today: only sales that already "happened"
                 continue
-            sale = Sale(user_id=random.choice(users).id, created_at=when)
+            sale = Sale(user_id=random.choice(users).id, created_at=to_utc(when))   # stored in UTC (v0.23.1)
             total = 0
             for product in random.sample(products, min(len(products), random.randint(1, 3))):  # 1 to 3 different items
                 quantity = random.randint(1, 2)
@@ -238,7 +238,7 @@ def start_fresh():
     """--fresh: put the current database aside under a new name (nothing is deleted)."""
     database = os.path.join(app.instance_path, 'inventory.db')
     if os.path.exists(database):
-        backup = os.path.join(app.instance_path, f"inventory_backup_{datetime.now():%Y-%m-%d_%H%M%S}.db")
+        backup = os.path.join(app.instance_path, f"inventory_backup_{datetime.now():%Y-%m-%d_%H%M%S}.db")   # file name in local time
         try:
             os.rename(database, backup)
         except PermissionError:   # Windows won't rename a file that the running app has open

@@ -2,12 +2,13 @@
 from datetime import datetime, timedelta, date
 from werkzeug.security import generate_password_hash as g
 from helpers import check, finish, text
-from app import app
+from app import app, shop_now, shop_day_start_utc
 from models import db, Product, User, Sale, SaleItem
 
 app.config['CSRF_ENABLED'] = False
 app.config['PROPAGATE_EXCEPTIONS'] = False
-today = date.today(); now = datetime.now(); midnight = datetime.combine(today, datetime.min.time())
+# v0.23.1: sales are stored in UTC and days are counted on the shop's clock (UTC+8)
+today = shop_now().date(); midnight = shop_day_start_utc(today); now = midnight + (shop_now() - datetime.combine(today, datetime.min.time()))
 with app.app_context():
     db.drop_all(); db.create_all()
     db.session.add_all([User(username='a', password_hash=g('p'), role='admin'), User(username='c', password_hash=g('p'), role='cashier'),

@@ -42,6 +42,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-025](#dec-025) | Money: whole centavos in the database, exact Decimal pesos in Python | Best choice | Decided |
 | [DEC-026](#dec-026) | A shop's copy: set up once, settings in `config.toml`, served by waitress | Best choice | Decided |
 | [DEC-027](#dec-027) | Six blueprints, `common.py`, and `store/` for every database change | Best choice | Decided |
+| [DEC-028](#dec-028) | Wrong passwords counted in the database; Change password limited too; email sent with `smtplib` | Best choice | Decided |
 
 ---
 
@@ -796,5 +797,61 @@ in `store/`; reads move when a second store is built".
 when a second kind of store is built." Applied in AGENTS.md §2, with the old wording kept in an *Overridden* note.
 *Check of this decision:* it matches the recommendation above and keeps the rule true of the code today; the I1
 contract check enforces the part that protects the data (writes). **Best choice.**
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-24.
+
+---
+
+## DEC-028
+
+**Wrong passwords counted in the database; Change password limited too; email sent with `smtplib`**
+*(v0.26.0, F23; audit A7 and R2; rules S10, P1, D1, D2)*
+
+**How it works.**
+
+1. **The `login_attempt` table** (migration 0004) replaces the list of wrong passwords that lived in memory. Each
+   row is one try: a *key* and a time. The key is a keyed hash (HMAC-SHA256 with the secret key) of what is being
+   limited, for example `login|cashier|192.168.1.20`, so the table never holds anything a person typed.
+2. **A try is recorded first, then counted.** Before a password is checked, a row is added and the rows for that key
+   in the last 5 minutes are counted. If there are more than 5, the try is refused ("wait 5 minutes") and its row is
+   removed again, so waiting really ends the lock. A correct password removes every row for that key (the count
+   starts again, as before). Rows older than 5 minutes are deleted at every try.
+3. **Change password (audit A7)** uses the same limit with the key `password|<user id>`: after 5 wrong *current*
+   passwords, the form refuses for 5 minutes, whatever the password typed.
+4. **Email** is sent by `mail.py` with Python's own `smtplib`. The settings are the `[mail]` part of
+   `instance/config.toml` (server, port, `starttls` or `ssl`, username, password, sender address), written by
+   `setup_shop.py`; the `MAIL_PASSWORD` environment variable wins over the file, as `DATABASE_URL` does.
+   Every connection is encrypted and the server's certificate is checked. Messages are plain text, sent from the
+   shop's name. Any failure becomes one plain sentence (C6) and the details go to the server log, never the password.
+5. **Settings → Email** (admin) shows the settings (never the password) and sends a test message, so the owner
+   knows mail works before v0.27.0 and v0.28.0 start relying on it for invitations and codes.
+
+**Why.** The limit in memory was forgotten whenever the app restarted (a crash, or simply closing `start_shop.bat`),
+and each server process kept its own list (audit R2). Codes, invitations and the cloud package all need limits that
+hold however the app is run. Change password checked the current password with no limit at all, so a person with a
+stolen login could guess it there as fast as they liked (A7); now that form is no weaker than the login page. Email
+comes now, alone, because the next two versions depend on it and a mail problem is easier to find in a version
+that does nothing else with it.
+
+**Details checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Where tries are kept | A database table | In memory (forgotten on restart, one list per process: R2); columns on `user` like `failed_count` (no row for unknown usernames, and a per-user lock lets a stranger lock the real user out) |
+| What the key holds | A keyed hash of username + computer | The text typed: people sometimes type their **password** into the username box, and a database copy would show it (in memory it vanished; in a table it stays) |
+| Counting | Record first, then count | Count, then record: two tries at the same moment both see "4" and both get checked, so the limit leaks under load; the I1 idea (check and change in one step) applied here |
+| A refused try | Its row is removed | Kept: every refused try would extend the lock, and a script could keep the owner locked out forever |
+| Change password key | Per user | Per user and computer like login: a thief only has to change Wi-Fi to get 5 more guesses; the only person who can trip it is someone already logged in as that user |
+| Change password after the limit | Wait 5 minutes, like login | Logging the browser out: stronger against a thief, but logs out a cashier who mistypes; the S13 code (v0.28.0) is the real answer to stolen logins |
+| Mail package | `smtplib` (standard library; DEC-011) | Flask-Mail (a package not approved); a mail service's web API (ties the shop to one provider and needs `requests`) |
+| Encryption | `starttls` (port 587) or `ssl` (465) only, certificate checked | Plain SMTP: the mail password would cross the network readable |
+| Where the mail password lives | `instance/config.toml` (rule P1 names it), or `MAIL_PASSWORD` | A file of its own (a second place to look after); a web settings form (the web server would rewrite its own settings file, and the password would travel through a page) |
+| Test messages in tests | The tests replace `smtplib`'s two connection classes with a fake that records what was sent | A real mailbox (needs the internet, rule T3); a small fake SMTP server (can't test the encrypted connection without certificates) |
+
+**Honest limits.** The test button has no limit of its own: only an admin can use it, the text is fixed, and the
+mail provider's daily cap applies; invitation and code mail get their own limits in v0.27.0 and v0.28.0. Behind a
+hosting proxy every visitor may share one address (the rest of R2); that is set up with the cloud package (v0.37.0).
+The mail password is stored as typed, because the server must hand it to the mail provider; it sits next to the
+secret key in `instance/`, which never leaves the computer.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-24.

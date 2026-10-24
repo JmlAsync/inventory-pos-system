@@ -92,7 +92,7 @@ Flask-Migrate).
 The quick start above is the **demo**. For a shop's own computer, after step 2 (the virtual environment):
 
 ```powershell
-.env\Scripts\python setup_shop.py   # once: network, shop details, the owner's admin account
+.env\Scripts\python setup_shop.py   # once: network, shop details, the owner's admin account, email (optional)
 ```
 
 Then start it every day by double-clicking **`start_shop.bat`**. It runs the system with **waitress**, a real
@@ -100,6 +100,11 @@ web server, and shows the address to open (also the one for phones, if you allow
 time, Windows Firewall may ask whether Python may use the network: allow it on **Private networks** only.
 `setup_shop.py` never creates the demo accounts; the owner chooses their own password. Run it again any
 time to change the settings; your data is kept.
+
+**Email (v0.26.0):** answer yes to the email questions to let the system send email. For Gmail, use the server
+`smtp.gmail.com`, security `starttls`, port 587 and an **App Password** (Google Account → Security → App
+passwords; it needs 2-Step Verification), not the normal password. Then open **Email** in the admin menu and send
+a test message. The settings, including that password, stay in `instance/config.toml` on this computer only.
 
 ## Running the tests
 
@@ -120,6 +125,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `blueprints/` | The pages, one file per part of the system: accounts, catalog, ingredients, sales, reports, shop |
 | `store/` | Every change to the database (selling, stock, products, logins, shop details) and the stock calculations |
 | `common.py` | Rules and helpers every part uses (limits, money, the shop's clock, pictures) |
+| `mail.py` | Sends email with Python's own `smtplib`, using the shop's `[mail]` settings (v0.26.0) |
 | `models.py` | The database tables: products, users, sales, servings and add-ons, ingredients, recipes, ingredient history |
 | `templates/` | The HTML pages (`base.html` is the shared layout) |
 | `static/css/theme.css` | The custom look, light and dark |

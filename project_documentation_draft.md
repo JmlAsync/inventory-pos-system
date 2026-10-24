@@ -234,6 +234,7 @@ The tag message summarizes what the increment added.
 | v0.23.2 | 2026-10-24 | — | Money stored as **whole centavos** (INTEGER: ₱75.50 = 7550) through a new `Money` column type, and handled in Python as exact `Decimal` pesos, so totals can't drift and a receipt always adds up. A price typed with more than two decimals is rounded once, half up, when saved. Migration `0003` converts every price and total (and back when undone). Tested on a copy of the owner's database: all 58 receipts, 120 lines and 12 prices identical to the centavo (DEF-68, audit R5, DEC-025) *(branch `fix/money-centavos`, merged after the defense, DEC-018)* |
 | v0.24.0 | 2026-10-24 | — | Setting up and running a shop's own copy (F22): `setup_shop.py` asks once for the network (this computer only, or also phones on the shop's network), the shop's details and the owner's own admin account, writes `instance/config.toml`, brings the database up to date and never creates the demo accounts; `serve.py` / `start_shop.bat` run it with **waitress** instead of Flask's development server (audit R3) and show the address for phones. Packages split into `requirements/local.txt` (rule D1); waitress 3.0.2. Tried end to end: a fresh install, started by `start_shop.bat`, used from the network address in Edge (DEC-026) *(branch `feature/serve-and-setup`, merged after the defense, DEC-018)* |
 | v0.25.0 | 2026-10-24 | — | `app.py` (1,722 lines) split into six **blueprints** (`accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop`), shared rules in `common.py`, and a **`store/`** data layer through which every database change goes (selling, restock and count, products, options, recipes, logins, passwords, pictures, shop details). `app.py` (242 lines) only starts the app. No visible change: every page, message and rule is the same; 26 of 27 test files unchanged (one line in `test_hardening.py`). The contract check now fails if a page writes to the database itself (rule I1, now checked) (DEC-027) *(branch `feature/blueprints-store`, merged after the defense, DEC-018)* |
+| v0.26.0 | 2026-10-24 | — | Email sending and a login limit that holds (F23). `mail.py` sends plain-text email with Python's own `smtplib`, always over an encrypted connection, using the `[mail]` settings that `setup_shop.py` now asks for (optional; running it again keeps them). The admin page **Email** shows them (never the password) and sends a test message. Wrong passwords are counted in a new `login_attempt` table (migration `0004`), recorded before they are counted and stored as keyed hashes, so the limit survives a restart and holds for every server process (DEF-70, audit R2); **Change password** now has the same 5-tries limit (DEF-69, audit A7) (DEC-028) *(branch `feature/email-and-attempts`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -435,6 +436,9 @@ Maria wants the receipts to carry her café's name, not "Inventory & POS". She o
 
 ### Story F22 — Setting up the café's own copy *(v0.24.0)*
 The system is installed on Maria's counter laptop. She runs `setup_shop.py` once. It asks whether phones in the café will use it (yes: Jun takes orders on a tablet), the café's name and address for the receipts, and her own username and password, typed twice; "maria" or a 6-letter password is refused with a plain reason. It says it's done and how to start. Every morning she double-clicks **start_shop.bat**: a window shows "On this computer: http://127.0.0.1:5000" and "On other devices: http://192.168.1.10:5000", which Jun opens on the tablet. Nobody can log in with the demo password `admin123`, because the demo accounts were never created.
+
+### Story F23 — Making sure the café's email works *(v0.26.0)*
+Soon the system will email Jun his invitation, and a code when he logs in on a new device, so Maria sets up email first. She runs `setup_shop.py` again and says yes to the email questions: Gmail's server, the café's Gmail address and an App Password, hidden as she types. Her shop details and her account are kept. In the app she opens **Email** in the admin menu, sees the server and the address (the password only shows as "Saved"), types her own address and clicks **Send test message**. A minute later "Test message from" the café is in her inbox. On a day the Wi-Fi is down, the same button says it couldn't reach the mail server and that selling still works. And if someone sits down at the counter laptop while Maria is still logged in, they can't guess her password on the Profile page: after 5 wrong tries it says to wait 5 minutes, and closing and restarting the system doesn't reset that count.
 
 ---
 
@@ -1100,6 +1104,31 @@ A change with no visible effect is tested by showing that nothing changed: the w
 | TC-32.3 | A copy with a page that sets a stock quantity and commits | `python tests/check_contract.py` | Both lines reported ("writes to the database itself") | Both caught | ✅ |
 | TC-32.4 | Demo copy in Edge, admin and cashier | Open all 14 kinds of page; sell an iced drink; cashier opens Shop details | Every page 200 with the right sidebar link highlighted; the sale saved through `store/` and its receipt shown; 403 for the cashier; no script errors | As expected | ✅ |
 
+### F23 — Email sending and the login limit in the database *(v0.26.0)*
+
+Automated in `tests/test_attempts.py` (21 checks) and `tests/test_email.py` (66 checks). A fake mail server stands in for `smtplib`, so no internet or mail account is used (rule T3). `test_security.py` now reads and ages the tries in the table instead of the old list in memory (same 42 checks). The DEF-69 and DEF-70 checks were also run against v0.25.0, where they fail (rule C3). Two older tests were corrected: `test_setup.py` TC-31.2 now reads the newest migration from `migrations/` instead of expecting `0003`, and `test_shop_details.py` TC-27.8 also drops `login_attempt`, because a real database from before v0.23.0 doesn't have it.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-33.1 | A database at migration 0003 | Upgrade; undo; upgrade | `login_attempt` added, indexed by key and by time; removed when undone | As expected | ✅ |
+| TC-33.2 | — | 5 wrong passwords, then the right one; 3 more tries; 5 minutes later the right one | 429 on the 6th; refused tries not kept; then logged in and the count cleared | As expected (the same as since v0.13.3) | ✅ |
+| TC-33.3 | — | A password typed into the username box by mistake | Only a 64-character keyed hash is stored; nothing typed is in the table | As expected | ✅ |
+| TC-33.4 | 5 wrong passwords | Restart the app; type the right password | 429: the count survives the restart | **v0.25.0:** logged in (the count was in memory) · **v0.26.0:** 429 | ❌→✅ DEF-70 |
+| TC-33.5 | Cashier logged in | 5 wrong current passwords on Change password, then the right one | "Too many wrong current passwords", nothing changed; other users not affected; works again after 5 minutes; the right current password resets the count; the login page isn't locked by it | **v0.25.0:** the 6th try changed the password · **v0.26.0:** as expected | ❌→✅ DEF-69 |
+| TC-33.6 | A real server | 10 wrong passwords at the same moment | At most 5 are checked, the rest get 429 | 5 × 200, 5 × 429 | ✅ |
+| TC-34.1 | No `[mail]` settings | Send | "isn't set up yet" and how to set it up; nothing sent | As expected | ✅ |
+| TC-34.2 | STARTTLS settings | Send | Encrypted (certificate checked) before the login; from the shop's name; plain text with a date and a message id | As expected | ✅ |
+| TC-34.3 | SSL settings; a server with no login | Send | SMTP_SSL on port 465 with a checked certificate; no login step when no username is set | As expected | ✅ |
+| TC-34.4 | Fake failures | Wrong password, refused address or sender, rejected message, no STARTTLS, TLS error, no internet, timeout, refused or dropped connection | One plain sentence each; offline says selling still works; each in the server log, never the password | As expected (10 cases) | ✅ |
+| TC-34.5 | — | 10 malformed addresses, one with a line break and `Bcc:` | Refused; nothing sent | As expected | ✅ |
+| TC-34.6 | — | Wrong server name, security, port or sender; a missing or two-line password; a hand-edited config with a mistake | Each refused with its reason; the mistake named; nothing sent | As expected | ✅ |
+| TC-34.7 | Visitor, cashier, admin | Open Email | Login page / 403 (posting too, nothing sent) / the settings without the password; the Email link only for admins | As expected | ✅ |
+| TC-34.8 | Admin | Send a test to a good address, a wrong one, with no internet, with email not set up | "Test message sent …" with the spam-folder hint; asked for an address; the offline sentence; button off and nothing sent | As expected | ✅ |
+| TC-34.9 | Fresh copy | `setup_shop.py --answers` with email answers | `[mail]` written with the usual port filled in; password stored exactly and never printed; the app reads it; `MAIL_PASSWORD` wins | As expected | ✅ |
+| TC-34.10 | Set up with email | A wrong email answer; run again without email; again with new email; again after a hand edit broke the old settings | Refused, config unchanged; settings kept; settings replaced; setup finishes, says the old ones had a mistake and leaves them out | As expected | ✅ |
+| TC-34.11 | Demo copy in the browser, admin | Open Email (not set up, then set up); send a test with no mail server; light, dark, phone width | Readable in both themes and at phone width; the plain sentence after sending; no script errors | As expected: with a server name that doesn't exist, the real `smtplib` answered "Could not reach the mail server … Selling and everything else still works"; the duplicated advice on the not-set-up page was found here and removed; dark colours readable; 375 px wide with no sideways scroll | ✅ |
+| TC-34.12 | A real Gmail account with an App Password | Send a test message | It arrives, from the shop's name | **To try by hand** (needs the owner's App Password; the tests never use a real account, rule T3) | ⏳ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1184,7 +1213,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_low_stock.py` | F8, DEF-18 | 8 |
 | `test_report.py` | F9: dates, midnight, totals, top products | 11 |
 | `test_avatar.py` | F10 / TC-11.x | 18 |
-| `test_security.py` | F12 / TC-13.x, TC-20.3–20.5: secret key, CSRF, login limit (incl. DEF-50), headers, passwords, Werkzeug version (DEF-49) | 42 |
+| `test_security.py` | F12 / TC-13.x, TC-20.3–20.5: secret key, CSRF, login limit (incl. DEF-50; read from the database since v0.26.0), headers, passwords, Werkzeug version (DEF-49) | 42 |
 | `test_product_pictures.py` | F13 / TC-14.x | 25 |
 | `test_payment.py` | F14 / TC-15.x | 19 |
 | `test_options.py` | F15 / TC-16.x | 34 |
@@ -1204,7 +1233,9 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_times.py` | Times in UTC / TC-29.x (v0.23.1): migration 0002 both ways, conversions with fixed dates, UTC stamps, report and Home days, shop time on pages, no local-time stamps left | 18 |
 | `test_money.py` | Money in centavos / TC-30.x (v0.23.2): migration 0003 both ways, INTEGER storage, Decimal in Python, one rounding on save, receipts add up, exact sums, limits unchanged | 19 |
 | `test_setup.py` | F22 / TC-31.x (v0.24.0): config file, setup run with good and wrong answers, run twice, broken config, `DATABASE_URL`, waitress serving, server settings, `start_shop.bat`, answers file with a byte-order mark | 30 |
-| **28 files** | | **598 checks + 62 rule checks** |
+| `test_attempts.py` | F23 / TC-33.x (v0.26.0): migration 0004, the limit unchanged for users, hashed keys, a restart (DEF-70), Change password (DEF-69), tries at the same moment | 21 |
+| `test_email.py` | F23 / TC-34.x (v0.26.0): fake mail server, STARTTLS and SSL, every failure in plain words, address and settings checks, the Email page and its test message, setup's email answers, `MAIL_PASSWORD` | 66 |
+| **30 files** | | **685 checks + 64 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1242,7 +1273,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Money in centavos (v0.23.2) | 9 | 4 → **9** | 5 → **0** | 0 |
 | F22 Setup and serve (v0.24.0) | 12 | 9 → **11** | 2 → **0** | 0 → **1** |
 | Blueprints and store/ (v0.25.0) | 4 | 4 | 0 | 0 |
-| **Total** | **331** | **222 → 330** | **91 → 0** | **4 → 1** |
+| F23 Email and login limit (v0.26.0) | 18 | 15 → **17** | 2 → **0** | 1 → **1** |
+| **Total** | **349** | **237 → 347** | **93 → 0** | **5 → 2** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1324,6 +1356,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-66 | Low (cosmetic) | Ingredients page, dark theme: a normal stock bar used the amber accent `#EF9F27`, exactly the colour of a Low bar, so a full shelf and a low one looked alike (the report's known limitation called them "tile bars"; measuring showed it is the Ingredients page; the New Sale tiles were already green and amber) | Report §10.4 known limitations; checked against the CSS (rule C10) | `[data-bs-theme="dark"] .stock-fill.is-ok` uses `--stock-ok` (green); TC-26.14–26.15 | ✅ Fixed v0.21.8 |
 | DEF-67 | Medium (future) | Times were stored in the computer's local time with no zone. On a cloud server (UTC) "today", the report's days and receipt times would have been 8 hours off (audit R1) | Security audit 2026-10-11 (R1) | Store UTC (`models.utc_now`), show and count days in the shop's time (`SHOP_TIMEZONE` UTC+8, `shop_time` filter); migration 0002 converts old times (DEC-024); TC-29.1–29.10 | ✅ Fixed v0.23.1 |
 | DEF-68 | Medium | Money was stored as decimal numbers (REAL/float). Sums of many amounts can drift by a centavo, and a price typed with three decimals (₱0.125) showed as ₱0.12 per item but ₱0.38 for three, so the receipt didn't add up (audit R5) | Security audit 2026-10-11 (R5); the receipt case found by TC-30.3 | `Money` column type: whole centavos in the database, exact `Decimal` pesos in Python, rounded once, half up, on saving; migration 0003 (DEC-025); TC-30.1–30.10 | ✅ Fixed v0.23.2 |
+| DEF-69 | Low | Change password checked the current password with no limit, so someone using a stolen login could guess it there as fast as they liked (audit A7) | Security audit 2026-10-11 (A7) | The login page's 5-tries limit, counted per user (DEC-028); TC-33.5 | ✅ Fixed v0.26.0 |
+| DEF-70 | Low (Medium once online) | The login limit was kept in memory: a restart forgot it, and each server process had its own count (audit R2) | Security audit 2026-10-11 (R2) | Tries are rows in `login_attempt` (migration 0004), recorded before they are counted, keys stored as keyed hashes (DEC-028); TC-33.1–33.4, TC-33.6 | ✅ Fixed v0.26.0 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now
@@ -1347,7 +1381,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - **Count (stock count) overwrites** an ingredient's amount on purpose; a sale at that exact moment would be overwritten (Restock adds safely).
 > - ~~**The shop name on receipts is fixed**~~ *(fixed in v0.22.0, F21: name, address, TIN and footer on Shop details)*
 > - **Product pictures and avatars are files on disk**, so backing up the database alone does not back them up.
-> - **The login limit is kept in memory**, so restarting the app clears it, and **nobody can reset a forgotten password** except by changing it in the database. Fix: an admin "reset password" page.
+> - ~~**The login limit is kept in memory**~~ *(fixed in v0.26.0, DEF-70: counted in the database, so a restart doesn't clear it)*. **Nobody can reset a forgotten password** except by changing it in the database. Fix: a forgotten-password code by email (planned for v0.27.0).
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
 > - **No "undo" for a tap:** a wrong tap is fixed with − on the basket line (one more tap), not an undo button.
@@ -2601,7 +2635,7 @@ whether the control is feasible (cost and effort).
 | Someone copies a logged-in cookie from the till | Low | Login records; log-out and password change end it; 8 idle hours end it | Done (v0.20.3). Low cost |
 | A cashier opens admin pages by typing the address | Medium | 403 on every admin page; contract check makes sure every page is listed as public, user or admin | Done (v0.7.0, v0.19.0) |
 | Another website makes the browser submit a form (CSRF) | Low | Random token on every form; SameSite=Lax cookie | Done (v0.13.2) |
-| Someone guesses the current password on the change-password page with a stolen login | Low | *Not yet:* reuse the login attempt limit there (audit A7) | Feasible, small change |
+| Someone guesses the current password on the change-password page with a stolen login | Low | The login page's 5-try limit, per user (audit A7) | Done (v0.26.0, DEF-69). Low cost |
 | Someone finds which usernames exist by timing the login | Low | *Not yet:* check a dummy hash for unknown users (audit A8) | Feasible, small; low value (2 accounts) |
 | A malicious file uploaded as a picture | Low | Content check, 2 MB limit, random names, `nosniff` | Done (v0.12.0, v0.14.0) |
 | Script injected through a product name | Low | Jinja2 escaping; *later:* Content-Security-Policy (audit A10) | Escaping done; CSP needs the inline scripts moved to files |

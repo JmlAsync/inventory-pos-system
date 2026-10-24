@@ -75,6 +75,7 @@
                 {{ side_link(request.endpoint, 'catalog.manage_options', 'bi-sliders', 'Servings & Add-ons', ('ingredients.edit_recipe',) if recipe_kind == 'option' else ()) }}
                 {{ side_link(request.endpoint, 'ingredients.ingredients', 'bi-droplet-half', 'Ingredients', ('ingredients.ingredient_detail', 'ingredients.ingredients_history')) }}
                 {{ side_link(request.endpoint, 'shop.shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}
+                {{ side_link(request.endpoint, 'shop.email_settings', 'bi-envelope', 'Email') }}{# v0.26.0 #}
             </nav>
             {% endif %}
 

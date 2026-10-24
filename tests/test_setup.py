@@ -74,7 +74,8 @@ check('TC-31.2 the config file holds no password or secret (no such setting, and
 users, shop, rest, uri = run('-c', ASK_DB).stdout.strip().split('\n')
 check('TC-31.2 the first admin is created, and no demo accounts', users == "[('maria', 'admin')]")
 check('TC-31.2 the password is stored only as a hash that matches it', rest.startswith('True'))
-check('TC-31.2 the database is at the newest migration', rest.endswith('0003'))
+from alembic.script import ScriptDirectory   # v0.26.0: the newest migration in migrations/, not a fixed number
+check('TC-31.2 the database is at the newest migration', rest.endswith(ScriptDirectory('migrations').get_current_head()))
 check('TC-31.2 the shop details are saved for the receipts', shop == 'Kapehan sa Kanto')
 
 # ---- TC-31.4 running it again keeps everything

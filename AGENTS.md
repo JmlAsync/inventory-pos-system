@@ -46,6 +46,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | Path | What it holds | Notes |
 |---|---|---|
 | `app.py` | Start-up only since v0.25.0: settings, database and migrations, login manager, the CSRF check and security headers, error pages, registering the blueprints | Re-exports the old names so scripts and tests keep working (see the note below this table) |
+| `mail.py` | Sends email with Python's own `smtplib`; settings from the `[mail]` part of `instance/config.toml` (v0.26.0) | Never put the mail password anywhere else (P1) |
 | `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
 | `blueprints/` | The pages, one file per part: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop` (v0.25.0) | Page names are `part.page`, e.g. `url_for('sales.new_sale')`. Pages never write to the database (I1) |
 | `store/` | The data layer: every database change (`sales`, `ingredients`, `catalog`, `accounts`, `shop`) and the stock calculations (`stock`) (v0.25.0) | Rule I1; DEC-027 |

@@ -1,8 +1,11 @@
 """Log in, log out, the login limit, profile picture and password (v0.6.0, v0.12.0, v0.13.3, v0.13.5, v0.20.3).
-Moved from app.py in v0.25.0 (DEC-027): the same rules; database changes now go through store/accounts.py."""
+Moved from app.py in v0.25.0 (DEC-027): the same rules; database changes now go through store/accounts.py.
+Since v0.26.0 (DEC-028) the wrong passwords are counted in the database, on Change password too."""
+import hashlib
+import hmac
 import os
 from datetime import timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
@@ -49,40 +52,30 @@ def load_user(user_id):
     return db.session.get(User, row.user_id)
 
 
-# ---------------- Login attempt limit (v0.13.3) ----------------
+# ---------------- Login attempt limit (v0.13.3; in the database since v0.26.0) ----------------
 # Without a limit, a program can try thousands of passwords a minute. After
 # MAX_LOGIN_FAILURES wrong passwords for one username from one computer (IP address),
 # that computer must wait LOCKOUT_MINUTES before trying that username again.
 # Counting per username AND computer means a stranger can't lock the real owner out.
-# The counts live in memory, so restarting the app clears them.
+# v0.26.0 (DEF-70, DEC-028, audit R2): the tries are rows in the login_attempt table, so a restart no
+# longer clears them; until then they lived in memory.
 MAX_LOGIN_FAILURES = 5
 LOCKOUT_MINUTES = 5
-failed_logins = {}   # (username, IP address) -> times of recent wrong passwords
+LOCKOUT_WINDOW = timedelta(minutes=LOCKOUT_MINUTES)
 # v0.19.3 (DEF-50): usernames are at most 50 characters (models.py), so only that much is
-# remembered. Before, a 450 KB "username" was kept in memory at full length.
+# counted. Before, a 450 KB "username" was kept in memory at full length.
 MAX_USERNAME_LENGTH = 50
 # v0.21.4 (DEF-62): a hash of a random password nobody knows, made the same slow way as real ones,
 # checked when the username doesn't exist (see login())
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
 
 
-def forget_old_failures():
-    """v0.19.3 (DEF-50): drop every username whose wrong passwords are all older than the
-    lockout window, not just the one being checked, so the list can't grow forever."""
-    cutoff = utc_now() - timedelta(minutes=LOCKOUT_MINUTES)
-    for key in [k for k, moments in failed_logins.items() if all(m <= cutoff for m in moments)]:
-        del failed_logins[key]
-
-
-def recent_failures(key):
-    """Wrong-password times for this key within the lockout window (older ones are forgotten)."""
-    cutoff = utc_now() - timedelta(minutes=LOCKOUT_MINUTES)
-    recent = [moment for moment in failed_logins.get(key, []) if moment > cutoff]
-    if recent:
-        failed_logins[key] = recent
-    else:
-        failed_logins.pop(key, None)
-    return recent
+def attempt_key(*parts):
+    """The key a try is counted under (v0.26.0, DEC-028): a keyed hash (HMAC-SHA256 with the secret key) of the
+    parts, e.g. attempt_key('login', 'cashier', '192.168.1.20'). The table never holds what someone typed:
+    people sometimes type their password into the username box. Always 64 characters, however long the input."""
+    text = '|'.join(str(part) for part in parts)
+    return hmac.new(current_app.config['SECRET_KEY'].encode(), text.encode(), hashlib.sha256).hexdigest()
 
 
 def page_after_login():
@@ -102,9 +95,9 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        key = (username.strip().lower()[:MAX_USERNAME_LENGTH], request.remote_addr)
-        forget_old_failures()
-        if len(recent_failures(key)) >= MAX_LOGIN_FAILURES:
+        key = attempt_key('login', username.strip().lower()[:MAX_USERNAME_LENGTH], request.remote_addr)
+        # v0.26.0: the try is recorded first, then counted (store/accounts.py); a 6th try within 5 minutes is refused
+        if not account_store.record_try(key, LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
             # 429 = "Too Many Requests"
             return render_template('login.html', error=f'Too many failed attempts. Please wait '
                                    f'{LOCKOUT_MINUTES} minutes and try again.'), 429
@@ -113,13 +106,12 @@ def login():
         # wrong password and the time taken can't tell anyone which usernames exist
         password_ok = check_password_hash(user.password_hash if user else DUMMY_PASSWORD_HASH, password)
         if user and password_ok:
-            failed_logins.pop(key, None)   # a correct password resets the count
+            account_store.forget_tries(key)   # a correct password resets the count
             session.clear()                # nothing from a previous login on this browser is kept
             start_login_session(user)      # v0.20.3: a login that log-out can really end
             login_user(user)
             return redirect(page_after_login())    # v0.20.6 (DEF-06): back to the page they first asked for
-        failed_logins.setdefault(key, []).append(utc_now())
-        return render_template('login.html', error='Invalid username or password')
+        return render_template('login.html', error='Invalid username or password')   # the try stays counted
     return render_template('login.html')
 
 
@@ -196,9 +188,18 @@ def change_password():
     current = request.form.get('current_password', '')
     new = request.form.get('new_password', '')
     confirm = request.form.get('confirm_password', '')
+    # v0.26.0 (DEF-69, audit A7, DEC-028): the same 5-tries limit as the login page, counted per user, so someone
+    # using a stolen login can't guess the current password here faster than on the login page
+    key = attempt_key('password', current_user.id)
+    if not account_store.record_try(key, LOCKOUT_WINDOW, MAX_LOGIN_FAILURES):
+        flash(f'Too many wrong current passwords. Please wait {LOCKOUT_MINUTES} minutes and try again. '
+              'Nothing was changed.', 'danger')
+        return redirect(url_for('accounts.profile'))
     if not check_password_hash(current_user.password_hash, current):
-        flash('Current password is wrong. Nothing was changed.', 'danger')
-    elif new != confirm:
+        flash('Current password is wrong. Nothing was changed.', 'danger')   # the try stays counted
+        return redirect(url_for('accounts.profile'))
+    account_store.forget_tries(key)   # the right current password resets the count, as on the login page
+    if new != confirm:
         flash('The new passwords do not match.', 'danger')
     elif new.lower() == current_user.username.lower():
         flash("Your password can't be the same as your username.", 'danger')

@@ -1,0 +1,406 @@
+{
+  "nodes": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": -400,
+      "y": -520,
+      "width": 800,
+      "height": 160,
+      "text": "# Inventory & POS\nA café inventory and point-of-sale web app (Flask + SQLite, works offline).\n**v0.21.2** · Software Engineering 1 final project",
+      "color": "2"
+    },
+    {
+      "id": "g_actors",
+      "type": "group",
+      "x": -1000,
+      "y": -300,
+      "width": 560,
+      "height": 360,
+      "label": "Actors",
+      "color": "5"
+    },
+    {
+      "id": "cashier",
+      "type": "text",
+      "x": -980,
+      "y": -250,
+      "width": 250,
+      "height": 270,
+      "text": "## Cashier\n- Sells at the counter\n- Cash or GCash\n- Prints receipts\n- Sees low-stock banner",
+      "color": "5"
+    },
+    {
+      "id": "admin",
+      "type": "text",
+      "x": -700,
+      "y": -250,
+      "width": 250,
+      "height": 270,
+      "text": "## Admin\n- Everything a cashier does\n- Products, servings, add-ons\n- Ingredients and recipes\n- Sales report",
+      "color": "5"
+    },
+    {
+      "id": "g_uc",
+      "type": "group",
+      "x": -380,
+      "y": -300,
+      "width": 760,
+      "height": 360,
+      "label": "Main use cases",
+      "color": "4"
+    },
+    {
+      "id": "uc1",
+      "type": "text",
+      "x": -360,
+      "y": -250,
+      "width": 220,
+      "height": 130,
+      "text": "**Process a sale**\nbasket → pay → receipt",
+      "color": "4"
+    },
+    {
+      "id": "uc2",
+      "type": "text",
+      "x": -120,
+      "y": -250,
+      "width": 220,
+      "height": 130,
+      "text": "**Manage products**\nadd · edit · delete (never if sold)",
+      "color": "4"
+    },
+    {
+      "id": "uc3",
+      "type": "text",
+      "x": 120,
+      "y": -250,
+      "width": 240,
+      "height": 130,
+      "text": "**Manage ingredients**\nrestock · count · history",
+      "color": "4"
+    },
+    {
+      "id": "uc4",
+      "type": "text",
+      "x": -360,
+      "y": -100,
+      "width": 220,
+      "height": 130,
+      "text": "**Sales report**\nrevenue, top products, cash vs GCash",
+      "color": "4"
+    },
+    {
+      "id": "uc5",
+      "type": "text",
+      "x": -120,
+      "y": -100,
+      "width": 220,
+      "height": 130,
+      "text": "**Log in / out**\n5 tries, then 5 min wait",
+      "color": "4"
+    },
+    {
+      "id": "uc6",
+      "type": "text",
+      "x": 120,
+      "y": -100,
+      "width": 240,
+      "height": 130,
+      "text": "**Profile**\npicture and password",
+      "color": "4"
+    },
+    {
+      "id": "g_arch",
+      "type": "group",
+      "x": -1000,
+      "y": 140,
+      "width": 1380,
+      "height": 330,
+      "label": "Architecture (MVC, layered)",
+      "color": "6"
+    },
+    {
+      "id": "view",
+      "type": "text",
+      "x": -980,
+      "y": 190,
+      "width": 300,
+      "height": 240,
+      "text": "## Views\n`templates/` (Jinja2)\nBootstrap 5.3 + `theme.css`\nlight / dark, foldable sidebar\nall assets in `static/vendor/`",
+      "color": "6"
+    },
+    {
+      "id": "ctrl",
+      "type": "text",
+      "x": -640,
+      "y": 190,
+      "width": 340,
+      "height": 240,
+      "text": "## Controller\n`app.py`: every route, form checks, start-up, database upgrade\n@login_required / @admin_required\nCSRF check on every POST",
+      "color": "6"
+    },
+    {
+      "id": "model",
+      "type": "text",
+      "x": -260,
+      "y": 190,
+      "width": 300,
+      "height": 240,
+      "text": "## Model\n`models.py`\nProduct · User · LoginSession · Sale · SaleItem · MenuOption · Ingredient · RecipeItem · IngredientMovement",
+      "color": "6"
+    },
+    {
+      "id": "db",
+      "type": "text",
+      "x": 80,
+      "y": 190,
+      "width": 280,
+      "height": 240,
+      "text": "## Database\nSQLite, one file\n`instance/inventory.db`\nnever committed",
+      "color": "6"
+    },
+    {
+      "id": "g_rules",
+      "type": "group",
+      "x": -1000,
+      "y": 530,
+      "width": 760,
+      "height": 330,
+      "label": "Rules that protect the data",
+      "color": "1"
+    },
+    {
+      "id": "r1",
+      "type": "text",
+      "x": -980,
+      "y": 580,
+      "width": 230,
+      "height": 240,
+      "text": "**I1/I2 · sale = one transaction**\nstock is taken with `WHERE quantity >= n`; any 0-row update rolls everything back",
+      "color": "1"
+    },
+    {
+      "id": "r2",
+      "type": "text",
+      "x": -730,
+      "y": 580,
+      "width": 230,
+      "height": 240,
+      "text": "**I3 · receipts never change**\nSaleItem keeps its own name, price and options text",
+      "color": "1"
+    },
+    {
+      "id": "r3",
+      "type": "text",
+      "x": -480,
+      "y": 580,
+      "width": 230,
+      "height": 240,
+      "text": "**S1–S3 · access**\nevery page listed in the contract check; admin pages answer 403; CSRF token on every form",
+      "color": "1"
+    },
+    {
+      "id": "g_proc",
+      "type": "group",
+      "x": -200,
+      "y": 530,
+      "width": 580,
+      "height": 330,
+      "label": "Process and quality",
+      "color": "3"
+    },
+    {
+      "id": "p1",
+      "type": "text",
+      "x": -180,
+      "y": 580,
+      "width": 260,
+      "height": 240,
+      "text": "**Incremental development**\nevery tag is a working version; patch before next feature (C2)\n70 pull requests merged",
+      "color": "3"
+    },
+    {
+      "id": "p2",
+      "type": "text",
+      "x": 100,
+      "y": 580,
+      "width": 260,
+      "height": 240,
+      "text": "**Tests**\n22 files, 470 checks + 58 rule checks\n60 defects found and fixed, each with a test",
+      "color": "3"
+    },
+    {
+      "id": "f1",
+      "type": "file",
+      "x": 460,
+      "y": -300,
+      "width": 400,
+      "height": 260,
+      "file": "README.md"
+    },
+    {
+      "id": "f2",
+      "type": "file",
+      "x": 460,
+      "y": 0,
+      "width": 400,
+      "height": 260,
+      "file": "AGENTS.md"
+    },
+    {
+      "id": "f3",
+      "type": "file",
+      "x": 460,
+      "y": 300,
+      "width": 400,
+      "height": 260,
+      "file": "docs/defense_preparation.md"
+    },
+    {
+      "id": "g_ready",
+      "type": "group",
+      "x": -1000,
+      "y": 940,
+      "width": 1860,
+      "height": 700,
+      "label": "How complete is it? (readiness assessment)",
+      "color": "2"
+    },
+    {
+      "id": "verdict",
+      "type": "text",
+      "x": -980,
+      "y": 990,
+      "width": 420,
+      "height": 600,
+      "text": "## Verdict\n**Usable today** for one small café on one counter computer: stock-aware order taking and sales tracking.\n\n**About 80–85 %** of its stated scope.\n**About 50 %** of what a real café POS needs.\n\nNot yet run through a real shift with real staff; browser tests are manual.",
+      "color": "2"
+    },
+    {
+      "id": "works",
+      "type": "text",
+      "x": -540,
+      "y": 990,
+      "width": 440,
+      "height": 600,
+      "text": "## Works and is dependable\n- Sale: tiles, Hot/Iced, add-ons, basket, cash + change, GCash reference, receipt\n- No overselling: one all-or-nothing transaction\n- Low-stock and can't-make warnings\n- Ingredient restock, count and history\n- Products, pictures, servings, add-ons, recipes\n- Sales report by date range\n- Hashed passwords, CSRF, role checks, login limit, real log-out\n- 6,417-request fuzz audit: no way past login or admin checks\n- 22 test files, 60 defects fixed",
+      "color": "4"
+    },
+    {
+      "id": "gaps",
+      "type": "text",
+      "x": -80,
+      "y": 990,
+      "width": 440,
+      "height": 600,
+      "text": "## Gaps for a real shop\n- **No refunds or voids** (biggest gap)\n- No end-of-day X/Z reading\n- No senior citizen / PWD discount\n- Not BIR-accredited: receipts are order slips, not invoices\n- GCash recorded, not verified\n- No password reset (edit the database by hand)\n- Money stored as floats\n- Fixed shop name on receipts; one low-stock threshold\n\n**Best next step:** void / refund with admin approval",
+      "color": "1"
+    },
+    {
+      "id": "deploy",
+      "type": "text",
+      "x": 380,
+      "y": 990,
+      "width": 460,
+      "height": 600,
+      "text": "## If servers and deployment are solved\nStill needed:\n- Server database (PostgreSQL) instead of SQLite for several tills\n- Migration tool instead of the start-up column list\n- Production web server + HTTPS\n- Content-Security-Policy header\n- Login limit kept in a shared store (now in memory: a restart resets it)\n- Backups of the database **and** the uploaded pictures",
+      "color": "3"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "fromNode": "cashier",
+      "toNode": "uc1",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "uses"
+    },
+    {
+      "id": "e1",
+      "fromNode": "admin",
+      "toNode": "uc2",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "uses"
+    },
+    {
+      "id": "e2",
+      "fromNode": "view",
+      "toNode": "ctrl",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "request"
+    },
+    {
+      "id": "e3",
+      "fromNode": "ctrl",
+      "toNode": "model",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e4",
+      "fromNode": "model",
+      "toNode": "db",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e5",
+      "fromNode": "uc1",
+      "toNode": "ctrl",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e6",
+      "fromNode": "title",
+      "toNode": "g_actors",
+      "fromSide": "left",
+      "toSide": "top",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e7",
+      "fromNode": "title",
+      "toNode": "g_uc",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "e8",
+      "fromNode": "works",
+      "toNode": "gaps",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "but"
+    },
+    {
+      "id": "e9",
+      "fromNode": "gaps",
+      "toNode": "deploy",
+      "fromSide": "right",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "and"
+    },
+    {
+      "id": "e10",
+      "fromNode": "g_proc",
+      "toNode": "g_ready",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "toEnd": "arrow"
+    }
+  ]
+}

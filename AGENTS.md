@@ -46,6 +46,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | Path | What it holds | Notes |
 |---|---|---|
 | `app.py` | Start-up only since v0.25.0: settings, database and migrations, login manager, the CSRF check and security headers, error pages, registering the blueprints | Re-exports the old names so scripts and tests keep working (see the note below this table) |
+| `google_signin.py` | Sign in with Google: the flow and every check on Google's answer (v0.29.0) | Only `exchange_code` and `fetch_keys` talk to Google; tests replace those two (T3) |
 | `totp.py` | Authenticator-app codes (RFC 6238) and the encrypted key; the QR code (v0.28.0) | The key is never stored in plain text (S14) |
 | `mail.py` | Sends email with Python's own `smtplib`; settings from the `[mail]` part of `instance/config.toml` (v0.26.0) | Never put the mail password anywhere else (P1) |
 | `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
@@ -90,7 +91,8 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   public, user (logged in) or admin. Adding a page means deciding which list it belongs to.
   The public pages are `/`, `/login`, and (from v0.27.0) `/signup/<token>` (only with a valid invitation),
   `/forgot-password` and `/forgot-password/code`, and (from v0.28.0) `/verify` and `/verify/resend` (only within
-  5 minutes of a correct password; owner's decision 2026-10-25, DEC-030).
+  5 minutes of a correct password; owner's decision 2026-10-25, DEC-030), and (from v0.29.0) `/login/google` and
+  `/auth/google/callback` (only with the state this browser started; owner's decision 2026-10-25, DEC-031).
 
   > *Overridden 2026-10-24.* Old wording: "Only `/` and `/login` are public." Why: invitations (S12) and forgotten
   > passwords need pages a logged-out person can open; the owner approved these three. Full reasoning: DEC-029.
@@ -189,7 +191,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   (`name==1.2.3`): blinker, click, colorama, Flask, Flask-Login, Flask-SQLAlchemy, greenlet,
   itsdangerous, Jinja2, MarkupSafe, SQLAlchemy, typing_extensions, Werkzeug; and, as approved below,
   Flask-Migrate, alembic and Mako (v0.23.0), waitress (v0.24.0), cryptography with cffi and pycparser, and segno
-  (v0.28.0).
+  (v0.28.0), Authlib with joserfc, and requests with certifi, charset-normalizer, idna and urllib3 (v0.29.0).
   Adding a package needs the project owner's approval and a change to this list (and to the
   allowlist in `tests/check_contract.py`).
   **Approved on 2026-10-24 for the upgrade**, each added to this list, the allowlist and the

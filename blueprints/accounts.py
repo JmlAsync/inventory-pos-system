@@ -15,6 +15,7 @@ from store import accounts as account_store
 from store import users as user_store
 from store import signin as signin_store
 import totp
+import google_signin
 from store.shop import shop_profile
 from mail import send_mail, mail_settings, check_email_address
 
@@ -132,21 +133,9 @@ def login():
                                    'the demo. Use "Forgot your password?" to choose your own.'), 403
         if user and password_ok:
             account_store.forget_tries(key)   # a correct password resets the count
-            # v0.28.0 (rule S13, DEC-030): a trusted browser skips the code; everyone else goes to /verify
-            if plain or signin_store.trusted_device_for(user, trust_tokens()):
+            if plain:
                 return finish_login(user, page_after_login())
-            if user.second_step != 'app' and not user.email:
-                # Owner's decision 1 in DEC-030: the owner adds the address on Users; the next login confirms it
-                return render_template('login.html', error='Your account has no email yet, so the login code can\'t '
-                                       'be sent. Ask the shop\'s owner to add your email on the Users page.'), 403
-            session.clear()   # nothing from a previous login on this browser is kept
-            session['pending_login'] = {'user_id': user.id, 'at': time.time(), 'next': page_after_login()}
-            if user.second_step != 'app':
-                problem = email_code('login', user.email, user_id=user.id)
-                if problem:
-                    flash(f'The code could not be sent: {problem} You can type one of your backup codes instead.',
-                          'danger')
-            return redirect(url_for('accounts.verify'))
+            return second_step(user, page_after_login())
         return render_template('login.html', error='Invalid username or password')   # the try stays counted
     return render_template('login.html')
 
@@ -155,6 +144,24 @@ def login():
 PENDING_SECONDS = 5 * 60    # "half logged in" lasts 5 minutes after the right password
 TRUST_COOKIE = 'trusted'    # holds up to 10 random tokens; each counts only for the user it was made for
 DEMO_PASSWORDS = {'admin123', 'cashier123'}   # published in the README for the demo (rule P3)
+
+
+def second_step(user, next_page):
+    """After the right password or Google (v0.28.0, rule S13, DEC-030; Google since v0.29.0, plan D-5): a trusted
+    browser goes in; everyone else is "half logged in" for 5 minutes and goes to /verify for the code."""
+    if signin_store.trusted_device_for(user, trust_tokens()):
+        return finish_login(user, next_page)
+    if user.second_step != 'app' and not user.email:
+        # Owner's decision 1 in DEC-030: the owner adds the address on Users; the next login confirms it
+        return render_template('login.html', error='Your account has no email yet, so the login code can\'t '
+                               'be sent. Ask the shop\'s owner to add your email on the Users page.'), 403
+    session.clear()   # nothing from a previous login on this browser is kept
+    session['pending_login'] = {'user_id': user.id, 'at': time.time(), 'next': next_page}
+    if user.second_step != 'app':
+        problem = email_code('login', user.email, user_id=user.id)
+        if problem:
+            flash(f'The code could not be sent: {problem} You can type one of your backup codes instead.', 'danger')
+    return redirect(url_for('accounts.verify'))
 
 
 def finish_login(user, next_page):
@@ -407,6 +414,7 @@ def link_to(endpoint, **values):
 
 CODE_EMAILS = {   # purpose: (subject, what the code is for)
     'login': ('Your login code for {shop}', 'log in to your {shop} account'),   # v0.28.0
+    'link': ('Your code to link Google', 'link your Google account to your {shop} account'),   # v0.29.0
     'signup': ('Your code to join {shop}', 'finish joining {shop}'),
     'reset': ('Your code to choose a new password', 'choose a new password for your {shop} account'),
     'email': ('Your code to confirm this email address', 'confirm this email address for your {shop} account'),
@@ -591,12 +599,13 @@ def backup_codes():
 
 
 # ---------------- The authenticator app (v0.28.0, DEC-017) ----------------
-def tell_method_changed(user, method):
-    """S13: turning the app on or off emails the person, so a change they didn't make is noticed."""
+def tell_method_changed(user, method, what='now uses {method} for the login code'):
+    """S13: turning the app on or off emails the person, so a change they didn't make is noticed.
+    v0.29.0: linking and unlinking Google too (what = the sentence)."""
     if user.email:
         shop = shop_profile().name
         send_mail(user.email, 'Your sign-in method changed',
-                  f'Your {shop} account now uses {method} for the login code.\n\n'
+                  f'Your {shop} account {what.format(method=method)}.\n\n'
                   f'Changed on {shop_now():%d %b %Y at %I:%M %p} from the computer {request.remote_addr}.\n'
                   f'If this wasn\'t you, tell the shop\'s owner at once and change your password.\n',
                   sender_name=shop)
@@ -657,3 +666,126 @@ def authenticator_off():
     tell_method_changed(current_user, 'a code sent by email')
     flash('Your login code now comes by email again.', 'success')
     return redirect(url_for('accounts.profile') + '#method')
+
+
+# ---------------- Sign in with Google (v0.29.0, F26, DEC-031; public pages, rule S1) ----------------
+LINK_MINUTES = 10   # after the password and code on Profile, the trip to Google must start within 10 minutes
+
+
+@bp.app_template_global()
+def google_status():
+    """For the templates: is Google sign-in set up, does it work on this address, and where it works if not."""
+    ready = google_signin.settings() is not None
+    return {'ready': ready, 'here': ready and google_signin.works_here(), 'where': google_signin.where_it_works()}
+
+
+@bp.route('/login/google')
+def google_login():
+    """Send the browser to Google to sign in (the second step still follows, plan D-5)."""
+    status = google_status()
+    if not status['ready']:
+        flash('Sign in with Google is not set up in this shop.', 'danger')
+        return redirect(url_for('accounts.login'))
+    if not status['here']:
+        flash(f'Sign in with Google works at {status["where"]} on the shop\'s main computer.', 'info')
+        return redirect(url_for('accounts.login'))
+    return redirect(google_signin.start('login', page_after_login()))
+
+
+@bp.route('/auth/google/callback')
+def google_callback():
+    """Back from Google: check everything (google_signin.finish), then log in, link or join."""
+    try:
+        claims, purpose, extra = google_signin.finish(request.args)
+    except google_signin.GoogleProblem as problem:
+        flash(str(problem), 'danger')
+        return redirect(url_for('accounts.profile') if current_user.is_authenticated else url_for('accounts.login'))
+    if purpose == 'link':
+        return google_link_finish(claims)
+    if purpose == 'signup':
+        from blueprints.users import google_signup_finish   # here, not at the top: users.py imports this file
+        return google_signup_finish(claims, extra or {})
+    user = User.query.filter_by(google_sub=claims['sub']).first()
+    if user is None:
+        flash('This Google account isn\'t linked to an account here. Log in with your password and link Google on '
+              'your Profile, or ask the shop\'s owner for an invitation.', 'danger')
+        return redirect(url_for('accounts.login'))
+    if not user.is_active:
+        flash('This account is switched off. Ask the shop\'s owner.', 'danger')
+        return redirect(url_for('accounts.login'))
+    next_page = extra if isinstance(extra, str) and extra.startswith('/') and not extra.startswith('//') else url_for('catalog.products')
+    return second_step(user, next_page)
+
+
+def google_link_finish(claims):
+    """Linking (owner's decision 2 in DEC-031): the Google account's verified email must be this account's confirmed
+    email, and the Google account must not open another account already."""
+    started = session.pop('google_link_ok', 0)
+    if not current_user.is_authenticated or time.time() - started > LINK_MINUTES * 60:
+        flash('Please start linking Google again from your Profile.', 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    if claims['email'].lower() != (current_user.email or '') or not current_user.email_verified_at:
+        flash(f'That Google account is {claims["email"]}, but your account\'s email is {current_user.email}. '
+              f'Link the Google account with the same address, or change your email on Profile first.', 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    other = User.query.filter_by(google_sub=claims['sub']).first()
+    if other is not None and other.id != current_user.id:
+        flash('That Google account is already linked to another account here.', 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    signin_store.link_google(current_user, claims['sub'])
+    tell_method_changed(current_user, '', what='can now be logged in to with Google (the login code is still asked)')
+    flash('Google is linked: you can now use "Sign in with Google". The login code is still asked, as before.', 'success')
+    return redirect(url_for('accounts.profile') + '#google')
+
+
+@bp.route('/profile/google/code', methods=['POST'])
+@login_required
+def google_link_code():
+    """Linking step 1 for emailed codes: send a fresh code (purpose "link")."""
+    if not current_user.email or not current_user.email_verified_at:
+        flash('Confirm your email first: Google is linked by that address.', 'danger')
+    else:
+        problem = email_code('link', current_user.email, user_id=current_user.id)
+        flash(problem or f'We sent a code to {masked(current_user.email)}.', 'danger' if problem else 'info')
+    return redirect(url_for('accounts.profile') + '#google')
+
+
+@bp.route('/profile/google', methods=['POST'])
+@login_required
+def google_link_start():
+    """Linking step 2: the current password AND a fresh code (emailed, the app's, or a backup code), then Google."""
+    if not google_status()['here']:
+        return redirect(url_for('accounts.profile') + '#google')
+    if not current_user.email or not current_user.email_verified_at:
+        flash('Confirm your email first: Google is linked by that address.', 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    problem = current_password_ok(request.form.get('current_password', ''))
+    if problem is None:
+        typed = request.form.get('code', '')
+        if current_user.second_step == 'app':
+            code_ok = signin_store.check_app_code(current_user, typed)
+        else:
+            row, _ = user_store.check_code('link', current_user.email, typed)
+            code_ok = row is not None and row.user_id == current_user.id
+        if not (code_ok or signin_store.use_backup_code(current_user, typed)):
+            problem = 'That code is not right. Ask for a new one, or type a backup code.'
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    session['google_link_ok'] = time.time()
+    return redirect(google_signin.start('link'))
+
+
+@bp.route('/profile/google/unlink', methods=['POST'])
+@login_required
+def google_unlink():
+    """Unlink Google: the current password (so a Google-only account first sets one with Forgot password)."""
+    problem = current_password_ok(request.form.get('current_password', ''))
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('accounts.profile') + '#google')
+    if current_user.google_sub:
+        signin_store.unlink_google(current_user)
+        tell_method_changed(current_user, '', what='can no longer be logged in to with Google')
+        flash('Google is no longer linked. Log in with your username and password.', 'success')
+    return redirect(url_for('accounts.profile') + '#google')

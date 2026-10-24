@@ -18,6 +18,7 @@ import shutil
 import sys
 import tomllib
 from mail import clean_mail_settings, SECURITY_PORTS, check_email_address   # the same checks the app uses (v0.26.0)
+from google_signin import check_settings as check_google_settings            # v0.29.0
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INSTANCE = os.path.join(HERE, 'instance')
@@ -90,7 +91,20 @@ def existing_mail_settings():
     return mail
 
 
-def write_config(host, port, mail=None):
+def existing_google_settings():
+    """The [google] part of the current config.toml, checked, or None (v0.29.0): kept when setup runs again."""
+    try:
+        with open(CONFIG_FILE, 'rb') as f:
+            old = tomllib.load(f).get('google')
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    google, problem = check_google_settings(old) if old else (None, None)
+    if problem:
+        print(f'The old Google settings had a mistake ({problem}), so they were left out.')
+    return google
+
+
+def write_config(host, port, mail=None, google=None):
     """Write instance/config.toml, keeping the previous one as config.toml.bak. The only password in it is the
     mail account's (v0.26.0), which the server needs to send email; account passwords are never written here."""
     os.makedirs(INSTANCE, exist_ok=True)
@@ -117,6 +131,12 @@ def write_config(host, port, mail=None):
                     f'from_address = {toml_text(mail["from_address"])}\n'
                     f'username = {toml_text(mail["username"])}\n'
                     f'password = {toml_text(mail["password"])}\n')
+        if google:
+            # v0.29.0 (DEC-031): Sign in with Google; the secret stays on this computer like the mail password
+            f.write('\n[google]\n'
+                    '# From Google Cloud > APIs & Services > Credentials (an OAuth client of type "Web application")\n'
+                    f'client_id = {toml_text(google["client_id"])}\n'
+                    f'client_secret = {toml_text(google["client_secret"])}\n')
 
 
 # ---------- Asking (interactive) or reading an answers file ----------
@@ -166,8 +186,19 @@ def ask_answers():
             if not problem:
                 break
             print(f'  {problem}')
+    # v0.29.0: Sign in with Google, optional; skipping keeps any Google settings from an earlier run
+    print('\nSign in with Google (optional). Needs an OAuth client from Google Cloud; you can set it up later.')
+    google = None
+    if ask('Set up Sign in with Google now? (y/n)', lambda a: a.lower().startswith('y'), 'n'):
+        print(f'  In Google Cloud, add this authorized redirect URI: http://localhost:{port}/auth/google/callback')
+        while True:
+            google, problem = check_google_settings({'client_id': input('  Client ID: ').strip(),
+                                                     'client_secret': getpass.getpass('  Client secret (hidden): ')})
+            if not problem:
+                break
+            print(f'  {problem}')
     return {'network': {'other_devices': other, 'port': port}, 'shop': shop,
-            'admin': {'username': username, 'password': password, 'email': email}, 'mail': mail}
+            'admin': {'username': username, 'password': password, 'email': email}, 'mail': mail, 'google': google}
 
 
 def read_answers(path):
@@ -194,9 +225,15 @@ def set_up(answers):
             raise Refused(problem)
     else:
         mail = existing_mail_settings()   # none given: keep the ones from an earlier run, if any
+    if answers.get('google'):   # v0.29.0
+        google, problem = check_google_settings(answers['google'])
+        if problem:
+            raise Refused(problem)
+    else:
+        google = existing_google_settings()
 
     # 2. Settings first: the app reads them when it starts
-    write_config(host, port, mail)
+    write_config(host, port, mail, google)
     from app import app, upgrade_database
     from store.shop import save_shop_profile
     from store.users import make_owner
@@ -219,6 +256,9 @@ def set_up(answers):
     print('Then open Profile and confirm your email with the code we send (needs email sending).')
     if mail:
         print('Email: open Email in the admin menu and send a test message to check it works.')
+    if google:
+        print(f'Google: register http://localhost:{port}/auth/google/callback as a redirect URI in Google Cloud, and '
+              f'open the system at http://localhost:{port} to see "Sign in with Google".')
 
 
 def main():
@@ -252,4 +292,5 @@ if __name__ == '__main__':
 #  "shop": {"name": "Sample Café", "address": "", "tin": "", "footer": "Thank you!"},
 #  "admin": {"username": "maria", "password": "choose-a-long-one", "email": "maria@example.com"},
 #  "mail": {"host": "smtp.gmail.com", "port": 587, "security": "starttls", "from_address": "cafe@gmail.com",
-#           "username": "cafe@gmail.com", "password": "the app password"}}
+#           "username": "cafe@gmail.com", "password": "the app password"},
+#  "google": {"client_id": "123-abc.apps.googleusercontent.com", "client_secret": "the client secret"}}   (v0.29.0)

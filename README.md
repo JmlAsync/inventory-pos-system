@@ -115,6 +115,12 @@ trusted (30 days; 7 for admins and the owner). On **Profile** everyone can switc
 (works with no internet), print **backup codes**, see and remove trusted devices, and **log out everywhere**.
 For the counter computer, tick **Trust this device** once, so selling keeps working when the internet is down.
 
+**Sign in with Google (v0.29.0, optional):** create an OAuth client of type *Web application* in Google Cloud,
+add the redirect URI `http://localhost:5000/auth/google/callback` (or your HTTPS address), and give its client ID
+and secret to `setup_shop.py`. Each person links Google on **Profile** (password and a code; the Google account
+must use the same email), or joins with Google from their invitation. Google only allows `localhost` or HTTPS, so
+on the shop's own network it works on the main computer at `http://localhost:5000`; the login code still follows.
+
 **Email (v0.26.0):** answer yes to the email questions to let the system send email. For Gmail, use the server
 `smtp.gmail.com`, security `starttls`, port 587 and an **App Password** (Google Account → Security → App
 passwords; it needs 2-Step Verification), not the normal password. Then open **Email** in the admin menu and send

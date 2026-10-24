@@ -77,6 +77,9 @@ class User(db.Model, UserMixin):
     totp_key_encrypted = db.Column(db.Text)
     totp_pending_encrypted = db.Column(db.Text)   # during set-up, until the first code proves the scan
     totp_last_step = db.Column(db.Integer)
+    # v0.29.0 (DEC-031): Google's permanent id for this person, when they linked Google. Never the email: an address
+    # can change hands, the id can't.
+    google_sub = db.Column(db.String(255), unique=True)
 
     @property
     def is_owner(self):
@@ -244,6 +247,7 @@ class Invitation(db.Model):
     # Between the two signup steps: the chosen username and the password's hash, until the code is entered
     pending_username = db.Column(db.String(50))
     pending_password_hash = db.Column(db.String(200))
+    pending_google_sub = db.Column(db.String(255))   # v0.29.0: joining with Google, until the code is entered
     inviter = db.relationship('User', foreign_keys=[invited_by])
 
 

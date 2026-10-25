@@ -1,14 +1,7 @@
-{% extends "base.html" %}
-{% block title %}Voids & refunds{% endblock %}
-{% block content %}
-{# Admin page (v0.31.0, F28, rule S15, DEC-033): void requests waiting for an admin, and the latest voids and refunds.
-   Approving needs the admin's own password; a cashier gets 403 here and on every approval address (rule S2). #}
-<h1>Voids &amp; refunds</h1>
-<p class="page-subtitle">A receipt is never changed. A void (today's receipt, all of it) or a refund (any day, chosen
-    items) is kept as its own record, naming who asked and who approved.</p>
-
-<h2 class="section-title">Waiting for an admin</h2>
-{% if waiting %}
+{# Void requests waiting for an admin, at the top of the Sales Report (v0.31.0, F28, rule S15, DEC-033; owner's
+   decision 2026-10-25: one place for the money, no separate page). Approving needs the admin's own password; a cashier
+   gets 403 on the report and on every approval address (rule S2). Needs `waiting` and `sold_today`. #}
+<h2 class="section-title">Voids waiting for you <span class="badge rounded-pill text-bg-danger align-middle">{{ waiting|length }}</span></h2>
 <div class="row g-3 mb-4">
 {% for request_ in waiting %}
 {% set sale = request_.sale %}
@@ -38,8 +31,7 @@
     </form>
     {% else %}
     <div class="alert alert-secondary small mb-2">This receipt is from an earlier day, so it can no longer be voided.
-        Reject the request, and <a href="{{ url_for('adjustments.refund', sale_id=sale.id) }}">give a refund</a> if
-        the customer is owed money.</div>
+        Reject the request, then give a refund from the receipt if the customer is owed money.</div>
     {% endif %}
     <form method="POST" action="{{ url_for('adjustments.reject_void', adjustment_id=request_.id) }}" class="d-flex gap-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -50,34 +42,3 @@
 </div></div></div>
 {% endfor %}
 </div>
-{% else %}
-<p class="text-body-secondary mb-4">No void requests are waiting.</p>
-{% endif %}
-
-<h2 class="section-title">Latest decisions</h2>
-{% if done %}
-<div class="card app-card"><div class="table-responsive">
-<table class="table table-hover">
-    <thead><tr><th>When</th><th>What</th><th>Receipt</th><th class="text-end">Given back</th><th>Asked by</th><th>Decided by</th><th>Reason</th></tr></thead>
-    <tbody>
-        {% for a in done %}
-        <tr>
-            <td class="text-nowrap">{{ (a.decided_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</td>
-            <td>
-                {% if a.status == 'rejected' %}<span class="badge text-bg-secondary">Void rejected</span>
-                {% else %}<a href="{{ url_for('adjustments.slip', adjustment_id=a.id) }}">{{ 'Void' if a.kind == 'void' else 'Refund' }} #{{ a.id }}</a>{% endif %}
-            </td>
-            <td><a href="{{ url_for('sales.receipt', sale_id=a.sale_id) }}">#{{ a.sale_id }}</a></td>
-            <td class="text-end">{% if a.status == 'approved' %}{{ a.total|peso }} <span class="small text-body-secondary">{{ PAYMENT_METHODS.get(a.method, a.method) }}</span>{% else %}–{% endif %}</td>
-            <td>{{ a.requester.username }}</td>
-            <td>{{ a.decider.username if a.decider else '' }}{% if a.decided_how == 'code' %} <span class="small text-body-secondary">(emailed code)</span>{% endif %}</td>
-            <td class="small">{{ a.reason }}{% if a.note %}<div class="text-body-secondary">Rejected: {{ a.note }}</div>{% endif %}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-</div></div>
-{% else %}
-<p class="text-body-secondary">No voids or refunds yet.</p>
-{% endif %}
-{% endblock %}

@@ -110,7 +110,7 @@ def ask_by_email(adjustment_id):
                 f'If you agree, give {adjustment.requester.username} this code: {code[:3]} {code[3:]}\n'
                 f'It approves this void only, works for {user_store.CODE_MINUTES} minutes, once, and the void will '
                 f'name you as the one who approved it.\n\n'
-                f'If you don\'t agree, do nothing: the void stays waiting, and you can reject it on Voids & refunds.\n')
+                f'If you don\'t agree, do nothing: the void stays waiting, and you can reject it on the Sales Report.\n')
         problem = send_mail(admin.email, f'Void request: receipt #{sale.id} ({peso(sale.total)})', body,
                             sender_name=shop)
     if problem:
@@ -148,21 +148,14 @@ def approve_by_code(adjustment_id):
     return redirect(url_for('adjustments.slip', adjustment_id=adjustment.id))
 
 
-# ---------------- Admins: the waiting voids, approving and rejecting ----------------
-@bp.route('/voids')
-@login_required
-@admin_required
-def voids():
-    """Voids & refunds: requests waiting for an admin, and the latest decisions."""
-    return render_template('voids.html', waiting=adjustment_store.waiting_voids(), done=adjustment_store.decided(),
-                           sold_today=adjustment_store.sold_today)
-
-
+# ---------------- Admins: approving and rejecting ----------------
+# The waiting requests are listed at the top of the Sales Report (owner's decision 2026-10-25: one place for the money,
+# no separate page) and on each receipt.
 def back_from_decision():
-    """Back to where the admin clicked: the receipt, or the Voids & refunds page."""
+    """Back to where the admin clicked: the receipt, or the Sales Report."""
     if request.form.get('back') == 'receipt':
         return None
-    return redirect(url_for('adjustments.voids'))
+    return redirect(url_for('reports.sales_report'))
 
 
 @bp.route('/voids/<int:adjustment_id>/approve', methods=['POST'])

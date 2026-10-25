@@ -42,19 +42,20 @@ def open_void(sale):
 
 
 def waiting_voids():
-    """Every void request still waiting for an admin, oldest first (the Voids & refunds page)."""
+    """Every void request still waiting for an admin, oldest first (top of the Sales Report)."""
     return SaleAdjustment.query.filter_by(kind='void', status='requested').order_by(SaleAdjustment.id).all()
 
 
 def waiting_count():
-    """How many void requests are waiting (the number next to "Voids & refunds" in the menu)."""
+    """How many void requests are waiting (the number next to "Sales Report" in the menu)."""
     return SaleAdjustment.query.filter_by(kind='void', status='requested').count()
 
 
-def decided(limit=50):
-    """The newest approved or rejected voids and refunds, newest first."""
-    return (SaleAdjustment.query.filter(SaleAdjustment.status != 'requested')
-            .order_by(SaleAdjustment.decided_at.desc(), SaleAdjustment.id.desc()).limit(limit).all())
+def decided_between(start, end):
+    """The voids and refunds approved or rejected in [start, end) (UTC), newest first, for the Sales Report."""
+    return (SaleAdjustment.query.filter(SaleAdjustment.status != 'requested', SaleAdjustment.decided_at >= start,
+                                        SaleAdjustment.decided_at < end)
+            .order_by(SaleAdjustment.decided_at.desc(), SaleAdjustment.id.desc()).all())
 
 
 def why_not_void(sale):

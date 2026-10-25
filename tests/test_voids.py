@@ -156,12 +156,12 @@ with app.app_context():
     waiting = SaleAdjustment.query.filter_by(sale_id=s1, status='requested').count()
 check('TC-41.3 a second request for the same receipt is refused', 'already waiting' in page and waiting == 1)
 check('TC-41.3 Today\'s receipts lists it as "Void requested"', 'Void requested' in text(cashier.get('/sales/today')))
-check('TC-41.3 the admin menu shows 1 waiting request on Voids & refunds',
-      re.search(r'Voids &amp; refunds</span>\s*<span class="badge[^"]*"[^>]*>1<', text(admin.get('/sales/today'))) is not None)
+check('TC-41.3 the admin menu shows 1 waiting request next to Sales Report',
+      re.search(r'Sales Report</span>\s*<span class="badge[^"]*"[^>]*>1<', text(admin.get('/sales/today'))) is not None)
 VOID1 = adjustment_of(s1)
 
 # ---- TC-41.4 a cashier gets 403 on every approval and refund address (rules S2, S15)
-for path in ['/voids', f'/sales/{s1}/refund']:
+for path in ['/reports/sales', f'/sales/{s1}/refund']:
     check(f'TC-41.4 cashier GET {path} -> 403', cashier.get(path).status_code == 403)
 for path in [f'/voids/{VOID1}/approve', f'/voids/{VOID1}/reject', f'/sales/{s1}/void-now', f'/sales/{s1}/refund']:
     check(f'TC-41.4 cashier POST {path} -> 403', cashier.post(path, data={'password': 'cashier123', 'method': 'cash',
@@ -170,8 +170,8 @@ check('TC-41.4 ... and the request is still waiting, nothing changed',
       state(s1) == (18, 1640, 464, False, 0) and 'Void requested' in text(cashier.get(f'/sales/{s1}')))
 
 # ---- TC-41.5 the admin approves with their password: the whole receipt goes back on the shelf
-page = text(admin.get('/voids'))
-check('TC-41.5 Voids & refunds shows the request: receipt, items, who asked and why',
+page = text(admin.get('/reports/sales'))
+check('TC-41.5 the Sales Report shows the waiting request at the top: receipt, items, who asked and why',
       f'Receipt #{s1}' in page and 'Wrong drink rung up' in page and 'cashier' in page and '2 × Latte' in page)
 page = follow(admin, f'/voids/{VOID1}/approve', {'method': 'cash', 'password': 'wrong-password'})
 check('TC-41.5 a wrong password: refused, nothing changed', 'Current password is wrong' in page
@@ -228,7 +228,8 @@ with app.app_context():
 page = follow(admin, f'/voids/{VOID2B}/approve', {'method': 'cash', 'password': 'admin123'})
 check('TC-41.8 a request left waiting until the next day can no longer be approved (reject + refund instead)',
       'earlier day' in page and state(s2)[0] == 19 and not state(s2)[3])
-check('TC-41.8 Voids & refunds says so instead of offering Approve', 'can no longer be voided' in text(admin.get('/voids')))
+check('TC-41.8 the Sales Report says so instead of offering Approve',
+      'can no longer be voided' in text(admin.get('/reports/sales')))
 follow(admin, f'/voids/{VOID2B}/reject')
 page = follow(cashier, f'/sales/{s2}/void', {'reason': 'late'})
 check('TC-41.8 an older receipt: asking is refused with "an admin gives a refund instead"',
@@ -442,9 +443,14 @@ check('TC-41.15 ingredient history names Void, Refund and Waste with a link to t
 page = text(admin.get('/admin/audit?area=sale'))
 check('TC-41.15 the audit log has a "Voids & refunds" area with requests, voids, rejections and refunds',
       'void requested' in page and 'voided' in page and 'void rejected' in page and 'refunded' in page)
-page = text(admin.get('/voids'))
-check('TC-41.15 Voids & refunds lists the latest decisions with who asked and who decided',
-      'Latest decisions' in page and '(emailed code)' in page and 'Rejected: Customer took it after all' in page)
+page = text(admin.get('/reports/sales'))
+check('TC-41.15 the Sales Report lists the day\'s voids and refunds with who asked and who decided',
+      'Voids &amp; refunds</h2>' in page and '(emailed code)' in page and 'Rejected: Customer took it after all' in page)
+check('TC-41.15 there is no separate Voids & refunds page any more (owner\'s decision)',
+      admin.get('/voids').status_code == 404 and 'Voids &amp; refunds</span>' not in page)
+check('TC-41.15 a rejection from the Sales Report goes back to the Sales Report',
+      follow(cashier, f'/sales/{s5}/void', {'reason': 'Back test'}) and
+      admin.post(f'/voids/{adjustment_of(s5)}/reject').headers['Location'].endswith('/reports/sales'))
 
 # ---- TC-41.16 (DEF-71) demo mode shows an email with "₱" even in a server window or log that can't show "₱"
 # (found in the browser check: Windows writes a redirected window in cp1252, and the void email crashed the page)

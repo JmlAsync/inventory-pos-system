@@ -6,6 +6,7 @@ from flask_login import login_required, current_user
 from models import db, Product, Ingredient, Sale, SaleAdjustment, to_money
 from common import LOW_STOCK_THRESHOLD, PAYMENT_METHODS, admin_required, shop_now, shop_day_start_utc
 from store.stock import stock_levels
+from store import adjustments as adjustment_store   # v0.31.0
 
 bp = Blueprint('reports', __name__)
 
@@ -109,6 +110,10 @@ def sales_report():
 
     # Money by payment method (v0.15.0): what should be in the drawer vs. in GCash; since v0.31.0 after voids and
     # refunds given back that way
+    # v0.31.0 (owner's decision 2026-10-25): the void requests waiting for an admin, and the period's voids and
+    # refunds, are on this page too, so all the money is in one place
     return render_template('sales_report.html', sales=sales, revenue=money['net'], money=money,
                            items_sold=items_sold, top_products=top_products,
-                           by_method=money['by_method'], start=start, end=end, error=error)
+                           by_method=money['by_method'], start=start, end=end, error=error,
+                           waiting=adjustment_store.waiting_voids(), sold_today=adjustment_store.sold_today,
+                           adjustments=adjustment_store.decided_between(period_start, period_end))

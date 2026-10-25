@@ -74,8 +74,8 @@
             {% if current_user.is_authenticated and current_user.is_admin %}
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
-                {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report') }}
-                {{ side_link(request.endpoint, 'adjustments.voids', 'bi-arrow-counterclockwise', 'Voids & refunds', ('adjustments.refund',), waiting_voids_count()) }}{# v0.31.0 #}
+                {# v0.31.0: the red number = void requests waiting; they are at the top of the Sales Report #}
+                {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report', ('adjustments.refund',), waiting_voids_count()) }}
                 {{ side_link(request.endpoint, 'catalog.manage_options', 'bi-sliders', 'Servings & Add-ons', ('ingredients.edit_recipe',) if recipe_kind == 'option' else ()) }}
                 {{ side_link(request.endpoint, 'ingredients.ingredients', 'bi-droplet-half', 'Ingredients', ('ingredients.ingredient_detail', 'ingredients.ingredients_history')) }}
                 {{ side_link(request.endpoint, 'shop.shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}

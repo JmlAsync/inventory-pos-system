@@ -1164,7 +1164,8 @@ after the 5 minutes or once a sale has used that ingredient; then the admin simp
    **slip** for each void or refund.
 2. **Void** = the whole receipt, **only on the day of the sale** (until v0.32.0 brings the Z reading, the day ends
    at midnight on the shop's clock). Anyone may **ask** for it on the receipt (with a reason); nothing changes until
-   an admin approves. An admin approves on **Voids & refunds** or on the receipt, typing **their own password**; an
+   an admin approves. An admin approves at the top of the **Sales Report** or on the receipt, typing **their own
+   password**; an
    admin can also void a receipt at once (asked and approved by them, with their password). Approving puts
    **everything** back on the shelf. A request still waiting the next day can only be rejected; then a refund is
    used.
@@ -1191,6 +1192,10 @@ after the 5 minutes or once a sale has used that ingredient; then the admin simp
    receipt. "Cash" and "GCash" are what came in that way minus what went back that way, so Cash is what should be
    in the drawer. Units and top products count what the customers kept. Home's "revenue today" is net too. Voids
    and refunds are also in the audit log (area "Voids & refunds").
+8. **One place for the money (owner's decision, 2026-10-25).** There is no separate Voids & refunds page: the void
+   requests waiting for an admin sit at the top of the Sales Report (the red number in the menu is next to Sales
+   Report), and the report lists the period's voids, refunds and rejected requests under its sales. Today's receipts
+   stays its own page, for the cashiers.
 
 **Why.** The report listed "no void or refund" as a known limitation (§10.4); the café's only way to fix a wrong sale
 was to leave the numbers wrong. DEC-007 decided the principle (keep the receipt, add a correction, a second person
@@ -1200,6 +1205,7 @@ approves). This entry decides how it works day to day.
 
 | Detail | Choice | Alternatives rejected |
 |---|---|---|
+| Where admins find waiting voids | The top of the Sales Report, and each receipt (owner's decision) | A separate Voids & refunds page (first build; the owner found it one page too many, since the money is already on the report) |
 | Approval at the till | The admin's own password on their own screen, or an emailed code | **The admin types their username and password on the cashier's screen** (a common "manager override"): it checks only the password, not the second step every login needs (S13), so a cashier who once saw the admin type it could approve their own voids. The emailed code proves the admin has their mailbox, works when they are not in the shop, and names them |
 | Who gets the emailed code | The one admin the cashier chooses, each with their own code | One code to every admin (the void could not say *which* admin agreed); a link in the email that approves (the local package can't be reached from outside the shop, and a link can be clicked by a mail scanner) |
 | Password on approval | Asked again, even though the admin is logged in | Not asked (anyone at an admin's unlocked screen could approve) |

@@ -8,6 +8,7 @@
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
+{% if waiting %}<div class="d-print-none">{% include "_waiting_voids.html" %}</div>{% endif %}{# v0.31.0 #}
 
 <!-- Choose the period. GET form: the dates appear in the address bar -->
 <div class="card mb-4 d-print-none"><div class="card-body">
@@ -102,4 +103,6 @@
 {% else %}
 <p class="text-body-secondary">No sales in this period.</p>
 {% endif %}
+
+{% include "_adjustments_table.html" %}{# v0.31.0 #}
 {% endblock %}

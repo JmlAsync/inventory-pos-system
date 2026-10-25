@@ -30,7 +30,7 @@ ADMIN_ROUTES = {                                       # @login_required AND @ad
     '/admin/invitations/<int:invitation_id>/cancel', '/admin/audit',
     '/admin/users/<int:user_id>/email', '/admin/users/<int:user_id>/reset-second-step',   # v0.28.0
     '/ingredients/count/<int:movement_id>/undo',       # undo a stock count within 5 minutes (v0.30.0)
-    '/voids', '/voids/<int:adjustment_id>/approve', '/voids/<int:adjustment_id>/reject',   # voids and refunds (v0.31.0,
+    '/voids/<int:adjustment_id>/approve', '/voids/<int:adjustment_id>/reject',   # voids and refunds (v0.31.0,
     '/sales/<int:sale_id>/void-now', '/sales/<int:sale_id>/refund',                          # rule S15, DEC-033)
 }
 USER_ROUTES = {                                        # @login_required (admin or cashier)

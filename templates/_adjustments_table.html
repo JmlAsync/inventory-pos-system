@@ -1,0 +1,28 @@
+{# The voids and refunds decided in the report's dates (v0.31.0, F28, DEC-033): what went back, who asked, who decided,
+   and rejected requests with their reason. Needs `adjustments`. #}
+<h2 class="section-title">Voids &amp; refunds</h2>
+{% if adjustments %}
+<div class="card app-card"><div class="table-responsive">
+<table class="table table-hover">
+    <thead><tr><th>When</th><th>What</th><th>Receipt</th><th class="text-end">Given back</th><th>Asked by</th><th>Decided by</th><th>Reason</th></tr></thead>
+    <tbody>
+        {% for a in adjustments %}
+        <tr>
+            <td class="text-nowrap">{{ (a.decided_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</td>
+            <td>
+                {% if a.status == 'rejected' %}<span class="badge text-bg-secondary">Void rejected</span>
+                {% else %}<a href="{{ url_for('adjustments.slip', adjustment_id=a.id) }}">{{ 'Void' if a.kind == 'void' else 'Refund' }} #{{ a.id }}</a>{% endif %}
+            </td>
+            <td><a href="{{ url_for('sales.receipt', sale_id=a.sale_id) }}">#{{ a.sale_id }}</a></td>
+            <td class="text-end">{% if a.status == 'approved' %}{{ a.total|peso }} <span class="small text-body-secondary">{{ PAYMENT_METHODS.get(a.method, a.method) }}</span>{% else %}–{% endif %}</td>
+            <td>{{ a.requester.username }}</td>
+            <td>{{ a.decider.username if a.decider else '' }}{% if a.decided_how == 'code' %} <span class="small text-body-secondary">(emailed code)</span>{% endif %}</td>
+            <td class="small">{{ a.reason }}{% if a.note %}<div class="text-body-secondary">Rejected: {{ a.note }}</div>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div></div>
+{% else %}
+<p class="text-body-secondary">No voids or refunds in this period.</p>
+{% endif %}

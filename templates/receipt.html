@@ -12,6 +12,12 @@
         <p class="mb-1"><strong>Receipt #:</strong> {{ sale.id }}</p>
         <p class="mb-1"><strong>Date:</strong> {{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</p>
         <p class="mb-3"><strong>Served by:</strong> {{ sale.user.username }}</p>
+        {# v0.31.0 (rule I8, DEC-033): the receipt never changes; how it stands is shown above it, also when printed #}
+        {% if sale.voided_at %}
+        <div class="alert alert-danger text-center fw-bold py-2 receipt-status">VOIDED on {{ (sale.voided_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</div>
+        {% elif sale.refunded_total %}
+        <div class="alert alert-warning text-center py-2 receipt-status">Refunded {{ sale.refunded_total|peso }} of {{ sale.total|peso }}</div>
+        {% endif %}
         <table class="table table-sm">
             <thead>
                 <tr><th>Item</th><th>Qty</th><th>Price</th><th class="text-end">Subtotal</th></tr>
@@ -20,7 +26,7 @@
                 {% for item in sale.items %}
                 <tr>
                     <td>{{ item.product_name }}{% if item.options %}<div class="small text-body-secondary">{{ item.options }}</div>{% endif %}</td>
-                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.quantity }}{% if item.refunded_quantity %}<div class="small text-body-secondary">{{ item.refunded_quantity }} refunded</div>{% endif %}</td>
                     <td>{{ item.unit_price|peso }}</td>
                     <td class="text-end">{{ item.subtotal|peso }}</td>
                 </tr>
@@ -41,6 +47,12 @@
                 {% endif %}
             </tfoot>
         </table>
+        {# v0.31.0: every approved void and refund, with a link to its slip #}
+        {% for adjustment in sale.adjustments if adjustment.status == 'approved' %}
+        <p class="small mb-1">{{ 'Voided' if adjustment.kind == 'void' else 'Refunded' }} {{ adjustment.total|peso }}
+            on {{ (adjustment.decided_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}
+            (<a href="{{ url_for('adjustments.slip', adjustment_id=adjustment.id) }}">slip #{{ adjustment.id }}</a>)</p>
+        {% endfor %}
         {% if shop.footer %}<p class="text-center mb-1">{{ shop.footer }}</p>{% endif %}
         {# SR6 (v0.22.0): always printed, never a setting. This system is not a BIR-registered POS. #}
         <p class="text-center small fw-semibold mb-3 receipt-notice">This is not an official receipt.</p>
@@ -48,6 +60,7 @@
         <div class="d-print-none">
             <button type="button" class="btn btn-light-subtle w-100 mb-2" onclick="window.print()"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print Receipt</button>
             <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary w-100"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Start New Sale</a>
+            {% include "_receipt_actions.html" %}{# v0.31.0: void and refund #}
         </div>
     </div>
 </div>

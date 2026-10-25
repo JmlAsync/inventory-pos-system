@@ -1,0 +1,44 @@
+{# Void requests waiting for an admin, at the top of the Sales Report (v0.31.0, F28, rule S15, DEC-033; owner's
+   decision 2026-10-25: one place for the money, no separate page). Approving needs the admin's own password; a cashier
+   gets 403 on the report and on every approval address (rule S2). Needs `waiting` and `sold_today`. #}
+<h2 class="section-title">Voids waiting for you <span class="badge rounded-pill text-bg-danger align-middle">{{ waiting|length }}</span></h2>
+<div class="row g-3 mb-4">
+{% for request_ in waiting %}
+{% set sale = request_.sale %}
+<div class="col-lg-6"><div class="card app-card h-100"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <a href="{{ url_for('sales.receipt', sale_id=sale.id) }}" class="fw-semibold">Receipt #{{ sale.id }}</a>
+            <div class="small text-body-secondary">{{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }} ·
+                {{ PAYMENT_METHODS.get(sale.payment_method, sale.payment_method) }} · served by {{ sale.user.username }}</div>
+        </div>
+        <span class="fs-5 fw-bold">{{ sale.total|peso }}</span>
+    </div>
+    <ul class="small mb-2 ps-3">
+        {% for item in sale.items %}<li>{{ item.quantity }} × {{ item.product_name }}{% if item.options %} ({{ item.options }}){% endif %}</li>{% endfor %}
+    </ul>
+    <p class="mb-3">Asked by <strong>{{ request_.requester.username }}</strong> at
+        {{ (request_.requested_at|shop_time).strftime('%I:%M %p') }}: “{{ request_.reason }}”</p>
+    {% if sold_today(sale) %}
+    <form method="POST" action="{{ url_for('adjustments.approve_void', adjustment_id=request_.id) }}" class="mb-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% with prefix='approve-' ~ request_.id, paid_by=sale.payment_method %}{% include "_money_back.html" %}{% endwith %}
+        <div class="mb-2">
+            <label class="form-label" for="password-{{ request_.id }}">Your password, to approve</label>
+            <input type="password" class="form-control" id="password-{{ request_.id }}" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-danger w-100">Approve void: give back {{ sale.total|peso }}</button>
+    </form>
+    {% else %}
+    <div class="alert alert-secondary small mb-2">This receipt is from an earlier day, so it can no longer be voided.
+        Reject the request, then give a refund from the receipt if the customer is owed money.</div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('adjustments.reject_void', adjustment_id=request_.id) }}" class="d-flex gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="note-{{ request_.id }}">Why it is rejected (optional)</label>
+        <input type="text" class="form-control" id="note-{{ request_.id }}" name="note" maxlength="200" placeholder="Why not (optional)">
+        <button type="submit" class="btn btn-light-subtle text-nowrap">Reject</button>
+    </form>
+</div></div></div>
+{% endfor %}
+</div>

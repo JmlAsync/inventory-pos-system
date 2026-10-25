@@ -12,6 +12,7 @@ on Settings > Email uses it.
 """
 import smtplib
 import ssl
+import sys
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 from flask import current_app
@@ -107,8 +108,12 @@ def send_mail(to, subject, body, sender_name=''):
     if address is None:
         return 'That is not an email address. Type it like name@example.com.'
     if current_app.config.get('DEMO_MODE'):
-        # v0.28.0 (rule P3, DEC-030): the demo sends nothing; the message is shown in the server's window instead
-        print(f'\n[DEMO_MODE] Email to {address}\nSubject: {subject}\n{body}', flush=True)
+        # v0.28.0 (rule P3, DEC-030): the demo sends nothing; the message is shown in the server's window instead.
+        # v0.31.0 (DEF-71): a window or log file whose text encoding has no "₱" (Windows' cp1252) shows "?" there
+        # instead of crashing the page.
+        text = f'\n[DEMO_MODE] Email to {address}\nSubject: {subject}\n{body}'
+        encoding = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+        print(text.encode(encoding, errors='replace').decode(encoding), flush=True)
         return None
     settings, problem = mail_settings()
     if problem:

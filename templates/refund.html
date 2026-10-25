@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Refund receipt #{{ sale.id }}{% endblock %}
+{% block content %}
+{# Admin page (v0.31.0, F28, DEC-033, plan §4.1): refund chosen items of a receipt, any day. Each item goes back on the
+   shelf (an unopened pastry) or is recorded as waste (a made drink). The receipt itself never changes (rule I8). #}
+<h1>Refund receipt #{{ sale.id }}</h1>
+<p class="page-subtitle">{{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }} · paid
+    {{ sale.total|peso }} by {{ PAYMENT_METHODS.get(sale.payment_method, sale.payment_method) }}
+    {% if sale.refunded_total %}· {{ sale.refunded_total|peso }} refunded before{% endif %}</p>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<form method="POST" action="{{ url_for('adjustments.refund', sale_id=sale.id) }}" style="max-width: 48rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# One stacked row per receipt line, so the number and the shelf / waste choice fit a phone (C7) #}
+    <div class="card app-card mb-3"><ul class="list-group list-group-flush">
+        {% for item in sale.items %}
+        {% set left = item.refundable_quantity %}
+        {% set known = usage_known(item) %}
+        {# A made drink (recipe) can't be sold again, so Waste is chosen first; anything else goes back on the shelf #}
+        {% set chosen = form.get('stock_' ~ item.id) or ('waste' if item.used_recipe else 'restock') %}
+        <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between gap-2">
+                <div><span class="fw-semibold">{{ item.product_name }}</span>{% if item.options %} <span class="small text-body-secondary">{{ item.options }}</span>{% endif %}
+                    <div class="small text-body-secondary">{{ item.unit_price|peso }} each · {{ left }} of {{ item.quantity }} can be refunded</div></div>
+            </div>
+            {% if left > 0 %}
+            <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
+                <div style="width: 6.5rem;">
+                    <label class="visually-hidden" for="qty-{{ item.id }}">How many {{ item.product_name }} to refund</label>
+                    <input type="number" class="form-control" id="qty-{{ item.id }}" name="qty_{{ item.id }}" min="0" max="{{ left }}"
+                           step="1" value="{{ form.get('qty_' ~ item.id, '0') }}">
+                </div>
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="radio" name="stock_{{ item.id }}" id="restock-{{ item.id }}" value="restock"
+                           {% if chosen == 'restock' and known %}checked{% endif %} {% if not known %}disabled{% endif %}>
+                    <label class="form-check-label" for="restock-{{ item.id }}">Back on the shelf</label>
+                </div>
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="radio" name="stock_{{ item.id }}" id="waste-{{ item.id }}" value="waste"
+                           {% if chosen == 'waste' or not known %}checked{% endif %}>
+                    <label class="form-check-label" for="waste-{{ item.id }}">Waste</label>
+                </div>
+            </div>
+            {% if not known %}<div class="small text-body-secondary mt-1">Sold before each item's ingredients were kept: waste only.</div>{% endif %}
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul></div>
+
+    <div class="card app-card"><div class="card-body">
+        <div class="mb-2">
+            <label class="form-label" for="reason">Reason</label>
+            <input type="text" class="form-control" id="reason" name="reason" maxlength="200" required
+                   value="{{ form.get('reason', '') }}" placeholder="e.g. customer returned an unopened pastry">
+        </div>
+        {% with prefix='refund', paid_by=sale.payment_method, form_method=form.get('method'), form_reference=form.get('reference') %}{% include "_money_back.html" %}{% endwith %}
+        <div class="mb-3">
+            <label class="form-label" for="password">Your password, to confirm</label>
+            <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-danger"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Refund</button>
+            <a href="{{ url_for('sales.receipt', sale_id=sale.id) }}" class="btn btn-light-subtle">Cancel</a>
+        </div>
+        <p class="small text-body-secondary mt-2 mb-0">The amount is the items' prices on the receipt. It can never
+            add up to more than was paid.</p>
+    </div></div>
+</form>
+{% endblock %}

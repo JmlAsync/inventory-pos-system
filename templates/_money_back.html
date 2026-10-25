@@ -1,0 +1,18 @@
+{# How the money goes back for a void or refund (v0.31.0, DEC-033): cash from the drawer, or GCash sent from the
+   shop's GCash app with that transfer's reference. Used inside a form: {% include "_money_back.html" %} with
+   `paid_by` (the sale's own method, chosen first) and `prefix` (keeps the ids unique when a page has several forms). #}
+<fieldset class="mb-2">
+    <legend class="form-label fs-6 mb-1">Money back by</legend>
+    {% for key, label in PAYMENT_METHODS.items() %}
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="method" id="{{ prefix }}-method-{{ key }}" value="{{ key }}"
+               {% if key == (form_method or paid_by) %}checked{% endif %} required>
+        <label class="form-check-label" for="{{ prefix }}-method-{{ key }}">{{ label }}</label>
+    </div>
+    {% endfor %}
+</fieldset>
+<div class="mb-2">
+    <label class="form-label" for="{{ prefix }}-reference">GCash reference <span class="text-body-secondary small">(only for GCash: the 13 digits of the transfer you sent back)</span></label>
+    <input type="text" class="form-control" id="{{ prefix }}-reference" name="reference" inputmode="numeric"
+           maxlength="20" autocomplete="off" value="{{ form_reference or '' }}">
+</div>

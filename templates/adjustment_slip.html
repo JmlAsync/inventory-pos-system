@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Void' if adjustment.kind == 'void' else 'Refund' }} slip #{{ adjustment.id }}{% endblock %}
+{% block content %}
+{% set what = 'Void' if adjustment.kind == 'void' else 'Refund' %}
+{# v0.31.0 (F28, rule I8, DEC-033, plan §4.1): a printable slip for a void or refund, kept with the drawer's cash. It
+   names the receipt, the items, the money, who asked and who approved. #}
+<div class="card mx-auto receipt-card" style="max-width: 32rem;">
+    <div class="card-body">
+        <h1 class="h4 text-center">{{ shop.name }}</h1>
+        {% if shop.address %}<p class="text-center small mb-0">{{ shop.address }}</p>{% endif %}
+        {% if shop.tin %}<p class="text-center small mb-0">TIN: {{ shop.tin }}</p>{% endif %}
+        <p class="text-center fw-bold mt-2 mb-3">{{ what|upper }} SLIP #{{ adjustment.id }}</p>
+        {% if adjustment.status == 'requested' %}
+        <div class="alert alert-warning py-2">Waiting for an admin: nothing has been given back yet.</div>
+        {% elif adjustment.status == 'rejected' %}
+        <div class="alert alert-secondary py-2">Rejected{% if adjustment.note %}: {{ adjustment.note }}{% endif %}. Nothing was given back.</div>
+        {% endif %}
+        <p class="mb-1"><strong>For receipt #:</strong> <a href="{{ url_for('sales.receipt', sale_id=sale.id) }}">{{ sale.id }}</a>
+            ({{ (sale.created_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}, {{ sale.total|peso }})</p>
+        <p class="mb-1"><strong>Reason:</strong> {{ adjustment.reason }}</p>
+        <p class="mb-1"><strong>Asked by:</strong> {{ adjustment.requester.username }},
+            {{ (adjustment.requested_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}</p>
+        {% if adjustment.decider %}
+        <p class="mb-3"><strong>{{ 'Approved' if adjustment.status == 'approved' else 'Decided' }} by:</strong> {{ adjustment.decider.username }},
+            {{ (adjustment.decided_at|shop_time).strftime('%Y-%m-%d %I:%M %p') }}{% if adjustment.decided_how == 'code' %} (by emailed code){% endif %}</p>
+        {% endif %}
+        <table class="table table-sm">
+            <thead><tr><th>Item</th><th>Qty</th><th>Goes</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+                {% for line in adjustment.lines %}
+                <tr>
+                    <td>{{ line.item.product_name }}{% if line.item.options %}<div class="small text-body-secondary">{{ line.item.options }}</div>{% endif %}</td>
+                    <td>{{ line.quantity }}</td>
+                    <td>{{ 'Shelf' if line.restock else 'Waste' }}</td>
+                    <td class="text-end">{{ line.amount|peso }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr><th colspan="3">{{ 'GIVEN BACK' if adjustment.status == 'approved' else 'TO GIVE BACK' }}</th><th class="text-end">{{ adjustment.total|peso }}</th></tr>
+                {% if adjustment.method %}
+                <tr><td colspan="3">By {{ PAYMENT_METHODS.get(adjustment.method, adjustment.method) }}</td>
+                    <td class="text-end">{{ adjustment.reference or '' }}</td></tr>
+                {% endif %}
+            </tfoot>
+        </table>
+        <p class="text-center small fw-semibold mb-3 receipt-notice">This is not an official receipt.</p>
+        <div class="d-print-none">
+            <button type="button" class="btn btn-light-subtle w-100 mb-2" onclick="window.print()"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print slip</button>
+            <a href="{{ url_for('sales.receipt', sale_id=sale.id) }}" class="btn btn-primary w-100">Back to receipt #{{ sale.id }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

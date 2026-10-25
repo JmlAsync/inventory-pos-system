@@ -1,10 +1,12 @@
 {% from "_avatar.html" import avatar %}
 {# One sidebar link with an icon. It is highlighted when you are on that page
    (or on one of the related pages listed in "also"). v0.13.0 #}
-{% macro side_link(current, endpoint, icon, label, also=()) %}
+{% macro side_link(current, endpoint, icon, label, also=(), badge=0) %}
 {% set is_active = current == endpoint or current in also %}
 <a href="{{ url_for(endpoint) }}" class="side-link{% if is_active %} active{% endif %}" title="{{ label }}"{% if is_active %} aria-current="page"{% endif %}>
     <i class="bi {{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
+    {# v0.31.0: a count, e.g. void requests waiting for an admin #}
+    {% if badge %}<span class="badge rounded-pill text-bg-danger ms-auto" aria-label="{{ badge }} waiting">{{ badge }}</span>{% endif %}
 </a>
 {% endmacro %}
 <!DOCTYPE html>
@@ -62,7 +64,8 @@
                 {% if current_user.is_authenticated %}
                 {% set recipe_kind = request.view_args.get('kind') if request.view_args else None %}
                 {{ side_link(request.endpoint, 'catalog.products', 'bi-box-seam', 'Products', ('catalog.add_product', 'catalog.edit_product') + (('ingredients.edit_recipe',) if recipe_kind == 'product' else ())) }}
-                {{ side_link(request.endpoint, 'sales.new_sale', 'bi-cart-plus', 'New Sale', ('sales.receipt',)) }}
+                {{ side_link(request.endpoint, 'sales.new_sale', 'bi-cart-plus', 'New Sale') }}
+                {{ side_link(request.endpoint, 'adjustments.todays_receipts', 'bi-receipt', "Today's receipts", ('sales.receipt', 'adjustments.slip')) }}{# v0.31.0 #}
                 {% else %}
                 {{ side_link(request.endpoint, 'accounts.login', 'bi-box-arrow-in-right', 'Log in') }}
                 {% endif %}
@@ -71,7 +74,8 @@
             {% if current_user.is_authenticated and current_user.is_admin %}
             <div class="side-label">Admin</div>
             <nav class="d-flex flex-column gap-1">
-                {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report') }}
+                {# v0.31.0: the red number = void requests waiting; they are at the top of the Sales Report #}
+                {{ side_link(request.endpoint, 'reports.sales_report', 'bi-bar-chart-line', 'Sales Report', ('adjustments.refund',), waiting_voids_count()) }}
                 {{ side_link(request.endpoint, 'catalog.manage_options', 'bi-sliders', 'Servings & Add-ons', ('ingredients.edit_recipe',) if recipe_kind == 'option' else ()) }}
                 {{ side_link(request.endpoint, 'ingredients.ingredients', 'bi-droplet-half', 'Ingredients', ('ingredients.ingredient_detail', 'ingredients.ingredients_history')) }}
                 {{ side_link(request.endpoint, 'shop.shop_settings', 'bi-shop', 'Shop details') }}{# v0.22.0 #}

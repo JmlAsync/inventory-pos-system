@@ -196,6 +196,9 @@ def add_past_sales(days=7):
     addons = MenuOption.query.filter_by(kind='addon', active=True).order_by(MenuOption.sort_order).all()
     now = shop_now()   # v0.23.1: the café's opening hours are on the shop's clock (UTC+8)
     used_references = set()
+    # v0.31.0 (DEC-033): demo sales don't take ingredients, so a drink's line says it used a recipe but keeps no
+    # amounts; a refund then offers it as waste only, and a void puts nothing back that was never taken
+    recipe_products = {item.product_id for item in RecipeItem.query.filter(RecipeItem.product_id.isnot(None))}
     for days_ago in range(days, -1, -1):   # ... 2 days ago, yesterday, today (0)
         opening = now.replace(hour=OPENING_HOUR, minute=0, second=0, microsecond=0) - timedelta(days=days_ago)
         open_minutes = (CLOSING_HOUR - OPENING_HOUR) * 60
@@ -219,7 +222,8 @@ def add_past_sales(days=7):
                     unit_price = round(product.price + sum(o.price for o in chosen), 2)
                 sale.items.append(SaleItem(product_id=product.id, product_name=product.name,
                                            unit_price=unit_price, quantity=quantity,
-                                           options=', '.join(o.name for o in chosen) or None))
+                                           options=', '.join(o.name for o in chosen) or None,
+                                           used_recipe=product.id in recipe_products))
                 total += round(unit_price * quantity, 2)
             sale.total = round(total, 2)
             if random.random() < 0.35:

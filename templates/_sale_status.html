@@ -1,0 +1,5 @@
+{# How a receipt stands, as a small label (v0.31.0): used in Today's receipts and the Sales Report. Needs `sale`. #}
+{% if sale.voided_at %}<span class="badge text-bg-danger">Voided</span>
+{% elif sale.refunded_total %}<span class="badge text-bg-warning">Refunded {{ sale.refunded_total|peso }}</span>
+{% elif sale.adjustments|selectattr('status', 'equalto', 'requested')|list %}<span class="badge text-bg-secondary">Void requested</span>
+{% endif %}

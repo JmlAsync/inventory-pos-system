@@ -1,6 +1,7 @@
 """The data layer (v0.25.0, DEC-027): every change to the database goes through a function in this package.
 
     store/sales.py        saving a sale: stock and ingredients down in one all-or-nothing transaction (I1, I2)
+    store/adjustments.py  voids and refunds: stock back, the sale's state changed conditionally (I1, I8; v0.31.0)
     store/ingredients.py  restock, count, ingredients and recipe lines (I1, I7)
     store/catalog.py      products and the servings / add-ons list (I4)
     store/accounts.py     logins, passwords, profile pictures

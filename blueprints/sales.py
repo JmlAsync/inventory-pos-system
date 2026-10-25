@@ -11,6 +11,7 @@ from common import (MAX_QUANTITY, MAX_CASH, GCASH_REFERENCE_LENGTH, LOW_STOCK_TH
 from store.stock import Recipes, add_usage, shortages, can_make, limiting_ingredient, running_low
 from store.sales import record_sale, already_sold, SaleRefused, AlreadySold
 from store.shop import shop_profile
+from store import adjustments as adjustment_store   # v0.31.0
 
 bp = Blueprint('sales', __name__)
 
@@ -457,7 +458,11 @@ def complete_sale():
     recipes = Recipes()
     units = {}   # product -> units in the whole basket (products WITHOUT a recipe)
     for line in lines:
-        if not recipes.has(line['product']):
+        # v0.31.0 (DEC-033): each line keeps its own ingredients, so a refund can return exactly what it used
+        line['used_recipe'] = recipes.has(line['product'])
+        line['usage'] = (recipes.usage(line['product'], line['size'], line['addons'], line['quantity'])
+                         if line['used_recipe'] else {})
+        if not line['used_recipe']:
             units[line['product']] = units.get(line['product'], 0) + line['quantity']
     for product, quantity in units.items():
         if quantity > product.quantity:
@@ -514,4 +519,8 @@ def complete_sale():
 def receipt(sale_id):
     # Show a saved sale as a printable receipt, built from the copies kept in SaleItem (v0.8.0)
     sale = find_by_id(Sale, sale_id) or abort(404)
-    return render_template('receipt.html', sale=sale, shop=shop_profile())   # v0.22.0: the shop's own details
+    # v0.31.0 (DEC-033): how the receipt stands, and what may be done with it: ask for a void, approve it, refund
+    return render_template('receipt.html', sale=sale, shop=shop_profile(),   # v0.22.0: the shop's own details
+                           void_request=adjustment_store.open_void(sale), void_problem=adjustment_store.why_not_void(sale),
+                           refund_problem=adjustment_store.why_not_refund(sale),
+                           admins=adjustment_store.admins_to_ask())

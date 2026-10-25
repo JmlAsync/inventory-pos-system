@@ -222,6 +222,64 @@ body {
 .side-footer-row { display: flex; align-items: center; gap: 0.5rem; }
 .side-footer-row .dropup { flex: 1 1 auto; min-width: 0; }
 .side-footer-row .theme-toggle { margin-left: auto; }
+
+/* ---------- Help (v0.32.0, F29) ---------- */
+/* The ? button: the same square, icon-only look as the theme switch */
+.help-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--app-muted);
+    font-size: 1.1rem;
+}
+.help-toggle:hover, .help-toggle:focus-visible { color: var(--app-text); border-color: var(--app-accent); }
+/* On wide screens it floats in the bottom right corner: round, on a card-coloured background, above the page */
+.help-float { position: fixed; right: 1rem; bottom: 1rem; z-index: 1030; }
+.help-float .help-toggle {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background: var(--app-surface);
+    box-shadow: var(--app-shadow);
+    font-size: 1.25rem;
+}
+/* The side panel: wide enough for the picture, never wider than a phone's screen */
+.help-panel { --bs-offcanvas-width: min(440px, 100vw); background: var(--app-surface); color: var(--app-text); }
+.help-panel .offcanvas-header { border-bottom: 1px solid var(--app-border); }
+/* A screenshot of the page: framed like a card so it reads as a picture, not as the real page */
+.help-shot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    box-shadow: var(--app-shadow);
+}
+.help-steps { padding-left: 1.25rem; }
+.help-steps li { margin-bottom: 0.35rem; }
+/* The Help page's contents: small chips that wrap onto more lines on a phone */
+.help-contents { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.help-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+.help-chip:hover { border-color: var(--app-accent); color: var(--app-accent); }
+.help-topic { scroll-margin-top: 4.5rem; }   /* a jump to a topic isn't hidden under the phone's top bar */
 /* Avatar menu (v0.19.2, DEF-46): since v0.19.1 the name button is narrower (the theme icon shares its row),
    so the menu may not be limited to the button's width: it grows to fit its longest line, on one line each */
 .user-menu { min-width: 100%; width: max-content; }

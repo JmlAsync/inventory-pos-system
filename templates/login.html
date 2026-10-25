@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help.html" import help_button with context %}
 {% block title %}Login{% endblock %}
 {# The login page has no sidebar: just a card in the middle of the screen (v0.13.0) #}
 {% block page %}
@@ -10,9 +11,13 @@
                 <span>Inventory & POS</span>
             </a>
             {# Same icon as the sidebar (v0.19.1): it shows the current theme #}
-            <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
-                <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
-            </button>
+            {# v0.32.0: the ? button beside the theme switch, both only icons #}
+            <div class="d-flex gap-2">
+                {{ help_button() }}
+                <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
+                    <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
+                </button>
+            </div>
         </div>
         <div class="card">
             <div class="card-body p-4">

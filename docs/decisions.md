@@ -48,6 +48,7 @@ Entries are never deleted. A decision that changes later gets a new entry, and t
 | [DEC-031](#dec-031) | Sign in with Google, linking it from Profile, and joining with it | Best choice | Decided (two points by the owner) |
 | [DEC-032](#dec-032) | Undo on the basket, a safe stock count, and undoing a count | Best choice | Decided |
 | [DEC-033](#dec-033) | Voids and refunds: how they are asked for, approved, put back on the shelf and counted | Best choice | Decided |
+| [DEC-034](#dec-034) | Help on every page: a ? button with this page's help, and a Help page | Best choice | Decided (three points by the owner) |
 
 ---
 
@@ -1222,5 +1223,61 @@ approves). This entry decides how it works day to day.
 send). Approving needs an admin with a confirmed email for the code route. A request waiting overnight can't be
 approved any more. Refunds of the product's own count put units back on the shelf, which the admin should only choose
 for things that can really be sold again.
+
+**Verdict:** Best choice. **Status:** Decided, 2026-10-25.
+
+---
+
+## DEC-034
+
+**Help on every page: a ? button with this page's help, and a Help page with every page** *(v0.32.0, F29; rules
+C6, C7, D1, D2, S1, S11; owner's decisions 2026-10-25)*
+
+**How it works.**
+
+1. **A ? button on every page**, only an icon (a question mark in a circle), with "Help for this page" for screen
+   readers and as its tooltip. On wide screens it is a small round button in the bottom right corner; on phones it
+   is in the top bar; on the login pages it sits beside the theme switch.
+2. **Pressing it slides in a side panel** (Bootstrap's offcanvas, already in the app) with that page's help: one
+   sentence on what the page is for, a picture of the page, the main steps, and a link to the Help page. The page
+   behind stays as it was, so nothing typed is lost.
+3. **The Help page (`/help`, logged-in users)** lists every topic the person may read, each with its picture, steps
+   and an "Open" link, and a row of chips at the top to jump to any page. The avatar menu links to it.
+4. **Each person sees what they can do.** A cashier's Help leaves out the admin pages, and on shared pages (a
+   receipt, Products, Home) each step is marked for everyone, admins or cashiers, so a cashier reads "Ask for a void"
+   and an admin "Void now". On an admin page a cashier gets 403 as before, with no help.
+5. **The words are in one file, `help_topics.py`**, as plain text (18 topics). Templates escape them like every other
+   text (S11). Each topic names the pages it explains; a test fails if a page that can be opened has no topic, or a
+   topic names a page that no longer exists, so the help can't silently fall behind the system.
+6. **The pictures are screenshots of the demo shop** (generic names, rule P2), light theme, 1280 px wide, stored in
+   `static/help/` as WebP (18 pictures, about 0.7 MB in all), so they work with no internet (D2). They were taken with
+   a headless Edge on a scratch copy of the demo data; from v1.0.0 the Playwright browser tests can retake them.
+
+**Why.** The owner wants to show what each page does quickly in the defense, and a client needs the same thing: a
+café owner or a new cashier learns a page from a picture and three to five steps, on the page itself, without
+calling anyone. It also covers a feature that can't be shown live (for example real email when the internet or
+Gmail is down) with a picture of how it works.
+
+**Alternatives checked.**
+
+| Detail | Choice | Alternatives rejected |
+|---|---|---|
+| Where help lives | A panel on the page, plus a Help page | **Only a Help page** (the user leaves the page and loses their place); **a printed or PDF manual** (gets lost, goes out of date, not on the screen where the question comes up); **a video** (can't be searched, goes out of date with every change, heavy to store offline) |
+| Kind of help | What the page is for + a picture + steps | **Tooltips on every field** (help only with one field, not with "what is this page for"; many more texts to keep up); **a guided tour that points at buttons** (needs a JavaScript library, a new dependency for rule D1, and breaks whenever a page's layout changes) |
+| The button | Icon only, round, bottom right on wide screens; in the top bar on phones (owner's choice: icon only) | **In the sidebar footer beside the theme switch** (tried first: it squeezed the username to "ad…"); **in each page's heading** (18 templates to change and easy to forget on a new page); **a Help link with words in the menu** (takes a menu line; the owner asked for an icon) |
+| What the button opens | This page's help in a side panel (owner's choice) | Jumping to this page's part of the Help page (leaves the page) |
+| Cashiers | Only their own pages and steps (owner's choice) | Every page marked "Admins only" (shows a cashier things they can't use and can't try) |
+| Where the words are kept | One Python list, tested | **Text in each template** (no single place to read or check them, and nothing would notice a page without help); **Markdown files** (needs a Markdown package, D1) |
+| Pictures | One per page (owner's choice), WebP, stored in the app | **One per step** (30–40 pictures, more to retake after every change); **PNG** (about three times larger for the same look); **pictures taken by hand** (can't be retaken the same way after a change) |
+| Dark theme | Light pictures, framed, inside a dark panel | **A second set of dark pictures** (twice the files and the work for little gain; the frame makes clear it is a picture) |
+
+**Honest limits.** The pictures show the system as it is in v0.32.0; a page that changes needs its picture retaken
+(the test only checks that each picture exists and is small, not that it is current). The help is in English only.
+
+**Version numbers (owner's decision, 2026-10-25).** Help is v0.32.0 so the defense copy has it; every later version
+in plan §6 moves down one number: shifts and X/Z readings v0.33.0, senior/PWD discounts v0.34.0, product restock and
+archive v0.35.0, backup and restore v0.36.0, CSP v0.37.0, cloud package v0.38.0, licence check v0.39.0, Firebase
+v0.40.0. Older entries in this file keep the numbers they were written with (they record what was decided then);
+the rules, the plan and the code comments now use the new numbers.
 
 **Verdict:** Best choice. **Status:** Decided, 2026-10-25.

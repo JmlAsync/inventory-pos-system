@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help.html" import help_button with context %}
 {# The layout of the pages someone uses before they are fully logged in (v0.27.0): signing up from an invitation,
    Forgot password, Choose a new password. Like the login page: no sidebar, one card in the middle. #}
 {% block page %}
@@ -9,9 +10,13 @@
                 <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
                 <span>Inventory & POS</span>
             </a>
-            <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
-                <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
-            </button>
+            {# v0.32.0: the ? button beside the theme switch, both only icons #}
+            <div class="d-flex gap-2">
+                {{ help_button() }}
+                <button type="button" class="theme-toggle icon-only js-theme-toggle" aria-label="Switch between light and dark theme">
+                    <i class="bi bi-sun when-light" aria-hidden="true"></i><i class="bi bi-moon-stars when-dark" aria-hidden="true"></i>
+                </button>
+            </div>
         </div>
         <div class="card">
             <div class="card-body p-4">

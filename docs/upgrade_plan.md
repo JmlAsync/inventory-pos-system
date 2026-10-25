@@ -496,14 +496,15 @@ the stabilization rule (C2) between phases. Sizes: **S** = a day or less, **M** 
 | | v0.29.0 | Sign in with Google, linking from Profile | M |
 | **4. Counter and back office** | v0.30.0 | Basket undo; count undo; conditional count (§4.2, §4.8) | M |
 | | v0.31.0 | Voids and refunds (§4.1) | L |
-| | v0.32.0 | Shifts, X and Z readings (§4.7) | L |
-| | v0.33.0 | Senior / PWD discounts, from the client's written rules (§4.6) | M |
-| | v0.34.0 | Product restock/count/archive, per-product warn level, editable groups (§4.8) | M |
-| | v0.35.0 | Backup and restore (§4.4) | M |
-| | v0.36.0 | Inline scripts to files + CSP (A10); theme per user | M |
-| **5. Cloud package** | v0.37.0 | Managed PostgreSQL: `psycopg`, cloud setup and guide, the whole suite on PostgreSQL in GitHub Actions, `export` / `import` between local and cloud | M |
-| | v0.38.0 | Licence check against the subscription website (§2.11); needs that website's first version | M |
-| *(optional)* | v0.39.0 | Firebase package: `FirestoreStore`, emulator tests, guide. **Only when a client already on Firebase asks** | L |
+| | v0.32.0 | Help on every page: a ? button with the page's help and a picture, and a Help page (DEC-034; added 2026-10-25 for the defense, later versions moved down one number) | S |
+| | v0.33.0 | Shifts, X and Z readings (§4.7) | L |
+| | v0.34.0 | Senior / PWD discounts, from the client's written rules (§4.6) | M |
+| | v0.35.0 | Product restock/count/archive, per-product warn level, editable groups (§4.8) | M |
+| | v0.36.0 | Backup and restore (§4.4) | M |
+| | v0.37.0 | Inline scripts to files + CSP (A10); theme per user | M |
+| **5. Cloud package** | v0.38.0 | Managed PostgreSQL: `psycopg`, cloud setup and guide, the whole suite on PostgreSQL in GitHub Actions, `export` / `import` between local and cloud | M |
+| | v0.39.0 | Licence check against the subscription website (§2.11); needs that website's first version | M |
+| *(optional)* | v0.40.0 | Firebase package: `FirestoreStore`, emulator tests, guide. **Only when a client already on Firebase asks** | L |
 | **6. Release** | v1.0.0 | Browser tests in CI, full regression on both packages, client trial at the café, both install guides, updated report | M |
 
 **Why this order.** Migrations, UTC and centavos come first because every later table depends on them. The

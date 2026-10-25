@@ -207,8 +207,10 @@ from store.stock import (INGREDIENT_UNITS, INGREDIENT_CATEGORIES, guess_ingredie
 from store.shop import shop_profile
 from blueprints import accounts, catalog, ingredients, sales, reports, shop, users   # users: v0.27.0
 from blueprints import adjustments   # voids and refunds (v0.31.0)
+from blueprints import help as help_pages   # the ? button and the Help page (v0.32.0); "help" alone is Python's own
 
-for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp, users.bp, adjustments.bp):
+for blueprint in (accounts.bp, catalog.bp, ingredients.bp, sales.bp, reports.bp, shop.bp, users.bp, adjustments.bp,
+                  help_pages.bp):
     app.register_blueprint(blueprint)
 login_manager.user_loader(accounts.load_user)   # who is logged in, checked on every request (v0.20.3)
 

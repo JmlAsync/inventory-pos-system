@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Help{% endblock %}
+{% block content %}
+{# The Help page (v0.32.0, F29, DEC-034): every page this person can open, with what it is for, a picture and the main
+   steps. A cashier's list leaves out the admin pages. The ? button on a page opens the same words in a side panel. #}
+<h1>Help</h1>
+<p class="page-subtitle">What each page is for and how to use it. On any page, the
+    <i class="bi bi-question-circle" aria-hidden="true"></i><span class="visually-hidden">question mark</span> button shows the help for that page.</p>
+
+{# Contents: one chip per page; each jumps to its section below #}
+<nav class="help-contents mb-4" aria-label="Help topics">
+    {% for topic in topics %}
+    <a href="#{{ topic.key }}" class="help-chip"><i class="bi {{ topic.icon }}" aria-hidden="true"></i>{{ topic.title }}</a>
+    {% endfor %}
+</nav>
+
+{% for topic in topics %}
+<section id="{{ topic.key }}" class="card app-card help-topic mb-3" aria-labelledby="{{ topic.key }}-title">
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <a href="{{ url_for('static', filename='help/' ~ topic.key ~ '.webp') }}" target="_blank" rel="noopener">
+                    <img src="{{ url_for('static', filename='help/' ~ topic.key ~ '.webp') }}" class="help-shot" loading="lazy"
+                         alt="What the {{ topic.title }} page looks like">
+                </a>
+            </div>
+            <div class="col-lg-7">
+                <h2 class="h5 d-flex align-items-center gap-2 flex-wrap" id="{{ topic.key }}-title">
+                    <i class="bi {{ topic.icon }}" aria-hidden="true"></i>{{ topic.title }}
+                    {% if topic.admins %}<span class="badge text-bg-secondary fw-normal">Admins only</span>{% endif %}
+                </h2>
+                <p>{{ topic.summary }}</p>
+                <ol class="help-steps">
+                    {% for step in topic.steps %}<li>{{ step }}</li>{% endfor %}
+                </ol>
+                {% if topic.note %}
+                <p class="small text-body-secondary d-flex gap-2"><i class="bi bi-info-circle" aria-hidden="true"></i><span>{{ topic.note }}</span></p>
+                {% endif %}
+                {% if topic.link %}
+                <a href="{{ topic.link }}" class="btn btn-sm btn-outline-primary">Open {{ topic.title }}<i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

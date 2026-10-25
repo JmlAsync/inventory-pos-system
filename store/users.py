@@ -49,7 +49,7 @@ def all_users():
     return sorted(User.query.all(), key=lambda u: (not u.is_active, order.get(u.role, 3), u.username.lower()))
 
 
-# ---------------- The owner (setup_shop.py, until the licence in v0.38.0; owner's decision 1 in DEC-029) ----------------
+# ---------------- The owner (setup_shop.py, until the licence in v0.39.0; owner's decision 1 in DEC-029) ----------------
 def make_owner(username, email, password_hash):
     """Create the owner, or turn the existing admin with this username into the owner. Returns a sentence saying what
     happened. Called by setup_shop.py on the shop's computer, so the log line names nobody (by=None)."""

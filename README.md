@@ -146,6 +146,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `store/` | Every change to the database (selling, stock, products, logins, shop details, users, the audit log) and the stock calculations |
 | `common.py` | Rules and helpers every part uses (limits, money, the shop's clock, pictures) |
 | `mail.py` | Sends email with Python's own `smtplib`, using the shop's `[mail]` settings (v0.26.0) |
+| `help_topics.py`, `static/help/` | The help for every page (the ? button and the Help page) and a picture of each page (v0.32.0) |
 | `models.py` | The database tables: products, users, sales, servings and add-ons, ingredients, recipes, ingredient history |
 | `templates/` | The HTML pages (`base.html` is the shared layout) |
 | `static/css/theme.css` | The custom look, light and dark |

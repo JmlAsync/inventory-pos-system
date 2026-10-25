@@ -44,6 +44,7 @@ USER_ROUTES = {                                        # @login_required (admin 
     '/profile/google', '/profile/google/code', '/profile/google/unlink',   # linking Google (v0.29.0)
     '/sales/today', '/sales/<int:sale_id>/void', '/sales/adjustment/<int:adjustment_id>',   # v0.31.0: ask for a void,
     '/voids/<int:adjustment_id>/ask', '/voids/<int:adjustment_id>/code',    # or approve it with an admin's emailed code
+    '/help',                                           # every help topic this person may read (v0.32.0, DEC-034)
 }
 # ---- The only packages allowed in requirements.txt (AGENTS.md rule D1). Names are compared in lower case.
 ALLOWED_PACKAGES = {'blinker', 'click', 'colorama', 'flask', 'flask-login', 'flask-sqlalchemy', 'greenlet',

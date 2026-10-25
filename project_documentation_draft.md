@@ -1436,12 +1436,12 @@ still run by Claude before each release; they are not in `tests/` because they n
 | Blueprints and store/ (v0.25.0) | 4 | 4 | 0 | 0 |
 | F23 Email and login limit (v0.26.0) | 18 | 15 → **17** | 2 → **0** | 1 → **1** |
 | F24 Owner, users, invitations, audit log (v0.27.0) | 25 | 25 | 0 | 0 |
-| F25 Login codes (v0.28.0) | 14 | 13 → **14** | 1 → **0** | 0 |
+| F25 Login codes (v0.28.0) | 15 | 14 → **15** | 1 → **0** | 0 |
 | F26 Sign in with Google (v0.29.0) | 11 | 10 | 0 | 1 |
 | F27 Undo and a safe count (v0.30.0) | 8 | 7 → **8** | 1 → **0** | 0 |
 | F28 Voids and refunds (v0.31.0) | 17 | 14 → **17** | 3 → **0** | 0 |
 | F29 Help on every page (v0.32.0) | 11 | 10 → **11** | 1 → **0** | 0 |
-| **Total** | **435** | **316 → 432** | **99 → 0** | **6 → 3** |
+| **Total** | **436** | **317 → 433** | **99 → 0** | **6 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 

@@ -222,6 +222,7 @@ The tag message summarizes what the increment added.
 | v0.21.1 | 2026-10-23 | — | The fold button moved to the top row, as an icon beside the system name (requested after seeing v0.21.0); folded, the logo and the icon sit one above the other. No "Fold menu" words any more; the tooltip and screen-reader label stay *(branch `fix/fold-button-beside-brand`)* |
 | v0.21.2 | 2026-10-23 | — | Layout audit of every page (14 pages, light and dark theme, phone 375 px and desktop, open and folded sidebar). Two defects fixed: the theme icon of the folded sidebar sat to the right of the avatar (DEF-59), and the "New ingredient" panel ran off the right edge of a phone (DEF-60). No page had sideways page scrolling *(branch `fix/rail-alignment-audit`)* |
 | — | 2026-10-23 | — | Final report: `final_report.md` (+ `.docx`, `.pdf`) written from this draft in Section B order, with a new tour of v0.21.2 (11 screenshots on the generic demo menu), cleaned-up wording and the last two open hand tests closed (TC-4.4 in Edge, TC-19.14 on GitHub); plus `docs/system_overview.canvas`, a one-page map (actors, use cases, MVC layers, data rules, tests, readiness) *(branch `docs/final-report`, no tag)* |
+| v0.21.3 | 2026-10-24 | — | A crash shows a friendly "Something went wrong" page in the normal layout instead of the plain *Internal Server Error*; the half-done database work is undone and the details go only to the server log (DEF-61, audit A11, DEC-019) *(branch `fix/friendly-error-page`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -989,6 +990,17 @@ the look was checked by hand in Chromium on a demo copy (light and dark theme, f
 | TC-25.9 | Phone 375 px, Ingredients | Tap **New ingredient** | The panel fits the screen with margins on both sides | v0.21.0–v0.21.1: cut off on the right · v0.21.2: fits | ❌→✅ DEF-60 |
 | TC-25.6 | Light, then dark theme | Open New Sale | Cream and caramel / espresso and amber; text readable; stock bars, Hot / Iced buttons and the Running-low banner still clear | As expected | ✅ |
 
+### Phase 1 patches *(v0.21.3 onward)*
+
+Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-26.1 | Logged in; a page crashes | Open it | 500, the friendly page inside the normal layout | **v0.21.2:** plain "Internal Server Error" · **v0.21.3:** friendly page | ❌→✅ DEF-61 |
+| TC-26.2 | Same | Read the page | Says nothing was saved and to try again (C6) | **v0.21.2:** no advice · **v0.21.3:** as expected | ❌→✅ DEF-61 |
+| TC-26.3 | The crash carries an internal message | Read the page | No error details, code or traceback | As expected (also on v0.21.2) | ✅ |
+| TC-26.4 | After a crash; also as a visitor | Open Products; open the crashing page logged out | Products works; the visitor also gets the friendly page | **v0.21.2:** plain page for the visitor · **v0.21.3:** as expected | ❌→✅ DEF-61 |
+
 ### Last open defects closed *(v0.20.2–v0.20.4)*
 
 The security audit of 2026-10-11 left three defects open (DEF-48, DEF-51, DEF-52). With the checking moved to
@@ -1065,7 +1077,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_sessions.py` | DEF-51 / TC-23.4–23.10 (v0.20.3): copied cookie after log-out and password change, two tills on one account, cookie made with the real key, 8 idle hours, table clean-up | 16 |
 | `test_layout.py` | F20 / TC-25.1–25.9 (v0.21.0–v0.21.2): fold icon beside the name, saved choice before drawing, tooltips, wide screens only, warm palette, centred folded icons, phone panel | 12 |
 | `test_login_next.py` | DEF-06 / TC-5.8, TC-24.1–24.4 (v0.20.6): back to the requested page; other-website links ignored | 6 |
-| **22 files** | | **470 checks + 58 rule checks** |
+| `test_hardening.py` | Phase 1 patches / TC-26.x (v0.21.3 onward): friendly 500 page (DEF-61) | 6 |
+| **23 files** | | **476 checks + 58 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1096,7 +1109,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F19 New Sale redesign (v0.20.0–v0.20.5) | 14 | 9 → **14** | 5 → **0** | 0 |
 | Last open defects (v0.20.2–v0.20.4) | 16 | 6 → **16** | 10 → **0** | 0 |
 | F20 Cozy layout (v0.21.0–v0.21.2) | 9 | 6 → **9** | 0 | 0 |
-| **Total** | **265** | **181 → 265** | **67 → 0** | **4 → 0** |
+| Phase 1 patches (v0.21.3 onward) | 4 | 1 → **4** | 3 → **0** | 0 |
+| **Total** | **269** | **182 → 269** | **70 → 0** | **4 → 0** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1170,6 +1184,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 | DEF-58 | Low | v0.20.0 named the New Sale tile bars `stock-bar`, a class the Ingredients page already used. The new rules clipped the Ingredients warn-level tick to a 6 px green speck, so it was hard to see how close a full shelf was to its warning level (side effect of v0.20.0, like DEF-46 was of v0.19.1) | Yesha, on her laptop (2026-10-13); measured in Chromium against v0.19.4 | New Sale bars renamed (`tile-stock`, `tile-bar`, `tile-note`); TC-22.13 now fails if any New Sale style name is used on another page. Lesson: the v0.20.0 browser check measured only New Sale; a style added for one page must be checked on the pages that share the style sheet | ✅ Fixed v0.20.5 |
 | DEF-59 | Low | Folded sidebar: the light/dark icon sat on the right edge, not under the avatar (the row's `margin-left: auto` still applied after the row became a column in v0.21.0) | Yesha's screenshot (2026-10-23); measured in Chromium | `margin-left: 0` for the folded sidebar; TC-25.8. Lesson: a rule written for one layout (a row) must be checked when the layout changes (a column) | ✅ Fixed v0.21.2 |
 | DEF-60 | Medium | Phone: the "New ingredient" panel was 100 % of the screen wide but started at the button, so its right part was cut off (made worse by v0.21.0's bigger padding) | Layout audit of all pages at 375 px (2026-10-23) | On phones the panel floats under the top bar with 1 rem margins and scrolls if tall; TC-25.9 | ✅ Fixed v0.21.2 |
+| DEF-61 | Low | A crash showed the plain *Internal Server Error* page: no layout, no advice, and the database session was left half-done until the next request (audit A11) | Security audit 2026-10-11 (A11), seen with A1 | `server_error()` undoes the unfinished database work, writes the details to the server log and shows `500.html`; if even that fails, a plain friendly message (DEC-019); TC-26.1–26.4 | ✅ Fixed v0.21.3 |
 
 > **Note on the test tools (v0.16.0):** two race tests (TC-7.24–7.26) found the "other cashier" moment by counting
 > database look-ups, which changed when the basket code changed, so they briefly reported false failures. They now

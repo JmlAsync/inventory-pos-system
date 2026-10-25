@@ -484,7 +484,7 @@ the stabilization rule (C2) between phases. Sizes: **S** = a day or less, **M** 
 | Phase | Version | Work | Size |
 |---|---|---|---|
 | **0. Before** | — | Submit the course project (v0.21.2) and defend it (Tue 2026-10-27). ✅ Owner decisions and rules (§1, §5, 2026-10-24). Client chooses a package (§3.6) and confirms discount rules (§4.6) | S |
-| **1. Foundations** | v0.21.3 – v0.21.7 (patches) | One fix each: A8 (login timing), A11 (friendly 500 page), R8 (deprecated call), R10 (demo servings Hot / Iced), R11 (`requirements.txt` as UTF-8), favicon and dark-theme tile colour. **Built for Sunday's tests (DEC-018)** | S each |
+| **1. Foundations** | v0.21.3 – v0.21.8 (patches) | One fix each: v0.21.3 friendly 500 page (A11), v0.21.4 login timing (A8), v0.21.5 demo drinks with Hot / Iced servings (R10), v0.21.6 `requirements.txt` as UTF-8 (R11), v0.21.7 browser tab icon, v0.21.8 dark-theme Low bar colour on the Ingredients page. R8 needs no work: v0.20.3 already replaced the deprecated call. **Built for Sunday's tests (DEC-018)** | S each |
 | | v0.22.0 | "This is not an official receipt" (SR6) + shop name, address, TIN and footer set by the owner (§4.3) | S |
 | | v0.23.0 | Alembic migrations, first migration = today's tables (§3.4) | M |
 | | v0.23.x | UTC times; money in centavos (each a migration with a test on a copy of a real old database) | M |

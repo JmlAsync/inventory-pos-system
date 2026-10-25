@@ -8,7 +8,7 @@
 | Student number / section | *[Student number] · [Section]* |
 | Instructor | *[Instructor's name]* |
 | Submitted | *[Date of submission]* |
-| System version described | **v0.21.2** (23 October 2026) |
+| System version described | **v0.21.2** (23 October 2026); Chapter 12 adds **v0.32.0** (25 October 2026) |
 | Source code | https://github.com/JmlAsync/inventory-pos-system |
 | Video presentation | *[Link to the recorded video]* |
 
@@ -29,10 +29,12 @@ The chapters build on each other:
 - **Chapter 10** lists every defect I found and fixed, what I learned from them, and what the system still cannot do.
 - **Chapter 11** closes the report. The appendices hold the full version history, the automated test suite and the
   instructions for running the system.
+- **Chapter 12** is an addendum written after submission, for the defense: what versions v0.21.3 to v0.32.0 added
+  (sign-in codes, users and invitations, voids and refunds, help on every page) and how they were tested.
 
 A few conventions are used throughout. Versions are written as `vX.Y.Z` and match the Git tags in the repository.
-Features are numbered **F1–F20**, use cases **UC-01–UC-15**, test cases **TC-…** and defects **DEF-01–DEF-60**, so
-any one of them can be traced from the requirement to the code to the test. In the test tables, ✅ means the test
+Features are numbered **F1–F20**, use cases **UC-01–UC-15**, test cases **TC-…** and defects **DEF-01–DEF-60** (Chapter 12 adds F21–F29, TC-31 to TC-42 and
+DEF-61–DEF-71), so any one of them can be traced from the requirement to the code to the test. In the test tables, ✅ means the test
 passed and ❌→✅ means it failed first, the defect was fixed, and it passed afterwards.
 
 ### Tools and assistance
@@ -2332,6 +2334,188 @@ project.
 
 ---
 
+## 12. Addendum: after submission (v0.21.3 to v0.32.0)
+
+Chapters 1 to 11 describe **v0.21.2**, the version I submitted on 23 October 2026, and they stay as submitted. This
+addendum was written on 25 October 2026 for the defense. It covers what I built after the submission: the nineteen
+versions from v0.21.3 to v0.32.0 that I will show in the live demo.
+
+**Where the code is.** Each version is its own pull request (#74 to #92), stacked on the one before it. Following
+my own decision DEC-018, only documentation is merged into `main` before the defense, so `main` still holds v0.21.2
+and the newer versions are merged in order after it. Every version followed the same process as before: its own
+branch, a **Why** section with the alternatives checked (rule C10), a decision record in `docs/decisions.md`
+(DEC-019 to DEC-034), new tests, the whole suite passing, and a check in a real browser.
+
+### 12.1 Why the system kept going
+
+On 24 October 2026 the project's next stage was decided: after the course, the system becomes a product sold to
+café owners by **subscription**. That changed what "finished" means:
+
+- **Every person needs their own account.** The email used to buy the subscription becomes the shop's **owner**
+  account; everyone else joins by **invitation** to their own email. Nobody can give themselves an account or a role
+  (rule S12).
+- **A password alone is not enough** for a system that holds a shop's money. Every login needs a **6-digit code**
+  as well, unless the browser is trusted (rule S13).
+- **Two packages.** A **local** package (SQLite, on the shop's computer, sells with no internet) and a **cloud**
+  package (managed PostgreSQL). A Firebase package is built only for a client who already uses Firebase (DEC-014).
+- **The counter needs what a real café needs:** undo, voids and refunds with approval, shifts and X/Z readings,
+  senior citizen and PWD discounts.
+
+The whole plan, with the order of work, is in `docs/upgrade_plan.md`. The project rules in `AGENTS.md` were updated
+for it. Every replaced rule keeps its old wording in a dated *Overridden* note, so nobody decides the old question
+again.
+
+### 12.2 What each version added
+
+| Version | What it added | Decision |
+|---|---|---|
+| v0.21.3 | A crash shows a friendly "Something went wrong" page instead of *Internal Server Error*; half-done database work is undone (DEF-61) | DEC-019 |
+| v0.21.4 | An unknown username takes as long to refuse as a wrong password, so timing no longer reveals which usernames exist (DEF-62) | DEC-020 |
+| v0.21.5 | The demo menu sells drinks **Hot or Iced**, like the café, with cups and ice in each serving's recipe (DEF-63) | DEC-021 |
+| v0.21.6 | `requirements.txt` saved as plain UTF-8, and a rule keeps it so (DEF-64) | — |
+| v0.21.7 | A browser tab icon (DEF-65) | — |
+| v0.21.8 | Dark theme: a normal ingredient bar is green, no longer the same amber as a Low bar (DEF-66) | — |
+| v0.22.0 | **Shop details** on every receipt (name, address, TIN, footer) and the line **"This is not an official receipt."** (F21, safety requirement SR6) | DEC-022 |
+| v0.23.0 | Real **database migrations** (Alembic). Every change is a numbered script, and the database is backed up before one runs | DEC-023 |
+| v0.23.1 | Times stored in **UTC** and shown on the shop's clock, ready for a cloud server (DEF-67) | DEC-024 |
+| v0.23.2 | Money stored as **whole centavos** and handled as exact `Decimal`, so receipts always add up (DEF-68) | DEC-025 |
+| v0.24.0 | `setup_shop.py` sets up a shop's own copy; **waitress** serves it instead of Flask's development server (F22) | DEC-026 |
+| v0.25.0 | `app.py` split into **blueprints**, with all database changes in a `store/` layer; no visible change | DEC-027 |
+| v0.26.0 | **Email sending** with Python's own `smtplib`; the login limit kept in the database, so a restart can't clear it (F23, DEF-69, DEF-70) | DEC-028 |
+| v0.27.0 | The **owner**, the **Users** page, **invitations**, **Forgot your password?** and the **audit log** (F24) | DEC-029 |
+| v0.28.0 | **A code at every login**, trusted devices, backup codes, an authenticator-app option and **demo mode** (F25) | DEC-030 |
+| v0.29.0 | **Sign in with Google**, linked by Google's permanent id, with the code still after it (F26) | DEC-031 |
+| v0.30.0 | **Undo** on New Sale, a **safe stock count** and undoing a count (F27) | DEC-032 |
+| v0.31.0 | **Voids and refunds** with admin approval; the receipt itself never changes (F28, DEF-71) | DEC-033 |
+| v0.32.0 | **Help on every page:** an icon-only **?** button with that page's help and a picture, and a Help page (F29) | DEC-034 |
+
+### 12.3 The new features in short
+
+**F21 Shop details.** The owner types the shop's name, address, TIN and a footer once, and they appear on every
+receipt, old ones too when reprinted. The "not an official receipt" line can't be turned off. It is the software's
+part of the only *Intolerable* hazard in the risk table (9.5).
+
+**F22 Setting up a shop's copy.** `setup_shop.py` asks a few questions and writes the shop's settings, then
+`start_shop.bat` runs the system with a production web server. Phones on the shop's Wi-Fi can use it too.
+
+**F23 Email.** The shop sends its own email (login codes, invitations, password resets) over an encrypted
+connection. The admin page **Email** shows the settings, never the password, and sends a test message.
+
+**F24 Everyone with their own account.** The owner invites staff by email. The link works once, for 48 hours, and
+the role is fixed by the person who invited them. Accounts are switched off, never deleted, because receipts name
+their cashier. The **audit log** records who changed what (prices, recipes, shop details, accounts, voids), with the
+old and new values.
+
+**F25 A code at every login.** After the password comes a 6-digit code by email, valid for 10 minutes and once. A
+browser can be **trusted** for 30 days (7 for admins), and then the password is enough there. Printed **backup
+codes** work with no internet, and an authenticator app can replace the emailed code. Codes are stored only as
+keyed hashes and compared in constant time (rule S14).
+
+![The login code step](screenshots/v0.32.0_addendum_login_code.png)
+
+**F26 Sign in with Google.** Google's answer is checked on the server (signature, issuer, audience, expiry, nonce),
+and the account is linked by Google's permanent id, never by the email. The login code still follows.
+
+**F27 Undo and a safe count.** Undo takes the order back one change at a time. A stock count is saved only if the
+amount is still the one the admin saw, so a sale at that moment isn't lost (this fixes a limitation in 10.4).
+
+**F28 Voids and refunds.** A cashier **asks** for a void of today's receipt, with a reason. An admin **approves** it
+with their own password, or with a code emailed to them when they aren't in the shop. Everything goes back on the
+shelf. A refund is for chosen items of any receipt, by an admin only. The receipt itself never changes: each void or
+refund is its own record with its own slip (rule I8). Waiting voids sit at the top of the Sales Report.
+
+![A void waiting for an admin, at the top of the Sales Report](screenshots/v0.32.0_addendum_void_waiting.png)
+
+**F29 Help on every page.** Every page has a small **?** button, only an icon. It opens a side panel with what the
+page is for, a picture of it and the main steps. The **Help** page shows every page at once. A cashier sees only
+the pages and steps they can use. A test fails if a page is added without help, so the help can't fall behind the
+system.
+
+![The help panel on New Sale](screenshots/v0.32.0_addendum_help_panel.png)
+
+![The Help page](screenshots/v0.32.0_addendum_help_page.png)
+
+### 12.4 How the design changed
+
+- **Architecture (8.1, 8.3).** The single `app.py` is now **blueprints** (accounts, catalog, ingredients, sales,
+  reports, shop, users, adjustments, help) above a `store/` data layer. The pages never write to the database
+  themselves; a contract check fails if one does (rule I1, now *[checked]*). This is what lets the same pages run on
+  SQLite and, later, PostgreSQL.
+- **Data (7.7).** New tables for shop details, login attempts, invitations, the audit log, login codes, trusted
+  devices, backup codes, voids and refunds. Every change is an Alembic migration (0001 to 0008), tested on a copy of
+  a real older database.
+- **Money and time.** Whole centavos and UTC remove two risks found in the security review (R5 and R1).
+- **Packages (rule D1).** Each new package was approved before it was used and pinned to an exact version: Flask-Migrate
+  and alembic, waitress, cryptography and segno, Authlib and requests. Pages still load nothing from the internet
+  (D2).
+
+### 12.5 Testing after submission
+
+The automated suite grew from 22 files (470 checks + 58 rule checks) at v0.21.2 to **38 files, 1,203 checks + 147
+rule checks** at v0.32.0, and it ends with "All 38 passed". The test cases grew from 265 to **436**. Of the 171 new
+ones, 168 pass, none fail, and 3 are still open (below). Google sign-in, email and Firestore are tested without a
+real account (rule T3): with a fake token checker, a fake mailbox and, later, the local emulator.
+
+| Feature | Cases | First run | Now |
+|---|---|---|---|
+| Patches v0.21.3 onward | 15 | 4 passed | 15 passed |
+| F21 Shop details | 8 | 7 | 8 |
+| Migrations, UTC, centavos | 27 | 17 | 27 |
+| F22 Setup and serve | 12 | 9 | 11 + 1 open |
+| Blueprints and store/ | 4 | 4 | 4 |
+| F23 Email and login limit | 18 | 15 | 17 + 1 open |
+| F24 Owner, users, invitations, audit log | 25 | 25 | 25 |
+| F25 Login codes | 15 | 14 | 15 |
+| F26 Sign in with Google | 11 | 10 | 10 + 1 open |
+| F27 Undo and a safe count | 8 | 7 | 8 |
+| F28 Voids and refunds | 17 | 14 | 17 |
+| F29 Help on every page | 11 | 10 | 11 |
+| **Total** | **171** | **136** | **168 + 3 open** |
+
+Eleven new defects were found and fixed (DEF-61 to DEF-71). The most instructive was **DEF-71**: demo mode crashed
+the page when an email contained "₱", because a redirected Windows window can't show that character. No automated
+test caught it; the browser check of v0.31.0 did. A test for it now fails before the fix and passes after (rule C3).
+
+**The email-code test (25 October 2026).** I tested the login code with real Gmail first (TC-34.12). Gmail closed
+the connection at the login step on both of its ports, even for a made-up account. A wrong password would have been
+refused with a "535" answer instead, so the problem was not my App Password or the shop's code: Gmail was refusing
+logins from my home internet connection. The connection, the encryption and Google's certificate were all fine. I
+then tested the whole code flow in **demo mode**, where each email is printed in the server window instead of sent
+(TC-38.15): the code for the admin and the cashier, wrong codes and the 5-try limit, a new code, an old code
+refused, the cashier's email confirmed by its first code, a trusted browser, and Forgot password. Everything worked.
+TC-34.12 stays open until it can be tried from another connection.
+
+**Still open.** TC-31.12 (typing the setup answers by hand), TC-34.12 (real Gmail, above) and TC-39.10 (a real
+Google sign-in, which needs the owner's own Google Cloud client).
+
+### 12.6 Limitations from 10.4, then and now
+
+| Limitation in 10.4 | Now |
+|---|---|
+| The shop name on receipts is fixed | Fixed in v0.22.0 (Shop details) |
+| The login limit is kept in memory; nobody can reset a forgotten password | Fixed in v0.26.0 and v0.27.0 |
+| No "undo" for a tap | Fixed in v0.30.0 |
+| Count overwrites a sale made at the same moment | Fixed in v0.30.0 (safe count) |
+| No refunds or voids | Fixed in v0.31.0 |
+| Money stored as `Float` | Fixed in v0.23.2 (centavos) |
+| Dark theme: normal and Low bars the same colour | Fixed in v0.21.8 |
+| No tab icon | Fixed in v0.21.7 |
+| No senior/PWD discount, no X/Z reading | Next: shifts and X/Z readings in v0.33.0, discounts in v0.34.0 (needs the café's written rules) |
+| No Content-Security-Policy header | Planned for v0.37.0 |
+| Not a BIR-registered POS | Unchanged: outside this project; receipts say they are not official |
+
+New limitations: the help pictures must be retaken when a page changes; real email depends on the shop's mail
+provider accepting the login (see 12.5); Sign in with Google works only on `localhost` or HTTPS (Google's rule).
+
+### 12.7 What comes next
+
+The plan continues with **v0.33.0** shifts and X/Z readings (voids will then end at the Z reading instead of
+midnight), **v0.34.0** senior citizen and PWD discounts, product restock and archive, backup and restore, the
+Content-Security-Policy header, then the **cloud package** (v0.38.0) and the licence check against the
+subscription website (v0.39.0). Release **v1.0.0** adds automated browser tests and a trial at the café.
+
+---
+
 ## Appendix A. Version history
 
 Each version is marked with an **annotated tag** in Git, which stores a message, a date and who made it. The tag
@@ -2426,7 +2610,8 @@ declared complete. Documentation-only changes get no tag.
 | v0.21.2 | 2026-10-23 | — | Layout audit of every page (14 pages, light and dark theme, phone 375 px and desktop, open and folded sidebar). Two defects fixed: the theme icon of the folded sidebar sat to the right of the avatar (DEF-59), and the "New ingredient" panel ran off the right edge of a phone (DEF-60). No page had sideways page scrolling *(branch `fix/rail-alignment-audit`)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
-Pull request numbers assume the versions were published in order in one session.*
+Pull request numbers assume the versions were published in order in one session.
+Versions after v0.21.2 (v0.21.3 to v0.32.0) are listed in Chapter 12.2.*
 | — | 2026-10-23 | — | Final report: `final_report.md` and `final_report.docx`, written from this draft, with a new tour of v0.21.2, cleaned-up tables and the last two open hand tests closed (TC-4.4, TC-19.14) *(branch `docs/final-report`, no tag)* |
 
 ## Appendix B. Automated test suite
@@ -2442,7 +2627,8 @@ python tests/run_tests.py sales      # only test files whose name contains "sale
 python tests/check_contract.py       # only the project rules marked [checked] in AGENTS.md
 ```
 
-On v0.21.2 the run ends with **"All 22 passed (contract check + test files)."**
+On v0.21.2 the run ends with **"All 22 passed (contract check + test files)."** On v0.32.0 it ends with **"All 38
+passed"**: 1,203 checks + 147 rule checks (Chapter 12.5).
 
 | Test file | Covers | Checks |
 |---|---|---|

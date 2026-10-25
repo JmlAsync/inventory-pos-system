@@ -1,4 +1,5 @@
 {% from "_avatar.html" import avatar %}
+{% from "_help.html" import help_button, help_panel with context %}{# v0.32.0 #}
 {# One sidebar link with an icon. It is highlighted when you are on that page
    (or on one of the related pages listed in "also"). v0.13.0 #}
 {% macro side_link(current, endpoint, icon, label, also=(), badge=0) %}
@@ -104,6 +105,7 @@
                         <li><span class="dropdown-item-text small text-body-secondary">Signed in as {{ current_user.role|capitalize }}</span></li>
                         <li><a class="dropdown-item" href="{{ url_for('accounts.profile') }}"><i class="bi bi-camera" aria-hidden="true"></i>Change picture</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('accounts.profile') }}#password"><i class="bi bi-key" aria-hidden="true"></i>Change password</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('help.help_page') }}"><i class="bi bi-book" aria-hidden="true"></i>Help for every page</a></li>{# v0.32.0 #}
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             {# Log out is a small form, not a link (v0.13.2) #}
@@ -134,14 +136,19 @@
                 <span class="brand-mark"><i class="bi bi-shop" aria-hidden="true"></i></span>
                 <span>Inventory & POS</span>
             </a>
+            <span class="ms-auto">{{ help_button() }}</span>{# v0.32.0: on phones the sidebar is folded away #}
         </header>
         <main class="app-content">
             {% include "_flash.html" %}
             {% block content %}{% endblock %}
         </main>
+        {# v0.32.0: the ? button for this page's help, round in the bottom right corner on wide screens (on phones it
+           is in the top bar), so it never takes room from the menu #}
+        <div class="help-float d-none d-lg-block">{{ help_button() }}</div>
     </div>
 </div>
 {% endblock %}
+{{ help_panel() }}{# v0.32.0: outside the page block, so the login pages have it too #}
 
 <!-- Bootstrap's JavaScript: needed for the avatar menu (v0.12.0) and the phone sidebar (v0.13.0) -->
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>

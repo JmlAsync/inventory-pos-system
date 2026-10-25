@@ -1,0 +1,46 @@
+{# Help for the page being shown (v0.32.0, F29, DEC-034). help_for_page() gives the topic from help_topics.py, with only
+   the steps this person can do, or None (no button, no panel). The words are plain text, escaped like everything else. #}
+
+{# The ? button: only an icon. Screen readers and the hover tooltip get the words. #}
+{% macro help_button() %}
+{% if help_for_page() %}
+<button type="button" class="help-toggle d-print-none" data-bs-toggle="offcanvas" data-bs-target="#helpPanel"
+        aria-controls="helpPanel" aria-label="Help for this page" title="Help for this page">
+    <i class="bi bi-question-circle" aria-hidden="true"></i>
+</button>
+{% endif %}
+{% endmacro %}
+
+{# The panel that slides in from the right: what the page is for, a picture of it, the main steps #}
+{% macro help_panel() %}
+{% set topic = help_for_page() %}
+{% if topic %}
+<div class="offcanvas offcanvas-end help-panel d-print-none" tabindex="-1" id="helpPanel" aria-labelledby="helpPanelTitle">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5 d-flex align-items-center gap-2" id="helpPanelTitle">
+            <i class="bi {{ topic.icon }}" aria-hidden="true"></i>{{ topic.title }}
+        </h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close help"></button>
+    </div>
+    <div class="offcanvas-body">
+        <p>{{ topic.summary }}</p>
+        {# The picture opens full size in a new tab, for a closer look #}
+        <a href="{{ url_for('static', filename='help/' ~ topic.key ~ '.webp') }}" target="_blank" rel="noopener" class="d-block mb-3">
+            <img src="{{ url_for('static', filename='help/' ~ topic.key ~ '.webp') }}" class="help-shot" loading="lazy"
+                 alt="What the {{ topic.title }} page looks like">
+        </a>
+        <h3 class="h6 fw-semibold">How to use it</h3>
+        <ol class="help-steps">
+            {% for step in topic.steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+        {% if topic.note %}
+        <p class="small text-body-secondary d-flex gap-2"><i class="bi bi-info-circle" aria-hidden="true"></i><span>{{ topic.note }}</span></p>
+        {% endif %}
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('help.help_page') }}#{{ topic.key }}" class="btn btn-light-subtle w-100 mt-2">
+            <i class="bi bi-book me-1" aria-hidden="true"></i>Help for every page</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endmacro %}

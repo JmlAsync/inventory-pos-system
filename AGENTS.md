@@ -49,6 +49,7 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
 | `google_signin.py` | Sign in with Google: the flow and every check on Google's answer (v0.29.0) | Only `exchange_code` and `fetch_keys` talk to Google; tests replace those two (T3) |
 | `totp.py` | Authenticator-app codes (RFC 6238) and the encrypted key; the QR code (v0.28.0) | The key is never stored in plain text (S14) |
 | `mail.py` | Sends email with Python's own `smtplib`; settings from the `[mail]` part of `instance/config.toml` (v0.26.0) | Never put the mail password anywhere else (P1) |
+| `help_topics.py`, `static/help/` | The words of the Help panel and page, one topic per page, and a picture of each page (v0.32.0) | A new page needs a topic and a picture, or `tests/test_help.py` fails (DEC-034) |
 | `common.py` | Rules and helpers every part uses: limits, `find_by_id`, `admin_required`, money and the shop's clock, picture files (v0.25.0) | |
 | `blueprints/` | The pages, one file per part: `accounts`, `catalog`, `ingredients`, `sales`, `reports`, `shop` (v0.25.0) | Page names are `part.page`, e.g. `url_for('sales.new_sale')`. Pages never write to the database (I1) |
 | `store/` | The data layer: every database change (`sales`, `ingredients`, `catalog`, `accounts`, `shop`) and the stock calculations (`stock`) (v0.25.0) | Rule I1; DEC-027 |
@@ -130,8 +131,8 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   the owner allowed to invite) to that person's own email, with the role chosen by the inviter.
   Accepting an invitation never changes its role. *(From v0.27.0; until then accounts are made only
   by `seed_demo_data.py` and `add_users.py`.)* Why: DEC-002 (owner) and DEC-003 (invitations).
-  *Until v0.38.0 (no licence check yet), `setup_shop.py` asks for the owner's email and the owner confirms it with
-  a code on Profile; v0.38.0 replaces it with the purchase email (owner's decision 2026-10-24, DEC-029).*
+  *Until v0.39.0 (no licence check yet), `setup_shop.py` asks for the owner's email and the owner confirms it with
+  a code on Profile; v0.39.0 replaces it with the purchase email (owner's decision 2026-10-24, DEC-029).*
 - **S13** Every login needs the password (or Google sign-in) **and** a 6-digit code, unless that browser is a **trusted device** for that user. Trust skips only the code,
   never the password. The code comes by email (the default) or, if the user chose it on their
   Profile, from an authenticator app; turning the app on or off needs the password and a current
@@ -198,8 +199,9 @@ for clients who already use Firebase, never first (DEC-014). The full plan and i
   requirements file only in the version that first uses it, pinned to an exact version, together
   with the packages it brings with it: `Flask-Migrate` and `alembic` (v0.23.0), `waitress` (v0.24.0),
   `cryptography` and `segno` (v0.28.0; segno draws the authenticator QR code), `Authlib` and
-  `requests` (v0.29.0), `psycopg` (v0.37.0, cloud package), `google-cloud-firestore` (v0.39.0,
-  Firebase package only, built only when a client already on Firebase asks).
+  `requests` (v0.29.0), `psycopg` (v0.38.0, cloud package), `google-cloud-firestore` (v0.40.0,
+  Firebase package only, built only when a client already on Firebase asks). (Versions from v0.32.0 on moved down
+  one number on 2026-10-25, when Help became v0.32.0: DEC-034.)
   From v0.24.0 the packages are split into `requirements/local.txt`, `requirements/cloud.txt`,
   `requirements/firebase.txt` and `requirements/dev.txt` (test-only tools such as Playwright), and the allowlist is checked per file.
   Email is sent with Python's own `smtplib`; no mail package is needed.

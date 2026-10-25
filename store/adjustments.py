@@ -31,7 +31,7 @@ class AdjustmentRefused(Exception):
 
 # ---------------- Reading ----------------
 def sold_today(sale):
-    """True when the sale was made today on the shop's clock: only then can it be voided (plan §4.1). From v0.32.0
+    """True when the sale was made today on the shop's clock: only then can it be voided (plan §4.1). From v0.33.0
     the day ends at the Z reading instead of at midnight."""
     return to_shop_time(sale.created_at).date() == shop_now().date()
 

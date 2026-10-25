@@ -61,7 +61,7 @@ def check_admin(username, password, repeated=None):
 
 def check_owner_email(email):
     """v0.27.0 (rule S12): the owner's own email, for codes and for getting back into the account.
-    Until the licence check (v0.38.0) it is typed here; the owner confirms it with a code on Profile (DEC-029)."""
+    Until the licence check (v0.39.0) it is typed here; the owner confirms it with a code on Profile (DEC-029)."""
     address = check_email_address(email)
     if address is None:
         raise Refused('The owner\'s email is required, like maria@example.com.')

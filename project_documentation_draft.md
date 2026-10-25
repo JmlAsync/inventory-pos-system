@@ -240,6 +240,7 @@ The tag message summarizes what the increment added.
 | v0.29.0 | 2026-10-25 | — | Sign in with Google (F26): the OpenID Connect code flow with state, nonce and PKCE (Authlib); Google's answer is checked here: signature against Google's keys, issuer, audience, expiry, nonce and a verified email. Accounts are linked by Google's permanent id, never the email; linking from Profile needs the password and a fresh code, and the Google email must be the account's email (owner's decision). People can join from an invitation with Google (the invited address; the code still follows). The login code still follows Google unless the browser is trusted. Works on `localhost` and HTTPS only (Google's rule), so the login page says where. `setup_shop.py` asks for the client ID and secret (optional). Migration `0007`; packages Authlib, joserfc, requests and its four (D1); rule S1 lists the two Google pages (owner's decision) (DEC-031) *(branch `feature/google-signin`, merged after the defense, DEC-018)* |
 | v0.30.0 | 2026-10-25 | — | Undo and a safe count (F27, plan §4.2 and §4.8). **Undo** on New Sale takes the order back one change at a time (the last 5; the copies stay small for the session cookie; emptied when the sale is completed, so a sold order never comes back; the stock is checked again). A **stock count** is saved only if the amount on hand is still the one the admin saw on the page, in one conditional step (I1); otherwise "count again". **Undo count** for 5 minutes adds the opposite history line (`count-undo`), refused if anything else changed the ingredient since. Found in the browser check: the Undo button wrapped on phones; the hint now makes room (DEC-032) *(branch `feature/undo-and-safe-count`, merged after the defense, DEC-018)* |
 | v0.31.0 | 2026-10-25 | — | Voids and refunds (F28, plan §4.1, rules I8 and S15). A receipt is never changed: a void or refund is a new record that names who asked and who approved, with a printable **slip**. **Void** = the whole receipt, today only: anyone asks (with a reason), an admin approves with their **own password** (at the top of the **Sales Report**, whose menu link shows how many are waiting, or on the receipt; no separate page, owner's decision), or, with no admin at the till, by a **code emailed** to the admin the cashier chooses (that void only, 10 minutes, once, 5 tries, keyed hash). Everything goes back on the shelf. **Refund** = chosen items, any day, admins only, each **back on the shelf** or **waste** (a `refund` + and a `waste` − line). Conditional updates stop a double approval and refunds above what was paid (I1, I2). Each receipt line now keeps its own ingredients, so a refund returns exactly what it used. **Today's receipts** for everyone; the Sales Report and Home show **net** sales (gross − voids − refunds) and cash after money given back. Migration `0008` (DEC-033) *(branch `feature/voids-and-refunds`, merged after the defense, DEC-018)* |
+| v0.32.0 | 2026-10-25 | — | Help on every page (F29, DEC-034). A **?** button, only an icon (round, bottom right; in the top bar on phones; beside the theme switch on the login pages), opens a side panel with **that page's help**: what it is for, a **picture** of the page and the main steps. The **Help** page (`/help`, from the avatar menu) shows all 18 topics with chips to jump between them. A cashier sees only their own pages and steps. The words are in `help_topics.py`, the pictures (screenshots of the demo shop, WebP, 0.7 MB) in `static/help/`; a test fails if a page has no help. Later versions in the plan moved down one number (shifts are now v0.33.0) *(branch `feature/help-pages`, merged after the defense, DEC-018)* |
 
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.*
@@ -460,6 +461,9 @@ Jun taps Iced Latte twice by mistake while a queue waits; one tap on **Undo** an
 ### Story F28 — Giving the money back *(v0.31.0)*
 Jun rings up a Spanish Latte, but the customer wanted a Matcha. He opens **Today's receipts**, picks the receipt, taps **Void this receipt**, types "wrong drink rung up" and asks for the void. Maria is at the market, so Jun picks her name and taps **Send**; her phone shows the receipt and a code, and because the story matches she texts him the code. Jun types it, the receipt says VOIDED, the milk and beans are back on the shelf, and the slip that prints names Jun as the one who asked and Maria as the one who approved. Two days later a customer returns an unopened croissant from a bigger order; Maria opens that receipt, taps **Refund items**, chooses one croissant **back on the shelf**, types her password and hands back ₱85 from the drawer. The Sales Report shows the void and the refund under Net sales, and the cash total matches the drawer.
 
+
+### Story F29 — Help on the page *(v0.32.0)*
+Ana joins as a cashier on a busy Saturday. On New Sale she isn't sure how to add oat milk, so she taps the small **?** in the corner; a panel slides in with a picture of the page and five short steps, and the second one tells her to tap the drink's line and choose the extra. Later a customer says they were charged for the wrong drink; the **?** on the receipt tells her to press the Void button and ask for a void, and that no money goes back until an admin approves. Maria, the owner, opens **Help** from her menu the night before a new staff member starts and walks through every page with its picture, so the new cashier knows the screens before touching them.
 ---
 
 ## 6. Test cases (Lecture 3, p. 31 style)
@@ -1260,6 +1264,24 @@ Automated in `tests/test_voids.py` (81 checks). The race cases put "another admi
 | TC-41.16 | Demo mode, a server window that can't show "₱" | Send the void email | Shown with "?" for "₱" | **v0.30.0:** the page crashed (500) · **v0.31.0:** as expected | ❌→✅ DEF-71 |
 | TC-41.17 | Demo copy in the browser, demo mode (Edge) | Cashier: sale, ask for a void, email the admin, type the code; admin: refund an older receipt as waste by GCash; Sales Report; 375 px, light and dark | All work; codes and the email in the server window | **First try:** the void email crashed the page (DEF-71); at 375 px the refund lines hid the number and shelf / waste boxes off to the side; the report showed ₱-130.00 · **Fixed:** one stacked row per item; −₱130.00 | ❌→✅ |
 
+### F29 — Help on every page *(v0.32.0)*
+
+Automated in `tests/test_help.py` (161 checks). TC-42.1 goes through every page the app can show, so a page added later without help fails the suite.
+
+| ID | Precondition | Steps / input | Expected result | Actual result | Pass? |
+|---|---|---|---|---|---|
+| TC-42.1 | — | Every page that can be opened; every page a topic names | Each has exactly one topic; no topic names a page that is gone | As expected | ✅ |
+| TC-42.2 | — | Each topic's picture | A WebP file in `static/help/`, at most 150 KB, all together under 1.5 MB; no picture without a topic | As expected (18 pictures, 0.7 MB) | ✅ |
+| TC-42.3 | — | Each topic's words | A title, a summary, at least two steps; no HTML; each step for everyone, admins or cashiers; admin pages only admin steps | As expected | ✅ |
+| TC-42.4 | Admin on Products | Look at the ? buttons and the panel | Only an icon, "Help for this page" for screen readers and as tooltip; opens the Products topic with its picture; links to `/help#products`; left out when printing | As expected | ✅ |
+| TC-42.5 | Visitor | Login page; Forgot password | A ? beside the theme switch; the "Logging in" topic; no link to the Help page | As expected | ✅ |
+| TC-42.6 | A receipt; Products | Open the panel as cashier and as admin | Cashier: "Ask for a void", no Void now or Refund items, "View only"; admin: Void now and Refund items | As expected | ✅ |
+| TC-42.7 | — | `/help` as visitor, cashier, admin | Visitor sent to log in; cashier sees 7 topics, none for admin pages; admin sees 18, admin ones marked "Admins only"; every picture; chips to each topic; "Open" links only to pages that need no number | As expected | ✅ |
+| TC-42.8 | Cashier | Type `/admin/users` | 403 as before, and no admin help on it | As expected | ✅ |
+| TC-42.9 | A topic whose words look like HTML | Open its page | Shown as text, not run (S11) | As expected | ✅ |
+| TC-42.10 | — | The style sheet | The panel is never wider than the screen; the button and panel use the theme's colours | As expected | ✅ |
+| TC-42.11 | Demo copy in a browser (Edge), demo mode | Open the ? on New Sale (light) and the Sales Report (dark); the Help page; both at 375 px | The panel with picture and steps; readable in both themes; 18 topics, no broken picture; no sideways scroll; one ? visible on a phone | **First try:** the ? sat in the sidebar footer beside the theme switch and squeezed the username to "ad…" · **Fixed:** round button in the bottom right corner on wide screens, in the top bar on phones | ❌→✅ |
+
 ### Phase 1 patches *(v0.21.3 onward)*
 
 Small fixes from the security audit and the known limitations, one per version, built on branches and tested before the defense, merged after it (DEC-018). Automated in `tests/test_hardening.py`.
@@ -1373,7 +1395,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | `test_google.py` | F26 / TC-39.x (v0.29.0): migration 0007, where it works, the trip (state, nonce, PKCE), every check on Google's answer with a test-made key, login by Google's id and the code after it, linking and unlinking, joining with Google, setup and the environment | 55 |
 | `test_undo.py` | F27 / TC-40.x (v0.30.0): the safe count (seen amount, decimals, a sale in between), undo count (5 minutes, nothing since, once, races), basket undo step by step, 5 steps and the cookie size, after a sale, stock checked again, a new login | 36 |
 | `test_voids.py` | F28 / TC-41.x (v0.31.0): migration 0008, each line's ingredients, asking for a void, 403s, approving by password and by emailed code, races, only today, GCash references, refunds to the shelf or as waste, older sales, net sales and the drawer, slips, history, audit log, DEF-71 | 81 |
-| **37 files** | | **1,042 checks + 147 rule checks** |
+| `test_help.py` | F29 / TC-42.x (v0.32.0): a topic for every page, the pictures, the words, the icon-only button and panel, the login pages, steps per role, the Help page per role, 403s, escaping, the look | 161 |
+| **38 files** | | **1,203 checks + 147 rule checks** |
 
 ### Test summary (v0.7.0 → v0.20.5)
 
@@ -1417,7 +1440,8 @@ still run by Claude before each release; they are not in `tests/` because they n
 | F26 Sign in with Google (v0.29.0) | 11 | 10 | 0 | 1 |
 | F27 Undo and a safe count (v0.30.0) | 8 | 7 → **8** | 1 → **0** | 0 |
 | F28 Voids and refunds (v0.31.0) | 17 | 14 → **17** | 3 → **0** | 0 |
-| **Total** | **424** | **306 → 421** | **98 → 0** | **6 → 3** |
+| F29 Help on every page (v0.32.0) | 11 | 10 → **11** | 1 → **0** | 0 |
+| **Total** | **435** | **316 → 432** | **99 → 0** | **6 → 3** |
 
 *F1–F6: numbers shown as v0.7.0 → v0.7.1; on 2026-10-04 the full suite was re-run against the merged v0.7.1 code (`6043cdb`): all five failures now pass, and every test that passed before still passes. Checking that old features still work after a change is called **regression testing**. F7: numbers shown as first run → v0.8.1; on 2026-10-08 the F1–F6 suite was re-run against v0.8.0 and still passes.*
 
@@ -1528,6 +1552,7 @@ still run by Claude before each release; they are not in `tests/` because they n
 > - ~~**The login limit is kept in memory**~~ *(fixed in v0.26.0, DEF-70: counted in the database, so a restart doesn't clear it)*. ~~**Nobody can reset a forgotten password**~~ *(fixed in v0.27.0, F24: Forgot your password? sends a code to a confirmed email)*.
 > - **No Content-Security-Policy header** yet, because the pages use inline scripts (the CDN files are gone since v0.19.4).
 > - **The light/dark choice is saved per browser**, not per user account.
+> - **The help pictures show the pages as they were in v0.32.0.** A page that changes needs its picture retaken (the test checks each picture exists, not that it is current); from v1.0.0 the browser tests can retake them. The help is in English only.
 > - ~~**No "undo" for a tap**~~ *(fixed in v0.30.0, F27: Undo on New Sale, the last 5 changes)*.
 > - ~~**No refunds or voids.**~~ *(fixed in v0.31.0, F28: a void with admin approval (Completed → Void requested → Voided / Rejected), refunds of chosen items, both kept as their own records; DEC-033)*.
 > - **Editing a product's stock overwrites it with the number typed in** (products without a recipe). Ingredients already have Restock-by-amount and a history (v0.17.0); products could get the same.

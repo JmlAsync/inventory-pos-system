@@ -2612,7 +2612,7 @@ declared complete. Documentation-only changes get no tag.
 *From v0.8.2 the Commit column shows the commit with the change; the tag sits on the GitHub merge commit of that pull request.
 Pull request numbers assume the versions were published in order in one session.
 Versions after v0.21.2 (v0.21.3 to v0.32.0) are listed in Chapter 12.2.*
-| — | 2026-10-23 | — | Final report: `final_report.md` and `final_report.docx`, written from this draft, with a new tour of v0.21.2, cleaned-up tables and the last two open hand tests closed (TC-4.4, TC-19.14) *(branch `docs/final-report`, no tag)* |
+| — | 2026-10-23 | — | Final report: `final_report.md`, `final_report.docx` and `final_report.pdf`, written from this draft, with a new tour of v0.21.2, cleaned-up tables and the last two open hand tests closed (TC-4.4, TC-19.14); plus `docs/system_overview.canvas`, a one-page map of the system *(branch `docs/final-report`, no tag)* |
 
 ## Appendix B. Automated test suite
 

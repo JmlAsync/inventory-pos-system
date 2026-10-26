@@ -106,7 +106,7 @@ they never touch your real database or pictures. GitHub runs them on every pull 
 | `static/vendor/` | Bootstrap 5.3.3, Bootstrap Icons 1.11.3 and the Inter font, stored here so nothing loads from the internet |
 | `seed_demo_data.py` | Fills the database with demo data |
 | `tests/` | Automated tests and the contract check |
-| `final_report.md` (+ `.docx`, `.pdf`) | The final project report for submission, in the order of the course's Section B list |
+| `final_report.md` (+ `.docx`, `.pdf`) | The final project report for submission, in the order of the course's Section B list; Chapter 12 is an addendum on v0.21.3 to v0.32.0 for the defense |
 | `project_documentation_draft.md` | The living working report, updated with every change: version history, user stories, test cases, defects, requirements and UML |
 | `diagrams/` | UML diagrams (PlantUML source and pictures) |
 | `docs/` | Other reports and guides: the security audit, running on another computer, preparing for the professor's session, and `system_overview.canvas`, a one-page map of the system (open it in Obsidian) |

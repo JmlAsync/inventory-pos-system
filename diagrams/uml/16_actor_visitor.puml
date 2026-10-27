@@ -1,5 +1,5 @@
 @startuml
-' Use cases of the Visitor - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Use cases of the Visitor - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -42,11 +42,17 @@ hide circle
 left to right direction
 actor "Visitor" as A
 rectangle "Inventory & POS System" {
-  usecase "UC01 View home page" as U0
-  usecase "UC02 Log in" as U1
-  usecase "UC12 Switch light/dark theme" as U2
+  usecase "UC01 View home page" as UC01
+  usecase "UC02 Log in" as UC02
+  usecase "UC12 Switch light/dark theme" as UC12
+  usecase "UC18 Join by invitation" as UC18
+  usecase "UC23 Reset a forgotten password" as UC23
+  usecase "UC24 Read the help" as UC24
 }
-A -- U0
-A -- U1
-A -- U2
+A -- UC01
+A -- UC02
+A -- UC12
+A -- UC18
+A -- UC23
+A -- UC24
 @enduml

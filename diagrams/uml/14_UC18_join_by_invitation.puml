@@ -1,0 +1,56 @@
+@startuml
+' Use case UC18 Join by invitation - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+left to right direction
+actor "Visitor" as A0
+actor "Email server" as S0 <<system>>
+usecase "Join by invitation" as U
+usecase "Enter the code sent\nto the invited address" as I0
+U ..> I0 : <<include>>
+usecase "Continue with Google" as E0
+E0 ..> U : <<extend>>
+A0 -- U
+U -- S0
+note right of U
+  UC18: Choose a username and password from the link;
+  the role is the one the inviter chose
+end note
+@enduml

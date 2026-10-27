@@ -1,5 +1,5 @@
 @startuml
-' Software architecture: layers of the system - Inventory & POS System v0.20.5 (report, Lecture 6; drawn 2026-10-14)
+' Layered architecture - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -43,11 +43,11 @@ skinparam rectangle {
   BackgroundColor White
   BorderColor Black
 }
-rectangle "<b>1. User interface</b>\nHTML pages (Jinja2 templates), theme.css (light / dark), Bootstrap 5.3.3,\nBootstrap Icons, Inter font, small scripts (change preview, quick cash, Saving...)" as ui
-rectangle "<b>2. User communication and security</b>\nFlask routes and forms, Flask-Login (login records, 8-hour idle limit), admin_required (403),\nCSRF token check, login attempt limit, security headers, file upload checks" as sec
-rectangle "<b>3. Application logic</b>\nBasket and sale ticket, stock and recipe checks (Recipes, can_make), payments (cash, GCash),\natomic stock updates, ingredient history, low-stock rules, sales report, quick cash" as logic
-rectangle "<b>4. Data access</b>\nSQLAlchemy models (models.py), upgrade_database() adds new columns and indexes" as data
-rectangle "<b>5. Storage</b>\nSQLite file instance/inventory.db, secret key file, pictures in static/products and static/avatars" as store
+rectangle "<b>1. User interface</b>\nHTML pages (Jinja2 templates), theme.css (light / dark), Bootstrap 5.3.3, Bootstrap Icons,\nInter font, help panel (help_topics.py, static/help), small scripts (change preview, quick cash, Saving...)" as ui
+rectangle "<b>2. User communication and security</b>\nFlask blueprints (accounts, sales, adjustments, catalog, ingredients, reports, shop, users, help),\nlogin records and codes, trusted devices, admin_required (403), CSRF check, login limit, headers, upload checks" as sec
+rectangle "<b>3. Application logic</b>\nBasket, undo and sale ticket, stock and recipe checks, payments (cash, GCash), voids and refunds,\nnet sales, invitations, email (mail.py), authenticator codes (totp.py), Google (google_signin.py)" as logic
+rectangle "<b>4. Data access</b>\nstore/ (every database change: one named operation, conditional updates, audit lines),\nSQLAlchemy models (models.py), Alembic migrations 0001-0008 (migrations/)" as data
+rectangle "<b>5. Storage</b>\nSQLite file instance/inventory.db (PostgreSQL for the cloud package), instance/config.toml,\nsecret and key files, pictures in static/products and static/avatars" as store
 ui -down-> sec
 sec -down-> logic
 logic -down-> data
@@ -55,5 +55,8 @@ data -down-> store
 note right of sec
   Each layer only uses
   the layer below it.
+  Since v0.25.0 a page that
+  writes to the database itself
+  fails the contract check.
 end note
 @enduml

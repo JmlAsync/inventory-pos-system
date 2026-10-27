@@ -1,5 +1,5 @@
 @startuml
-' High-level architecture: subsystems - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' High-level architecture - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -43,19 +43,25 @@ skinparam package {
   BackgroundColor White
   BorderColor Black
 }
-rectangle "Web interface\n(templates, theme, menus)" <<subsystem>> as web
-rectangle "Accounts and security\n(log in/out, roles, CSRF,\nlogin records, passwords,\nprofile pictures)" <<subsystem>> as acc
-rectangle "Sales\n(New Sale, basket, sale ticket,\npayments, receipts)" <<subsystem>> as sales
+rectangle "Web interface\n(templates, theme, menus,\nhelp on every page)" <<subsystem>> as web
+rectangle "Accounts and security\n(log in with a code, trusted devices,\nbackup codes, Google, passwords)" <<subsystem>> as acc
+rectangle "Users and audit\n(owner, invitations, roles,\nswitch off, audit log)" <<subsystem>> as users
+rectangle "Sales\n(New Sale, basket, undo,\nsale ticket, payments, receipts)" <<subsystem>> as sales
+rectangle "Adjustments\n(voids with approval,\nrefunds, slips)" <<subsystem>> as adj
 rectangle "Product catalogue\n(products, pictures,\nservings and add-ons)" <<subsystem>> as cat
-rectangle "Ingredients\n(ingredients, recipes,\nrestock, count, history)" <<subsystem>> as ing
-rectangle "Reporting\n(Home numbers, low-stock\nwarnings, Sales Report)" <<subsystem>> as rep
-rectangle "Data storage\n(SQLAlchemy + SQLite,\npicture files)" <<subsystem>> as store
-rectangle "Flask request handling (routes in app.py)" as link
+rectangle "Ingredients\n(ingredients, recipes, restock,\nsafe count, undo, history)" <<subsystem>> as ing
+rectangle "Reporting and shop\n(Home, net sales report,\nshop details, email settings)" <<subsystem>> as rep
+rectangle "Flask request handling (blueprints)" as link
+rectangle "Data storage\n(store/, SQLAlchemy + SQLite,\nmigrations, picture files)" <<subsystem>> as store
+rectangle "Email\n(mail.py, smtplib)" <<subsystem>> as mail
 web -down- link
 acc -up- link
+users -up- link
 sales -up- link
+adj -up- link
 cat -up- link
 ing -up- link
 rep -up- link
 link -down- store
+link -down- mail
 @enduml

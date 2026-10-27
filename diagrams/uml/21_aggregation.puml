@@ -1,5 +1,5 @@
 @startuml
-' Aggregation and composition - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Aggregation and composition - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -42,6 +42,11 @@ hide circle
 class Sale
 class SaleItem
 Sale "1" *-- "1..*" SaleItem : composition
+class SaleItemUsage
+SaleItem "1" *-- "0..*" SaleItemUsage : composition
+class SaleAdjustment
+class AdjustmentLine
+SaleAdjustment "1" *-- "1..*" AdjustmentLine : composition
 class "Recipe of a product" as Recipe
 class RecipeItem
 Recipe "1" o-- "0..*" RecipeItem : aggregation
@@ -50,21 +55,21 @@ RecipeItem "0..*" --> "1" Ingredient : uses
 class "Basket (session)" as Basket
 class "Basket line" as Line
 Basket "1" o-- "0..*" Line : aggregation
-class Product
-Line --> "1" Product
-class MenuOption
-Line --> "0..*" MenuOption : serving + add-ons
-class "Sale ticket" as Ticket
-Basket "1" *-- "1" Ticket : composition
+class "Undo copies (last 5)" as UndoList
+Basket "1" *-- "0..5" UndoList : composition
 class User
 class LoginSession
+class TrustedDevice
+class BackupCode
 User "1" *-- "0..*" LoginSession : composition
+User "1" *-- "0..*" TrustedDevice : composition
+User "1" *-- "0..*" BackupCode : composition
 note right of Sale
-  Filled diamond: a SaleItem cannot exist
-  without its Sale (it is part of the receipt).
+  Filled diamond: the part cannot exist without
+  its whole (a receipt line without its receipt,
+  a void line without its void, a backup code
+  without its user).
   Hollow diamond: the parts exist on their own
   (an ingredient exists without any recipe).
-  A login record or a sale ticket only exists
-  for its user / its basket (v0.20.3, v0.20.4).
 end note
 @enduml

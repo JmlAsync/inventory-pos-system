@@ -1,0 +1,67 @@
+@startuml
+' Sequence: ask for and approve a void - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+actor Cashier
+actor Admin
+participant "Receipt / Sales Report\n(browser)" as UI
+participant "blueprints/adjustments.py" as C
+participant "store/adjustments.py" as S
+database "Database" as DB
+Cashier -> UI : Void this receipt + reason
+UI -> C : POST /sales/<id>/void
+C -> S : request_void(sale, reason, cashier)
+S -> DB : INSERT sale_adjustment\n(kind void, status requested)
+C --> UI : "Void requested"
+Admin -> UI : password, Approve void
+UI -> C : POST /voids/<id>/approve
+C -> C : admin? password right?\nreceipt from today?
+C -> S : approve_void(request, admin, 'password')
+S -> DB : UPDATE ... SET status = 'approved'\nWHERE id = ? AND status = 'requested'
+S -> DB : UPDATE sale SET voided_at = now\nWHERE id = ? AND not voided, not refunded
+alt either update changed 0 rows
+  S -> DB : ROLLBACK
+  C --> UI : "already decided by someone else"
+else both changed 1 row
+  S -> DB : put stock and ingredients back;\nvoid history lines; audit line
+  S -> DB : COMMIT
+  C --> UI : receipt shows VOIDED; slip to print
+end
+@enduml

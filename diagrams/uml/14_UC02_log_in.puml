@@ -1,5 +1,5 @@
 @startuml
-' Use case UC02 Log in - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Use case UC02 Log in - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -40,15 +40,25 @@ skinparam swimlaneWidth same
 hide circle
 
 left to right direction
-actor "Visitor" as Visitor
+actor "Visitor" as A0
+actor "Email server" as S0 <<system>>
+actor "Google" as S1 <<system>>
 usecase "Log in" as U
 usecase "Check login limit" as I0
 U ..> I0 : <<include>>
-usecase "Start a login record" as I1
+usecase "Enter the login code\n(unless the browser is trusted)" as I1
 U ..> I1 : <<include>>
-Visitor -- U
+usecase "Start a login record" as I2
+U ..> I2 : <<include>>
+usecase "Sign in with Google" as E0
+E0 ..> U : <<extend>>
+usecase "Reset a forgotten password" as E1
+E1 ..> U : <<extend>>
+A0 -- U
+U -- S0
+U -- S1
 note right of U
-  UC02: Username + password; 5 wrong tries = wait 5 minutes.
+  UC02: Password, then a 6-digit code. 5 wrong passwords = wait 5 minutes.
   The login ends on log-out, password change or 8 idle hours
 end note
 @enduml

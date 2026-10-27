@@ -1,5 +1,5 @@
 @startuml
-' System context (associations with other systems) - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' System context - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -48,18 +48,24 @@ hide empty members
 class "Inventory & POS system" as pos <<system>>
 class "Counter laptop / phone\n(browser)" as till <<device>>
 class "Printer" as printer <<device>>
+class "Email server\n(the shop's mail provider)" as mail <<external system>>
+class "Google sign-in" as google <<external system>>
 class "Customer's GCash app" as gcash <<external system>>
 class "Supplier" as supplier <<external organisation>>
-class "Shop computer's disk\n(database and picture files)" as files <<storage>>
+class "Shop computer's disk\n(database, settings, pictures)" as files <<storage>>
 class "GitHub" as github <<external system>>
 till "1..n" -- "1" pos : uses >
-pos "1" -- "0..n" printer : prints receipts through the browser >
-gcash "0..n" .. "1" pos : reference number typed by the cashier >
+pos "1" -- "0..n" printer : prints receipts and slips >
+pos "1" -- "0..1" mail : codes, invitations,\napproval codes >
+pos "1" -- "0..1" google : checks a Google sign-in >
+gcash "0..n" .. "1" pos : reference typed by the cashier >
 supplier "1..n" .. "1" pos : deliveries recorded as Restock >
-pos "1" -- "1" files : database, pictures, secret key >
+pos "1" -- "1" files : database, config, keys, pictures >
 github "1" .. "1" pos : code, tests and versions (development only) >
-note bottom of gcash
-  Not connected: the system never talks to GCash;
-  it only stores the 13-digit reference.
+note bottom of mail
+  Optional: without it the shop still sells
+  (trusted devices, backup codes, an
+  authenticator app); demo mode prints the
+  emails in the server window.
 end note
 @enduml

@@ -1,0 +1,52 @@
+@startuml
+' Use cases of the Owner - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+left to right direction
+actor "Owner" as A
+rectangle "Inventory & POS System" {
+  usecase "UC17 Manage users and invitations" as UC17
+}
+A -- UC17
+note bottom of A
+  Everything an Admin can do, plus:
+  roles, admins, who may invite
+end note
+@enduml

@@ -1,5 +1,5 @@
 @startuml
-' Use case UC08 Process sale - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Use case UC08 Process sale - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -40,8 +40,8 @@ skinparam swimlaneWidth same
 hide circle
 
 left to right direction
-actor "Cashier" as Cashier
-actor "Admin" as Admin
+actor "Cashier" as A0
+actor "Admin" as A1
 usecase "Process sale" as U
 usecase "Check permission (role)" as I0
 U ..> I0 : <<include>>
@@ -49,13 +49,16 @@ usecase "Use up ingredients" as I1
 U ..> I1 : <<include>>
 usecase "One receipt per basket (sale ticket)" as I2
 U ..> I2 : <<include>>
-Cashier -- U
-Admin -- U
-usecase "Change a basket line\n(serving, add-ons, - / +)" as E1
-usecase "See the ingredients\nthe order uses" as E2
+usecase "Change a basket line\n(serving, add-ons, - / +)" as E0
+E0 ..> U : <<extend>>
+usecase "See the ingredients\nthe order uses" as E1
 E1 ..> U : <<extend>>
+usecase "Undo a change" as E2
 E2 ..> U : <<extend>>
+A0 -- U
+A1 -- U
 note right of U
-  UC08: One tap per serving; Cash (quick amounts) or GCash; receipt
+  UC08: One tap per serving; Undo the last 5 changes;
+  Cash (quick amounts) or GCash; receipt with the shop details
 end note
 @enduml

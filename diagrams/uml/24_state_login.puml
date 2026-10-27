@@ -1,5 +1,5 @@
 @startuml
-' State diagram: a login (v0.20.3) - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' State diagram: a login - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -41,17 +41,18 @@ hide circle
 
 [*] --> LoggedOut
 LoggedOut : no login record for this browser
+WaitingForCode : right password, code sent;\n"half logged in" for 5 minutes
 LoggedIn : login record exists,\nused in the last 8 hours
 Ended : record deleted or too old;\nthe browser still has the cookie
-LoggedOut --> LoggedIn : correct password\n(new record, new token)
 LoggedOut --> LoggedOut : wrong password\n(5 tries = wait 5 minutes)
+LoggedOut --> LoggedIn : right password on a\ntrusted browser
+LoggedOut --> WaitingForCode : right password,\nbrowser not trusted
+WaitingForCode --> LoggedIn : right code (or backup code)\n(new record, new token)
+WaitingForCode --> WaitingForCode : wrong code\n(5 tries, then a new code)
+WaitingForCode --> LoggedOut : 5 minutes pass
 LoggedIn --> LoggedIn : any page within 8 hours\n(last seen updated)
 LoggedIn --> LoggedOut : Log out (record deleted)
-LoggedIn --> Ended : password changed on another device
+LoggedIn --> Ended : password changed, Log out everywhere,\naccount switched off
 LoggedIn --> Ended : 8 hours without a request
 Ended --> LoggedOut : next request\n(sent to log in, basket emptied)
-note right of Ended
-  A copied cookie is in this state
-  as soon as its owner logs out.
-end note
 @enduml

@@ -1,0 +1,56 @@
+@startuml
+' Use case UC21 Refund items - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+left to right direction
+actor "Admin" as A0
+usecase "Refund items" as U
+usecase "Check permission (role)" as I0
+U ..> I0 : <<include>>
+usecase "Back on the shelf or waste" as I1
+U ..> I1 : <<include>>
+usecase "Write an audit line" as I2
+U ..> I2 : <<include>>
+A0 -- U
+note right of U
+  UC21: Chosen items of any receipt; never more than was paid;
+  a slip names who refunded
+end note
+@enduml

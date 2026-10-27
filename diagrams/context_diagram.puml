@@ -1,5 +1,5 @@
 @startuml
-' Context model - Inventory & POS System (v0.19.4: Bootstrap, icons and font now inside the system), Lecture 5 p. 10 style
+' Context model - Inventory & POS System v0.32.0 (email server and Google added), Lecture 5 p. 10 style
 ' The system in the middle; the other systems and devices it works with around it.
 ' Paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com to edit.
 skinparam defaultFontName Arial
@@ -15,10 +15,16 @@ rectangle "Web browser\n(laptop or phone)" as Browser
 rectangle "Receipt printer\n(through the browser)" as Printer
 rectangle "GCash e-wallet\n(customer's phone)" as GCash
 rectangle "Inventory & POS\nSystem" as POS #E6F1EE
-rectangle "SQLite database\n(products, sales,\ningredients, users)" as DB
+rectangle "SQLite database\n(products, sales, voids,\ningredients, users, audit log)" as DB
 rectangle "Picture files\n(products, avatars)" as Files
 rectangle "Supplier\n(deliveries)" as Supplier
 rectangle "GitHub\n(code and versions)" as GitHub
+rectangle "Email server\n(login codes, invitations)" as Mail
+rectangle "Google sign-in\n(optional)" as Google
+rectangle "Email server\n(login codes, invitations)" as Mail
+rectangle "Google sign-in\n(optional)" as Google
+rectangle "Email server\n(login codes, invitations)" as Mail
+rectangle "Google sign-in\n(optional)" as Google
 
 Browser -- POS
 Printer -- POS
@@ -27,6 +33,12 @@ POS -- DB
 POS -- Files
 Supplier .. POS : restock\n(typed by admin)
 GitHub .. POS : source code
+POS -- Mail : sends codes\nand invitations
+POS -- Google : checks a\nGoogle sign-in
+POS -- Mail : sends codes\nand invitations
+POS -- Google : checks a\nGoogle sign-in
+POS -- Mail : sends codes\nand invitations
+POS -- Google : checks a\nGoogle sign-in
 legend right
   Solid line: connected directly
   Dashed line: information typed in by a person

@@ -1,0 +1,58 @@
+@startuml
+' State diagram: a void request - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
+' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  HeaderBackgroundColor #E6F1EE
+}
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+}
+skinparam sequence {
+  ParticipantBackgroundColor White
+  ParticipantBorderColor Black
+  LifeLineBorderColor #888888
+  ActorBorderColor Black
+  ActorBackgroundColor White
+}
+skinparam note {
+  BackgroundColor #FFFBEA
+  BorderColor #C9B458
+}
+skinparam swimlaneWidth same
+hide circle
+
+[*] --> Requested : cashier asks, with a reason\n(today's receipt only)
+[*] --> Approved : admin taps Void now\n(own receipt screen)
+Requested : waiting at the top of the Sales Report;\nthe receipt is unchanged
+Requested --> Requested : code emailed to an admin\n(10 minutes, 5 tries)
+Requested --> Approved : admin's password or the\nemailed code (receipt still from today)
+Requested --> Rejected : admin rejects, with a note
+Requested --> Rejected : day is over\n(only rejecting is allowed)
+Approved : receipt marked VOIDED; stock back;\nslip names who asked and who approved
+Rejected : nothing changed; a new request is allowed
+Approved --> [*]
+Rejected --> [*]
+note right of Approved
+  Two admins approving at once:
+  only one UPDATE finds "requested",
+  the other is rolled back.
+end note
+@enduml

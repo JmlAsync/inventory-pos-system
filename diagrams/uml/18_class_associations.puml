@@ -1,5 +1,5 @@
 @startuml
-' UML classes and associations - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Class associations - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -42,20 +42,45 @@ hide circle
 class User
 class Sale
 class SaleItem
+class SaleItemUsage
+class SaleAdjustment
+class AdjustmentLine
 class Product
 class MenuOption
 class RecipeItem
 class Ingredient
 class IngredientMovement
 class LoginSession
+class TrustedDevice
+class BackupCode
+class Invitation
+class EmailCode
+class AuditEntry
+class ShopProfile
+class LoginAttempt
 User "1" -- "0..*" Sale : makes >
 User "1" -- "0..*" LoginSession : logged in as >
+User "1" -- "0..*" TrustedDevice : trusts >
+User "1" -- "0..*" BackupCode : has >
+User "1" -- "0..*" Invitation : invites >
+User "0..1" -- "0..*" EmailCode : receives >
+User "0..1" -- "0..*" AuditEntry : did >
 Sale "1" -- "1..*" SaleItem : contains >
+SaleItem "1" -- "0..*" SaleItemUsage : used >
+Ingredient "1" -- "0..*" SaleItemUsage
+Sale "1" -- "0..*" SaleAdjustment : voided / refunded by >
+SaleAdjustment "1" -- "1..*" AdjustmentLine : gives back >
+AdjustmentLine "0..*" -- "1" SaleItem
+User "1" -- "0..*" SaleAdjustment : asks / approves >
 Product "1" -- "0..*" SaleItem : sold as >
 Product "1" -- "0..*" RecipeItem : recipe >
 MenuOption "1" -- "0..*" RecipeItem : recipe >
 Ingredient "1" -- "0..*" RecipeItem : used in >
 Ingredient "1" -- "0..*" IngredientMovement : history >
 Sale "0..1" -- "0..*" IngredientMovement : causes >
+SaleAdjustment "0..1" -- "0..*" IngredientMovement : causes >
 User "0..1" -- "0..*" IngredientMovement : records >
+note "ShopProfile (one row) and LoginAttempt\n(keyed hashes only) stand alone" as N
+ShopProfile .. N
+LoginAttempt .. N
 @enduml

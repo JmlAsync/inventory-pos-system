@@ -1,5 +1,5 @@
 @startuml
-' Object classes with attributes and operations - Inventory & POS System v0.20.5 (report, Lecture 7; drawn 2026-10-14)
+' Object classes - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -44,98 +44,81 @@ skinparam class {
   BorderColor Black
   HeaderBackgroundColor #E6F1EE
 }
-class Product {
-  name, sku, price
-  quantity, category
-  image, has_options
-  --
-  validate_product_form()
-  can_make()
-  menu_tile()
-  product_image_url()
-}
 class Basket <<kept in the session>> {
-  lines: key -> quantity
-  sale_ticket
+  lines, sale ticket, undo copies
   --
-  get_basket() / save_basket()
-  new_sale() (add a line)
-  change_line_quantity()
-  change_line_options()
-  remove_line()
-  basket_lines()
+  new_sale(), change_line_options()
+  undo_basket(), remove_line()
 }
 class Sale {
-  created_at, total
-  cash_received, change_due
-  payment_method
-  payment_reference, ticket
+  total, payment, ticket
+  voided_at, refunded_total
   --
-  complete_sale()
-  already_sold()
-  receipt()
+  complete_sale() -> store.sales.record_sale()
+  receipt(), net_total()
 }
-class SaleItem {
-  product_name, unit_price
-  quantity, options
-}
-class Recipes {
-  RecipeItem rows: amount of
-  an ingredient per product,
-  serving and add-on
+class SaleAdjustment {
+  kind, status, total
+  reason, who asked / decided
   --
-  has()
-  usage()
-  (helpers: add_usage(), shortages())
+  request_void(), approve_void()
+  reject_void(), void_now(), refund()
+}
+class Product {
+  name, sku, price
+  quantity, category, image
+  --
+  validate_product_form()
+  can_make(), menu_tile()
 }
 class Ingredient {
-  name, unit, category
-  quantity, low_at, full_at
+  name, unit, quantity
+  low_at, full_at
   --
-  ingredients() (restock, count, edit)
+  restock(), count(), undo_count()
   stock_status()
-  stock_percent()
-}
-class IngredientMovement {
-  change, reason
-  created_at
-}
-class MenuOption {
-  kind (serving / add-on)
-  name, price, active
-  sort_order, scale
-  --
-  manage_options()
-  read_chosen_options()
 }
 class User {
-  username, password_hash
-  role, avatar
+  username, role, email
+  second_step, google_sub
   --
-  login() / logout()
-  change_password()
-  profile()
+  login(), verify(), logout()
+  change_password(), profile()
 }
-class LoginSession {
-  token, created_at
-  last_seen
+class Invitation {
+  email, role, expires_at
   --
-  start_login_session()
-  load_user()
+  invite(), signup()
+  resend / cancel
+}
+class TrustedDevice {
+  token_hash, expires_at
+  --
+  trust_device(), remove_device()
+  logout_everywhere()
+}
+class AuditEntry {
+  action, target, details
+  --
+  note(), audit()
 }
 class SalesReport <<page, no table>> {
-  start, end dates
+  dates; gross, voids, refunds, net
   --
   sales_report()
 }
+class HelpTopic <<help_topics.py>> {
+  title, summary, steps, picture
+  --
+  help_page(), help panel
+}
 Basket ..> Product : lines name
 Basket ..> Sale : becomes
-Sale *-- SaleItem
+SaleAdjustment --> Sale : points to
 Sale --> User : cashier
-Sale *-- IngredientMovement
-Recipes ..> Product
-Recipes ..> Ingredient
-Recipes ..> MenuOption
-User *-- LoginSession
+User *-- TrustedDevice
+Invitation ..> User : makes
+AuditEntry --> User : who
 SalesReport ..> Sale
+SalesReport ..> SaleAdjustment
 @enduml

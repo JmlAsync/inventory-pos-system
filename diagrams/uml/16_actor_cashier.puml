@@ -1,5 +1,5 @@
 @startuml
-' Use cases of the Cashier - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Use cases of the Cashier - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -42,21 +42,27 @@ hide circle
 left to right direction
 actor "Cashier" as A
 rectangle "Inventory & POS System" {
-  usecase "UC01 View home page (dashboard)" as U0
-  usecase "UC03 Log out" as U1
-  usecase "UC04 View product list" as U2
-  usecase "UC08 Process sale" as U3
-  usecase "UC09 View low-stock warning" as U4
-  usecase "UC11 Change profile picture" as U5
-  usecase "UC12 Switch light/dark theme" as U6
-  usecase "UC13 Change password" as U7
+  usecase "UC01 View home page" as UC01
+  usecase "UC03 Log out" as UC03
+  usecase "UC04 View product list" as UC04
+  usecase "UC08 Process sale" as UC08
+  usecase "UC11 Change profile picture" as UC11
+  usecase "UC12 Switch light/dark theme" as UC12
+  usecase "UC13 Change password" as UC13
+  usecase "UC19 Ask for a void" as UC19
+  usecase "UC24 Read the help" as UC24
+  usecase "UC25 Manage sign-in security" as UC25
+  usecase "UC09 View low-stock warning" as UC09
 }
-A -- U0
-A -- U1
-A -- U2
-A -- U3
-A -- U4
-A -- U5
-A -- U6
-A -- U7
+A -- UC01
+A -- UC03
+A -- UC04
+A -- UC08
+A -- UC11
+A -- UC12
+A -- UC13
+A -- UC19
+A -- UC24
+A -- UC25
+A -- UC09
 @enduml

@@ -1,5 +1,5 @@
 @startuml
-' Generalization hierarchy - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Generalization hierarchy - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -40,14 +40,13 @@ skinparam swimlaneWidth same
 hide circle
 
 class User {
-  username
-  password_hash
-  avatar
+  username, password_hash
+  email, avatar
   --
-  log in / log out
-  view products
-  process sale
-  change picture / password
+  log in (password + code) / log out
+  process sale, undo
+  ask for a void
+  read the help
 }
 class Cashier {
   role = "cashier"
@@ -55,22 +54,42 @@ class Cashier {
 class Admin {
   role = "admin"
   --
-  add / edit / delete products
-  view sales report
-  manage servings and add-ons
-  manage ingredients and recipes
+  products, servings, ingredients
+  sales report, approve voids, refunds
+  shop details, email, audit log
+}
+class Owner {
+  role = "owner" (only one)
+  --
+  invite anyone, change roles
+  let admins invite
+  can't be switched off
 }
 User <|-- Cashier
 User <|-- Admin
+Admin <|-- Owner
+class SaleAdjustment {
+  total, reason
+  requested_by, decided_by
+}
+class Void {
+  kind = "void"
+  --
+  whole receipt, today only
+}
+class Refund {
+  kind = "refund"
+  --
+  chosen items, any day,
+  admins only
+}
+SaleAdjustment <|-- Void
+SaleAdjustment <|-- Refund
 class MenuOption {
-  name
-  price
-  active
-  sort_order
+  name, price, active
 }
 class Serving {
   kind = "size"
-  scale
   --
   exactly one per drink
 }
@@ -82,27 +101,20 @@ class AddOn {
 MenuOption <|-- Serving
 MenuOption <|-- AddOn
 class IngredientMovement {
-  change
-  user
-  created_at
+  change, user, created_at
 }
-class SaleUse {
-  reason = "sale"
-  sale_id
+class "Sale / Void / Refund" as SaleUse {
+  reason = sale, void, refund
 }
-class Restock {
-  reason = "restock"
+class "Restock / Count" as Restock {
+  reason = restock, count, count-undo
 }
-class StockCount {
-  reason = "count"
+class Waste {
+  reason = waste
 }
 IngredientMovement <|-- SaleUse
 IngredientMovement <|-- Restock
-IngredientMovement <|-- StockCount
-Cashier -[hidden]down- MenuOption
-Admin -[hidden]down- MenuOption
-Serving -[hidden]down- IngredientMovement
-AddOn -[hidden]down- IngredientMovement
+IngredientMovement <|-- Waste
 note right of User
   In the code these are ONE table each,
   with a "role" / "kind" / "reason" column

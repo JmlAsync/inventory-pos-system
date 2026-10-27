@@ -1,5 +1,5 @@
 @startuml
-' Class model with attributes and operations - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Class model - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -41,57 +41,86 @@ hide circle
 
 class User {
   id : int
-  username : str
+  {field} username : str  (unique)
   password_hash : str
-  {field} role : str  (admin / cashier)
+  {field} role : str  (owner / admin / cashier)
+  {field} email : str  (unique)
+  email_verified_at : datetime
+  is_active : bool
+  must_change_password : bool
+  can_invite : bool
+  {field} second_step : str  (email / app)
+  totp_key_encrypted : str
+  totp_last_step : int
+  {field} google_sub : str  (unique)
   avatar : str
   --
-  initials() : str
+  is_owner() / is_admin()
+}
+class Sale {
+  id : int
+  {field} created_at : datetime  (UTC)
+  {field} total : Money  (whole centavos)
+  cash_received : Money
+  change_due : Money
+  {field} payment_method : str  (cash / gcash)
+  {field} payment_reference : str  (unique)
+  {field} ticket : str  (unique: one receipt per basket)
+  voided_at : datetime
+  refunded_total : Money
+  --
+  net_total() : Decimal
+}
+class SaleItem {
+  product_name : str
+  unit_price : Money
+  quantity : int
+  options : str
+  refunded_quantity : int
+  used_recipe : bool
+  --
+  subtotal() / refundable_quantity()
+}
+class SaleItemUsage {
+  ingredient_id : int
+  amount : float
+}
+class SaleAdjustment {
+  {field} kind : str  (void / refund)
+  {field} status : str  (requested / approved / rejected)
+  total : Money
+  {field} method : str  (cash / gcash)
+  {field} reference : str  (unique)
+  reason : str
+  requested_by, requested_at
+  decided_by, decided_at
+  {field} decided_how : str  (password / code)
+  note : str
+}
+class AdjustmentLine {
+  quantity : int
+  amount : Money
+  {field} restock : bool  (shelf / waste)
 }
 class Product {
-  id : int
   name : str
   {field} sku : str  (unique, ignoring capitals)
-  price : float
+  price : Money
   quantity : int
   category : str
   image : str
   has_options : bool
 }
-class Sale {
-  id : int
-  created_at : datetime
-  user_id : int
-  total : float
-  cash_received : float
-  change_due : float
-  {field} payment_method : str  (cash / gcash)
-  {field} payment_reference : str  (unique)
-  {field} ticket : str  (unique: one receipt per basket)
-}
-class SaleItem {
-  id : int
-  sale_id : int
-  product_id : int
-  product_name : str
-  unit_price : float
-  quantity : int
-  options : str
-  --
-  subtotal() : float
-}
 class MenuOption {
-  id : int
   {field} kind : str  (size = serving / addon)
   name : str
-  price : float
+  price : Money
   active : bool
   sort_order : int
   scale : float
 }
 class Ingredient {
-  id : int
-  name : str
+  {field} name : str  (unique)
   {field} unit : str  (g / ml / pcs)
   quantity : float
   low_at : float
@@ -99,36 +128,69 @@ class Ingredient {
   full_at : float
 }
 class RecipeItem {
-  id : int
-  ingredient_id : int
-  product_id : int
-  option_id : int
   amount : float
 }
 class IngredientMovement {
-  id : int
-  ingredient_id : int
   change : float
-  {field} reason : str  (sale / restock / count)
-  sale_id : int
-  user_id : int
-  created_at : datetime
+  {field} reason : str  (sale / restock / count /\ncount-undo / void / refund / waste)
+  {field} created_at : datetime  (UTC)
 }
 class LoginSession {
-  id : int
-  {field} token : str  (unique, 64 random characters)
-  user_id : int
+  {field} token : str  (unique, random)
+  created_at, last_seen
+}
+class TrustedDevice {
+  {field} token_hash : str  (keyed hash)
+  label : str
+  expires_at : datetime
+}
+class BackupCode {
+  {field} code_hash : str  (keyed hash)
+  used_at : datetime
+}
+class Invitation {
+  email : str
+  role : str
+  {field} token_hash : str  (keyed hash)
+  {field} expires_at : datetime  (48 hours)
+  used_at, cancelled_at
+}
+class EmailCode {
+  {field} purpose : str  (login / signup / reset / void ...)
+  email : str
+  {field} code_hash : str  (keyed hash)
+  {field} attempts : int  (at most 5)
+  {field} expires_at : datetime  (10 minutes)
+  used_at : datetime
+}
+class AuditEntry {
   created_at : datetime
-  last_seen : datetime
-  --
-  ended after 8 idle hours
+  {field} action : str  (e.g. product.update)
+  target : str
+  {field} details : JSON  (old -> new)
+}
+class ShopProfile {
+  name, address, tin, footer
+}
+class LoginAttempt {
+  {field} key : str  (keyed hash)
+  created_at : datetime
 }
 User "1" -- "0..*" Sale
 Sale "1" *-- "1..*" SaleItem
+SaleItem "1" *-- "0..*" SaleItemUsage
+Sale "1" -- "0..*" SaleAdjustment
+SaleAdjustment "1" *-- "1..*" AdjustmentLine
+AdjustmentLine "0..*" -- "1" SaleItem
 Product "1" -- "0..*" SaleItem
 Ingredient "1" -- "0..*" RecipeItem
 Product "1" -- "0..*" RecipeItem
 MenuOption "1" -- "0..*" RecipeItem
 Ingredient "1" -- "0..*" IngredientMovement
 User "1" *-- "0..*" LoginSession
+User "1" *-- "0..*" TrustedDevice
+User "1" *-- "0..*" BackupCode
+User "1" -- "0..*" Invitation
+User "0..1" -- "0..*" EmailCode
+User "0..1" -- "0..*" AuditEntry
 @enduml

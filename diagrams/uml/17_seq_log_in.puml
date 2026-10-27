@@ -1,5 +1,5 @@
 @startuml
-' Sequence: log in - Inventory & POS System v0.20.4 (report, Lecture 5; redrawn 2026-10-12)
+' Sequence: log in with a code - Inventory & POS System v0.32.0 (report, Lecture 5-7; redrawn 2026-10-27)
 ' Edit: paste into draw.io (Arrange > Insert > Advanced > PlantUML) or planttext.com
 skinparam defaultFontName Arial
 skinparam shadowing false
@@ -41,26 +41,33 @@ hide circle
 
 actor User
 participant "Login page\n(browser)" as UI
-participant "login()\n(app.py)" as C
-participant "failed_logins\n(memory)" as L
-database "User table" as DB
+participant "login() / verify()\n(blueprints/accounts.py)" as C
+database "login_attempt" as L
+database "user, trusted_device,\nemail_code" as DB
+participant "Email server" as M
 User -> UI : types username and password
 UI -> C : POST /login (+ CSRF token)
-C -> C : check CSRF token
-C -> L : recent failures for (username, computer)?
-alt 5 or more in 5 minutes
+C -> L : wrong tries for (username, computer)\nin the last 5 minutes?
+alt 5 or more
   C --> UI : 429 "Too many failed attempts"
 else fewer than 5
   C -> DB : find user by username
-  DB --> C : user (or none)
-  C -> C : check_password_hash()
-  alt correct
-    C -> L : clear failures
-    C -> DB : INSERT login_session (random token,\nuser, last seen = now)
-    C --> UI : cookie holds only the token;\nredirect to Products
-  else wrong
-    C -> L : add a failure (time)
+  C -> C : check the password hash\n(a dummy hash if no such user)
+  alt wrong
+    C -> L : record a try (keyed hash)
     C --> UI : "Invalid username or password"
+  else right, browser trusted for this user
+    C -> DB : INSERT login_session (random token)
+    C --> UI : logged in
+  else right, not trusted
+    C -> DB : save a new code (keyed hash, 10 minutes)
+    C -> M : email the 6-digit code
+    C --> UI : the code page (/verify)
+    User -> UI : types the code (and "Trust this browser")
+    UI -> C : POST /verify
+    C -> DB : compare hashes in constant time;\nmark the code used
+    C -> DB : INSERT login_session;\ntrusted_device if ticked
+    C --> UI : logged in
   end
 end
 @enduml
